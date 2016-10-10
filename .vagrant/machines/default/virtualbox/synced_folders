@@ -1,0 +1,1 @@
+{"virtualbox":{"/home/vagrant/max-reps":{"type":null,"mount_options":[],"guestpath":"/home/vagrant/max-reps","hostpath":"/Users/maxeddy/code/max-reps","disabled":false,"__vagrantfile":true},"/vagrant":{"guestpath":"/vagrant","hostpath":"/Users/maxeddy/code/max-reps","disabled":false,"__vagrantfile":true}}}
