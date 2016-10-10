@@ -2,78 +2,40 @@
 
 namespace App\Providers;
 
-use Illuminate\Support\Facades\Route;
+use Illuminate\Routing\Router;
 use Illuminate\Foundation\Support\Providers\RouteServiceProvider as ServiceProvider;
+use App\Http\Controllers\HomeController;
+use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\Auth\RegisterController;
+use App\Http\Controllers\Auth\ForgotPasswordController;
+use App\Http\Controllers\Auth\ResetPasswordController;
 
 class RouteServiceProvider extends ServiceProvider
 {
-    /**
-     * This namespace is applied to your controller routes.
-     *
-     * In addition, it is set as the URL generator's root namespace.
-     *
-     * @var string
-     */
-    protected $namespace = 'App\Http\Controllers';
-
-    /**
-     * Define your route model bindings, pattern filters, etc.
-     *
-     * @return void
-     */
-    public function boot()
-    {
-        //
-
-        parent::boot();
-    }
-
-    /**
-     * Define the routes for the application.
-     *
-     * @return void
-     */
     public function map()
     {
-        $this->mapApiRoutes();
-
         $this->mapWebRoutes();
-
-        //
     }
 
-    /**
-     * Define the "web" routes for the application.
-     *
-     * These routes all receive session state, CSRF protection, etc.
-     *
-     * @return void
-     */
     protected function mapWebRoutes()
     {
-        Route::group([
-            'middleware' => 'web',
-            'namespace' => $this->namespace,
-        ], function ($router) {
-            require base_path('routes/web.php');
-        });
-    }
+        /** @var Router $router */
+        $router = $this->app->make('router');
+        $router->group(['middleware' => 'web'], function (Router $router) {
+            $router->get('/', HomeController::class . '@displayWelcome');
+            $router->get('/home', HomeController::class . '@displayHome');
 
-    /**
-     * Define the "api" routes for the application.
-     *
-     * These routes are typically stateless.
-     *
-     * @return void
-     */
-    protected function mapApiRoutes()
-    {
-        Route::group([
-            'middleware' => 'api',
-            'namespace' => $this->namespace,
-            'prefix' => 'api',
-        ], function ($router) {
-            require base_path('routes/api.php');
+            $router->get('login', LoginController::class . '@showLoginForm')->name('login');
+            $router->post('login', LoginController::class . '@login');
+            $router->post('logout', LoginController::class . '@logout');
+
+            $router->get('register', RegisterController::class . '@showRegistrationForm');
+            $router->post('register', RegisterController::class . '@register');
+
+            $router->get('password/reset', ForgotPasswordController::class . '@showLinkRequestForm');
+            $router->post('password/email', ForgotPasswordController::class . '@sendResetLinkEmail');
+            $router->get('password/reset/{token}', ResetPasswordController::class . '@showResetForm');
+            $router->post('password/reset', ResetPasswordController::class . '@reset');
         });
     }
 }
