@@ -3,63 +3,66 @@
 namespace App\Exceptions;
 
 use Exception;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Session\TokenMismatchException;
+use Illuminate\Validation\ValidationException;
+use Symfony\Component\Debug\Exception\FlattenException;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class Handler extends ExceptionHandler
 {
-    /**
-     * A list of the exception types that should not be reported.
-     *
-     * @var array
-     */
     protected $dontReport = [
-        \Illuminate\Auth\AuthenticationException::class,
-        \Illuminate\Auth\Access\AuthorizationException::class,
-        \Symfony\Component\HttpKernel\Exception\HttpException::class,
-        \Illuminate\Database\Eloquent\ModelNotFoundException::class,
-        \Illuminate\Session\TokenMismatchException::class,
-        \Illuminate\Validation\ValidationException::class,
+        AuthenticationException::class,
+        AuthorizationException::class,
+        HttpException::class,
+        ModelNotFoundException::class,
+        TokenMismatchException::class,
+        ValidationException::class,
     ];
 
-    /**
-     * Report or log an exception.
-     *
-     * This is a great spot to send exceptions to Sentry, Bugsnag, etc.
-     *
-     * @param  \Exception  $exception
-     * @return void
-     */
-    public function report(Exception $exception)
+    public function render($request, Exception $error)
     {
-        parent::report($exception);
-    }
+        $statusCode = 500;
+        $message = 'Server Error';
 
-    /**
-     * Render an exception into an HTTP response.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  \Exception  $exception
-     * @return \Illuminate\Http\Response
-     */
-    public function render($request, Exception $exception)
-    {
-        return parent::render($request, $exception);
-    }
-
-    /**
-     * Convert an authentication exception into an unauthenticated response.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  \Illuminate\Auth\AuthenticationException  $exception
-     * @return \Illuminate\Http\Response
-     */
-    protected function unauthenticated($request, AuthenticationException $exception)
-    {
-        if ($request->expectsJson()) {
-            return response()->json(['error' => 'Unauthenticated.'], 401);
+        if ($error instanceof ValidationException) {
+            return $this->renderValidationException($error);
         }
 
-        return redirect()->guest('login');
+        if ($error instanceof AuthorizationException) {
+            $statusCode = 403;
+        }
+
+        if ($error instanceof ModelNotFoundException) {
+            $error = new HttpException(404);
+        }
+
+        if ($this->shouldntReport($error)) {
+            $message = $error->getMessage();
+        }
+
+        $data = ['message' => $message];
+        $error = FlattenException::create($error, $statusCode);
+
+        if (env('APP_DEBUG')) {
+            $data = ['message' => $error->getMessage(), 'trace' => $error->getTrace()];
+        }
+
+        return new JsonResponse($data, $error->getStatusCode(), $error->getHeaders());
+    }
+
+    private function renderValidationException(ValidationException $error)
+    {
+        /** @var JsonResponse $response */
+        $response = $error->getResponse();
+
+        return $response->setData([
+            'message' => $error->getMessage(),
+            'fields' => $response->getData()
+        ]);
     }
 }

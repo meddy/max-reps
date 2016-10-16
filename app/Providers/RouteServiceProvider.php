@@ -6,6 +6,7 @@ use App\Http\Controllers\Auth\ForgotPasswordController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\Auth\ResetPasswordController;
+use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ExerciseController;
 use App\Http\Controllers\ExerciseTemplateController;
 use App\Http\Controllers\HomeController;
@@ -13,6 +14,7 @@ use App\Http\Controllers\SetController;
 use App\Http\Controllers\WorkoutController;
 use App\Http\Controllers\WorkoutTemplateController;
 use Illuminate\Foundation\Support\Providers\RouteServiceProvider as ServiceProvider;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Routing\Router;
 
 class RouteServiceProvider extends ServiceProvider
@@ -21,34 +23,23 @@ class RouteServiceProvider extends ServiceProvider
     {
         /** @var Router $router */
         $router = $this->app->make('router');
-        $router->group(['middleware' => 'web'], function (Router $router) {
-            $this->mapWebRoutes($router);
+
+        $router->group(['prefix' => 'auth'], function (Router $router) {
+            $this->mapAuthRoutes($router);
+        });
+
+        $router->group(['middleware' => 'auth'], function (Router $router) {
+            $this->mapResourceRoutes($router);
         });
     }
 
-    protected function mapWebRoutes(Router $router)
+    protected function mapAuthRoutes(Router $router)
     {
-        $router->get('/', HomeController::class . '@displayWelcome');
-        $router->get('/home', HomeController::class . '@displayHome');
-
-        $router->get('login', LoginController::class . '@showLoginForm')->name('login');
-        $router->post('login', LoginController::class . '@login');
-        $router->post('logout', LoginController::class . '@logout');
-
-        $router->get('register', RegisterController::class . '@showRegistrationForm');
-        $router->post('register', RegisterController::class . '@register');
-
-        $router->get('password/reset', ForgotPasswordController::class . '@showLinkRequestForm');
-        $router->post('password/email', ForgotPasswordController::class . '@sendResetLinkEmail');
-        $router->get('password/reset/{token}', ResetPasswordController::class . '@showResetForm');
-        $router->post('password/reset', ResetPasswordController::class . '@reset');
-
-        $router->group(['prefix' => 'api', 'middleware' => ['auth.basic.once', 'auth']], function (Router $router) {
-            $this->mapApiRoutes($router);
-        });
+        $router->post('/token', AuthController::class . '@createToken');
+        $router->post('/user', AuthController::class . '@createUser');
     }
 
-    private function mapApiRoutes(Router $router)
+    protected function mapResourceRoutes(Router $router)
     {
         $router->resource('workouts', WorkoutController::class, [
             'only' => ['index', 'store', 'show', 'update', 'destroy']
