@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers\Auth;
 
-use App\User;
-use Validator;
 use App\Http\Controllers\Controller;
+use App\User;
+use Illuminate\Contracts\Validation\Factory;
 use Illuminate\Foundation\Auth\RegistersUsers;
 
 class RegisterController extends Controller
@@ -13,14 +13,17 @@ class RegisterController extends Controller
 
     protected $redirectTo = '/home';
 
-    public function __construct()
+    private $validator;
+
+    public function __construct(Factory $validator)
     {
         $this->middleware('guest');
+        $this->validator = $validator;
     }
 
     protected function validator(array $data)
     {
-        return Validator::make($data, [
+        return $this->validator->make($data, [
             'name' => 'required|max:255',
             'email' => 'required|email|max:255|unique:users',
             'password' => 'required|min:6|confirmed',
