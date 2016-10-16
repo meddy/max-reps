@@ -43,7 +43,7 @@ class RouteServiceProvider extends ServiceProvider
         $router->get('password/reset/{token}', ResetPasswordController::class . '@showResetForm');
         $router->post('password/reset', ResetPasswordController::class . '@reset');
 
-        $router->group(['prefix' => 'api'], function (Router $router) {
+        $router->group(['prefix' => 'api', 'middleware' => ['auth.basic.once', 'auth']], function (Router $router) {
             $this->mapApiRoutes($router);
         });
     }

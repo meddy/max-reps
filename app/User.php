@@ -20,13 +20,8 @@ class User extends Authenticatable
         'remember_token',
     ];
 
-    public function workouts()
+    public function workoutTemplates()
     {
-        return $this->hasMany(Workout::class);
-    }
-
-    public function workoutsPaginated()
-    {
-        return $this->workouts()->getQuery()->paginate();
+        return $this->hasMany(WorkoutTemplate::class);
     }
 }
