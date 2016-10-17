@@ -6,6 +6,7 @@ use App\User;
 use Illuminate\Contracts\Hashing\Hasher;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tymon\JWTAuth\JWTAuth;
 
 class AuthController extends Controller
@@ -13,38 +14,64 @@ class AuthController extends Controller
     private $hasher;
     private $jwtAuth;
     private $request;
+    private $userAsService;
 
-    public function __construct(Hasher $hasher, JWTAuth $jwtAuth, Request $request)
-    {
+    public function __construct(
+        Hasher $hasher,
+        JWTAuth $jwtAuth,
+        Request $request,
+        User $userAsService
+    ) {
         $this->hasher = $hasher;
         $this->jwtAuth = $jwtAuth;
         $this->request = $request;
+        $this->userAsService = $userAsService;
     }
 
-    public function createUser()
+    public function createUser(): JsonResponse
     {
         $this->validate($this->request, [
-            'name' => 'required|max:255',
-            'email' => 'required|email|max:255|unique:users',
-            'password' => 'required|min:6'
+            'name' => ['required', 'max:255'],
+            'email' => ['required', 'email', 'max:255', 'unique:users'],
+            'password' => ['required', 'min:6']
         ]);
 
         $data = $this->request->only(['name', 'email', 'password']);
         $data['password'] = $this->hasher->make($data['password']);
 
-        $user = User::create($data);
+        $user = $this->userAsService
+            ->replicate()
+            ->fill($data)
+            ->save();
         $token = $this->jwtAuth->fromUser($user);
 
+        return $this->responseWithUser($user, $token);
+    }
+
+    public function createToken(): JsonResponse
+    {
+        $credentials = $this->request->only('email', 'password');
+
+        $token = $this->jwtAuth->attempt($credentials);
+        if (!$token) {
+            throw new HttpException(401);
+        }
+
+        $user = $this->userAsService
+            ->newQuery()
+            ->where('email', $credentials['email'])
+            ->first();
+
+        return $this->responseWithUser($user, $token);
+    }
+
+    private function responseWithUser(User $user, string $token): JsonResponse
+    {
         return new JsonResponse([
             'data' => $user,
             'meta' => [
                 'token' => $token
             ]
         ]);
-    }
-
-    public function createToken()
-    {
-
     }
 }
