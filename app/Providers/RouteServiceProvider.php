@@ -28,7 +28,7 @@ class RouteServiceProvider extends ServiceProvider
             $this->mapAuthRoutes($router);
         });
 
-        $router->group(['middleware' => 'auth'], function (Router $router) {
+        $router->group(['middleware' => 'jwt.auth'], function (Router $router) {
             $this->mapResourceRoutes($router);
         });
     }

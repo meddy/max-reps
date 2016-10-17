@@ -42,7 +42,6 @@ class Kernel extends HttpKernel
     protected $routeMiddleware = [
         'auth' => Authenticate::class,
         'auth.basic' => AuthenticateWithBasicAuth::class,
-        'auth.basic.once' => AuthenticateOnceWithBasicAuth::class,
         'bindings' => SubstituteBindings::class,
         'can' => Authorize::class,
         'guest' => RedirectIfAuthenticated::class,

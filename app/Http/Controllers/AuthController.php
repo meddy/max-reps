@@ -45,7 +45,7 @@ class AuthController extends Controller
             ->save();
         $token = $this->jwtAuth->fromUser($user);
 
-        return $this->responseWithUser($user, $token);
+        return $this->respondWithUser($user, $token);
     }
 
     public function createToken(): JsonResponse
@@ -57,15 +57,16 @@ class AuthController extends Controller
             throw new HttpException(401);
         }
 
+        /** @var User $user */
         $user = $this->userAsService
             ->newQuery()
             ->where('email', $credentials['email'])
             ->first();
 
-        return $this->responseWithUser($user, $token);
+        return $this->respondWithUser($user, $token);
     }
 
-    private function responseWithUser(User $user, string $token): JsonResponse
+    private function respondWithUser(User $user, string $token): JsonResponse
     {
         return new JsonResponse([
             'data' => $user,
