@@ -1,7 +1,7 @@
 import { FormEventHandler, useState } from "react";
 import clsx from "clsx";
 import supabase from "./supabaseClient";
-import classes from "./SignIn.module.css";
+import * as styles from "./SignIn.css";
 
 export default function SignIn() {
   const [email, setEmail] = useState("");
@@ -13,7 +13,6 @@ export default function SignIn() {
     event.preventDefault();
 
     setState("loading");
-
     const { error } = await supabase.auth.signInWithOtp({ email });
     if (error) {
       console.error(error);
@@ -30,7 +29,7 @@ export default function SignIn() {
     },
     loading: {
       message: "Sending magic link...",
-      className: classes.loading,
+      className: styles.loading,
     },
     sent: {
       message: "Check your email for a link to sign in.",
@@ -38,19 +37,20 @@ export default function SignIn() {
     },
     error: {
       message: "Something went wrong. Try again later.",
-      className: classes.error,
+      className: styles.error,
     },
   } as const;
 
   const { message, className } = stateMap[state];
   return (
-    <div className={classes.container}>
-      <div className={clsx(classes.message, className)}>{message}</div>
+    <div className={styles.container}>
+      <div className={clsx(styles.message, className)}>{message}</div>
       {state !== "sent" && (
         <form onSubmit={handleLogin}>
           <input
             type="email"
             placeholder="Email"
+            className={styles.email}
             required
             disabled={state === "loading"}
             value={email}

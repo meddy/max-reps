@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import type { Session } from "@supabase/supabase-js";
 import supabase from "./supabaseClient";
+import WorkoutLog from "./WorkoutLog";
 import SignIn from "./SignIn";
 import SignOut from "./SignOut";
 
@@ -17,5 +18,16 @@ export default function App() {
     });
   }, []);
 
-  return <div>{session ? <SignOut /> : <SignIn />}</div>;
+  return (
+    <div>
+      {session ? (
+        <>
+          <SignOut />
+          <WorkoutLog />
+        </>
+      ) : (
+        <SignIn />
+      )}
+    </div>
+  );
 }
