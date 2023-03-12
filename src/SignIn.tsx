@@ -1,54 +1,69 @@
-import { FormEventHandler } from "react";
-import { useState } from "react";
+import { FormEventHandler, useState } from "react";
+import clsx from "clsx";
 import supabase from "./supabaseClient";
+import classes from "./SignIn.module.css";
 
 export default function SignIn() {
   const [email, setEmail] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [linkSent, setLinkSent] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
+  const [state, setState] = useState<"start" | "loading" | "sent" | "error">(
+    "start"
+  );
 
   const handleLogin: FormEventHandler<HTMLFormElement> = async (event) => {
     event.preventDefault();
 
-    try {
-      setErrorMessage("");
-      setLoading(true);
+    setState("loading");
 
-      const { error } = await supabase.auth.signInWithOtp({ email });
-      if (error) {
-        throw error;
-      }
-
-      setLinkSent(true);
-    } catch (error) {
+    const { error } = await supabase.auth.signInWithOtp({ email });
+    if (error) {
       console.error(error);
-
-      setErrorMessage(
-        error instanceof Error ? error.message : "Something went wrong."
-      );
-    } finally {
-      setLoading(false);
+      setState("error");
+    } else {
+      setState("sent");
     }
   };
 
+  const stateMap = {
+    start: {
+      message: "Sign in with a magic link.",
+      className: null,
+    },
+    loading: {
+      message: "Sending magic link...",
+      className: classes.loading,
+    },
+    sent: {
+      message: "Check your email for a link to sign in.",
+      className: null,
+    },
+    error: {
+      message: "Something went wrong. Try again later.",
+      className: classes.error,
+    },
+  } as const;
+
+  const { message, className } = stateMap[state];
   return (
-    <div>
-      <h2>Sign in via magic link</h2>
-      {loading && <p>Sending magic link...</p>}
-      {linkSent && <p>Check your email for a link to sign in.</p>}
-      {errorMessage && <p>{errorMessage}</p>}
-      {!(loading || linkSent) && (
+    <div className={classes.container}>
+      <div className={clsx(classes.message, className)}>{message}</div>
+      {state !== "sent" && (
         <form onSubmit={handleLogin}>
-          <label htmlFor="email">Email</label>
           <input
-            id="email"
             type="email"
-            placeholder="Your email"
+            placeholder="Email"
+            required
+            disabled={state === "loading"}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            onFocus={(e) => {
+              e.preventDefault();
+
+              if (state !== "start") {
+                setState("start");
+              }
+            }}
           />
-          <button>Send magic link</button>
+          <input type="submit" disabled={state === "loading"} value="Send" />
         </form>
       )}
     </div>

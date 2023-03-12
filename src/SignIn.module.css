@@ -1,0 +1,35 @@
+.container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  flex-direction: column;
+}
+
+.container [type="email"] {
+  margin-right: 0.5rem;
+}
+
+@keyframes loading-flicker {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.75;
+  }
+  100% {
+    opacity: 0.5;
+  }
+}
+
+.loading {
+  animation: loading-flicker 0.5s infinite;
+}
+
+.error {
+  color: red;
+}
+
+.message {
+  margin-bottom: 1rem;
+}
