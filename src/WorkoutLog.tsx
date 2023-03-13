@@ -1,26 +1,17 @@
-export default function WorkoutLog() {
-  /**
-   * exercises
-   * id
-   * name
-   *
-   * sets
-   * id
-   * exercise_id
-   * workout_id
-   * sets
-   * reps
-   *
-   * workouts
-   * id
-   * date
-   */
+import { Exercise } from "./types";
 
-  /**
-     * Ring Dips - 14,13,11
-        Ring Push Ups - 13,13,13
-        Tricep Push Downs - 12,11,10
-     */
+export interface WorkoutLogProps {
+  exercises: Exercise[];
+}
+
+export default function WorkoutLog(props: WorkoutLogProps) {
+  const { exercises } = props;
+
+  if (!exercises.length) {
+    return null;
+  }
+
+  console.log(exercises);
   return (
     <div>
       <div>2023-01-01</div>
@@ -36,8 +27,10 @@ export default function WorkoutLog() {
       </div>
       <div>
         <div>Deadlift</div>
-        <div>315</div>
-        <div>3,3,3</div>
+        <div>
+          <div>315</div>
+          <div>3,3,3</div>
+        </div>
       </div>
     </div>
   );

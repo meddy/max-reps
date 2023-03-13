@@ -1,6 +1,6 @@
 import { FormEventHandler, useState } from "react";
 import clsx from "clsx";
-import supabase from "./supabaseClient";
+import supabase from "./supabase/client";
 import * as styles from "./SignIn.css";
 
 export default function SignIn() {
