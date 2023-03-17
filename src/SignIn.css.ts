@@ -24,10 +24,6 @@ export const loading = style({
   animationIterationCount: "infinite",
 });
 
-export const error = style({
-  color: "red",
-});
-
 export const message = style({
   marginBottom: "1rem",
 });

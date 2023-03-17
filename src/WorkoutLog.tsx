@@ -1,11 +1,24 @@
-import { Exercise } from "./types";
+import { useEffect } from "react";
+import { Exercise, HandleResultFunc } from "./types";
+import supabase from "./supabase/client";
 
 export interface WorkoutLogProps {
   exercises: Exercise[];
+  handleResult: HandleResultFunc;
 }
 
 export default function WorkoutLog(props: WorkoutLogProps) {
-  const { exercises } = props;
+  const { exercises, handleResult } = props;
+
+  useEffect(() => {
+    (async () => {
+      // TODO
+      const { data, error } = await supabase
+        .from("workouts")
+        .select()
+        .limit(10);
+    })();
+  }, [exercises]);
 
   if (!exercises.length) {
     return null;

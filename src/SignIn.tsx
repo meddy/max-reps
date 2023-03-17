@@ -1,24 +1,30 @@
 import { FormEventHandler, useState } from "react";
 import clsx from "clsx";
 import supabase from "./supabase/client";
+import { HandleResultFunc } from "./types";
 import * as styles from "./SignIn.css";
 
-export default function SignIn() {
+export interface SignInProps {
+  handleResult: HandleResultFunc;
+}
+
+export default function SignIn(props: SignInProps) {
+  const { handleResult } = props;
   const [email, setEmail] = useState("");
-  const [state, setState] = useState<"start" | "loading" | "sent" | "error">(
-    "start"
-  );
+  const [state, setState] = useState<"start" | "loading" | "sent">("start");
 
   const handleLogin: FormEventHandler<HTMLFormElement> = async (event) => {
     event.preventDefault();
 
     setState("loading");
-    const { error } = await supabase.auth.signInWithOtp({ email });
-    if (error) {
-      console.error(error);
-      setState("error");
-    } else {
+    const result = handleResult(
+      await supabase.auth.signInWithOtp({ email }),
+      null
+    );
+    if (result) {
       setState("sent");
+    } else {
+      setState("start");
     }
   };
 
@@ -34,10 +40,6 @@ export default function SignIn() {
     sent: {
       message: "Check your email for a link to sign in.",
       className: null,
-    },
-    error: {
-      message: "Something went wrong. Try again later.",
-      className: styles.error,
     },
   } as const;
 
