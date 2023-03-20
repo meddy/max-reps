@@ -15,13 +15,14 @@ export default function App() {
   const [exerciseMap, setExerciseMap] = useState<Map<number, ExerciseRow>>();
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
+    (async () => {
+      const { data } = await supabase.auth.getSession();
+      setSession(data.session);
 
       supabase.auth.onAuthStateChange((_event, session) => {
         setSession(session);
       });
-    });
+    })();
   }, []);
 
   useEffect(() => {

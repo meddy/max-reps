@@ -3,9 +3,7 @@ import supabase from "./client";
 
 export async function fetchExercises() {
   const { data, error } = await supabase.from("exercises").select();
-  if (error) {
-    throw error;
-  }
+  if (error) throw error;
 
   const exercises = new Map<number, ExerciseRow>();
   data.forEach((exerciseRow) => {
