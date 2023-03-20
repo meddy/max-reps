@@ -1,4 +1,4 @@
-import { style, keyframes } from "@vanilla-extract/css";
+import { keyframes, style } from "@vanilla-extract/css";
 
 export const container = style({
   display: "flex",
@@ -22,6 +22,10 @@ export const loading = style({
   animationName: loadingFlicker,
   animationDuration: "0.5s",
   animationIterationCount: "infinite",
+});
+
+export const error = style({
+  color: "red",
 });
 
 export const message = style({

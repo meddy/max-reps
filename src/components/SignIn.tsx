@@ -1,32 +1,30 @@
-import { FormEventHandler, useState } from "react";
 import clsx from "clsx";
-import supabase from "./supabase/client";
-import { HandleResultFunc } from "./types";
+import { FormEvent, useCallback, useState } from "react";
+
+import supabase from "../supabase/client";
 import * as styles from "./SignIn.css";
 
-export interface SignInProps {
-  handleResult: HandleResultFunc;
-}
-
-export default function SignIn(props: SignInProps) {
-  const { handleResult } = props;
+export default function SignIn() {
   const [email, setEmail] = useState("");
-  const [state, setState] = useState<"start" | "loading" | "sent">("start");
+  const [state, setState] = useState<"start" | "loading" | "sent" | "error">(
+    "start"
+  );
 
-  const handleLogin: FormEventHandler<HTMLFormElement> = async (event) => {
-    event.preventDefault();
+  const handleLogin = useCallback(
+    async (event: FormEvent) => {
+      event.preventDefault();
 
-    setState("loading");
-    const result = handleResult(
-      await supabase.auth.signInWithOtp({ email }),
-      null
-    );
-    if (result) {
-      setState("sent");
-    } else {
-      setState("start");
-    }
-  };
+      setState("loading");
+      const { error } = await supabase.auth.signInWithOtp({ email });
+      if (error) {
+        console.error(error);
+        setState("error");
+      } else {
+        setState("sent");
+      }
+    },
+    [email]
+  );
 
   const stateMap = {
     start: {
@@ -40,6 +38,10 @@ export default function SignIn(props: SignInProps) {
     sent: {
       message: "Check your email for a link to sign in.",
       className: null,
+    },
+    error: {
+      message: "Something went wrong. Try again later.",
+      className: styles.error,
     },
   } as const;
 
