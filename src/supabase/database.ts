@@ -1,4 +1,4 @@
-import { ExerciseRow, WorkoutMap, WorkoutRow } from "../types";
+import { ExerciseRow, SetRow, Workout } from "../types";
 import supabase from "./client";
 
 export async function fetchExercises() {
@@ -14,30 +14,45 @@ export async function fetchExercises() {
 }
 
 export async function fetchWorkouts(offset = 0) {
-  const { data, error } = await supabase
+  const { data: workouts, error: workoutsError } = await supabase
     .from("workouts")
     .select()
     .order("id")
     .range(offset, 10);
 
-  if (error) throw error;
+  if (workoutsError) throw workoutsError;
 
-  const workouts = new Map<number, WorkoutRow>();
-  data.forEach((exerciseRow) => {
-    workouts.set(exerciseRow.id, exerciseRow);
-  });
-
-  return workouts;
-}
-
-export async function fetchSets(workoutMap: WorkoutMap) {
-  const { data, error } = await supabase
+  const { data: sets, error: setsError } = await supabase
     .from("sets")
     .select()
-    .in("workout_id", Array.from(workoutMap.keys()))
+    .in(
+      "workout_id",
+      workouts.map(({ id }) => id)
+    )
     .order("id");
 
-  if (error) throw error;
+  if (setsError) throw setsError;
 
-  return data;
+  const workoutMap = new Map<number, Workout>();
+  for (const workout of workouts) {
+    workoutMap.set(workout.id, {
+      ...workout,
+      exerciseMap: new Map<number, SetRow[]>(),
+    });
+  }
+
+  for (const set of sets) {
+    const workout = workoutMap.get(set.workout_id);
+    if (!workout) {
+      continue;
+    }
+
+    const { exerciseMap } = workout;
+    exerciseMap.set(
+      set.exercise_id,
+      (exerciseMap.get(set.exercise_id) ?? []).concat(set)
+    );
+  }
+
+  return workoutMap;
 }
