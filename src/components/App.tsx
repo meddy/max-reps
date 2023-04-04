@@ -1,55 +1,78 @@
-import type { Session } from "@supabase/supabase-js";
-import { useEffect, useState } from "react";
-import { ErrorBoundary } from "react-error-boundary";
+import { useIsFetching, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
 
+import {
+  fetchExerciseMap,
+  fetchSetsByWorkouts,
+  fetchWorkouts,
+  getSession,
+} from "../supabase/api";
 import supabase from "../supabase/client";
-import { fetchExercises } from "../supabase/database";
-import { ExerciseRow } from "../types";
-import * as styles from "./App.css";
+import Message from "./Message";
 import SignIn from "./SignIn";
 import SignOut from "./SignOut";
 import WorkoutLog from "./WorkoutLog";
 
 export default function App() {
-  const [session, setSession] = useState<Session | null>(null);
-  const [exerciseMap, setExerciseMap] = useState<Map<number, ExerciseRow>>();
+  const queryClient = useQueryClient();
+  const isFetching = useIsFetching();
 
   useEffect(() => {
-    (async () => {
-      const { data } = await supabase.auth.getSession();
-      setSession(data.session);
-
-      supabase.auth.onAuthStateChange((_event, session) => {
-        setSession(session);
-      });
-    })();
+    supabase.auth.onAuthStateChange(() => {
+      queryClient.refetchQueries();
+    });
   }, []);
 
-  useEffect(() => {
-    if (session) {
-      fetchExercises().then((exerciseMap) => setExerciseMap(exerciseMap));
-    }
-  }, [session]);
+  const sessionResult = useQuery({
+    queryKey: ["session"],
+    queryFn: getSession,
+    useErrorBoundary: true,
+  });
+
+  const hasSession = !!sessionResult?.data?.session;
+
+  const exercisesResult = useQuery({
+    queryKey: ["exerciseMap"],
+    queryFn: fetchExerciseMap,
+    enabled: hasSession,
+    useErrorBoundary: true,
+  });
+
+  const workoutsResult = useQuery({
+    queryKey: ["workouts"],
+    queryFn: fetchWorkouts,
+    enabled: hasSession,
+    useErrorBoundary: true,
+  });
+
+  const setsResult = useQuery({
+    queryKey: ["setMap"],
+    queryFn: fetchSetsByWorkouts,
+    enabled: hasSession,
+    useErrorBoundary: true,
+  });
+
+  if (sessionResult.isLoading) {
+    return <Message isLoading />;
+  }
 
   return (
-    <ErrorBoundary
-      fallbackRender={({ resetErrorBoundary }) => (
-        <>
-          <div className={styles.error}>Something went wrong.</div>
-          <button onClick={resetErrorBoundary}>Refresh</button>
-          {session ? <SignOut /> : <SignIn />}
-        </>
-      )}
-      onError={(error) => console.error(error)}
-    >
-      {session ? (
+    <>
+      {hasSession ? (
         <>
           <SignOut />
-          <WorkoutLog exerciseMap={exerciseMap} />
+          {isFetching && <Message isLoading />}
+          {exercisesResult.data && workoutsResult.data && setsResult.data && (
+            <WorkoutLog
+              exerciseMap={exercisesResult.data}
+              workouts={workoutsResult.data}
+              setMap={setsResult.data}
+            />
+          )}
         </>
       ) : (
         <SignIn />
       )}
-    </ErrorBoundary>
+    </>
   );
 }
