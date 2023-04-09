@@ -1,75 +1,93 @@
-import clsx from "clsx";
-import { FormEvent, useCallback, useState } from "react";
+import { useMutation } from "@tanstack/react-query";
+import { useState } from "react";
 
-import supabase from "../supabase/client";
+import { sendToken, verifyToken } from "../supabase/api";
+import Message from "./Message";
 import * as styles from "./SignIn.css";
 
 export default function SignIn() {
   const [email, setEmail] = useState("");
-  const [state, setState] = useState<"start" | "loading" | "sent" | "error">(
-    "start"
-  );
+  const [token, setToken] = useState("");
 
-  // useQuery
+  const sendTokenMutation = useMutation({
+    mutationFn: () => sendToken(email),
+    useErrorBoundary: true,
+  });
 
-  const handleLogin = useCallback(
-    async (event: FormEvent) => {
-      event.preventDefault();
+  const verifyTokenMutation = useMutation({
+    mutationFn: () => verifyToken(email, token),
+  });
 
-      setState("loading");
-      const { error } = await supabase.auth.signInWithOtp({ email });
-      if (error) {
-        console.error(error);
-        setState("error");
-      } else {
-        setState("sent");
-      }
-    },
-    [email]
-  );
-
-  const stateMap = {
-    start: {
-      message: "Sign in with a magic link.",
-      className: null,
-    },
-    loading: {
-      message: "Sending magic link...",
-      className: styles.loading,
-    },
-    sent: {
-      message: "Check your email for a link to sign in.",
-      className: null,
-    },
-    error: {
-      message: "Something went wrong. Try again later.",
-      className: styles.error,
-    },
-  } as const;
-
-  const { message, className } = stateMap[state];
   return (
     <div className={styles.container}>
-      <div className={clsx(styles.message, className)}>{message}</div>
-      {state !== "sent" && (
-        <form onSubmit={handleLogin}>
+      <Message
+        isError={sendTokenMutation.isError || verifyTokenMutation.isError}
+        isLoading={sendTokenMutation.isLoading || verifyTokenMutation.isLoading}
+        text={
+          verifyTokenMutation.isLoading
+            ? "Verifying..."
+            : verifyTokenMutation.isError
+            ? "Invalid token."
+            : sendTokenMutation.isIdle
+            ? "Sign in with a OTP."
+            : sendTokenMutation.isLoading
+            ? "Sending email.."
+            : sendTokenMutation.isSuccess
+            ? "Check your email for a OTP."
+            : ""
+        }
+      />
+      {sendTokenMutation.isIdle && (
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            sendTokenMutation.mutate();
+          }}
+        >
           <input
             type="email"
             placeholder="Email"
-            className={styles.email}
+            className={styles.input}
             required
-            disabled={state === "loading"}
+            disabled={sendTokenMutation.isLoading}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+          />
+          <input
+            type="submit"
+            disabled={sendTokenMutation.isLoading}
+            value="Send"
+          />
+        </form>
+      )}
+      {sendTokenMutation.isSuccess && (
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            verifyTokenMutation.mutate();
+          }}
+        >
+          <input
+            type="text"
+            placeholder="Token"
+            className={styles.input}
+            required
+            disabled={verifyTokenMutation.isLoading}
+            value={token}
+            onChange={(e) => setToken(e.target.value)}
             onFocus={(e) => {
               e.preventDefault();
 
-              if (state !== "start") {
-                setState("start");
+              if (verifyTokenMutation.isError) {
+                verifyTokenMutation.reset();
               }
             }}
           />
-          <input type="submit" disabled={state === "loading"} value="Send" />
+          <input
+            type="submit"
+            disabled={verifyTokenMutation.isLoading}
+            value="Submit"
+          />
         </form>
       )}
     </div>

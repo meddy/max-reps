@@ -23,36 +23,36 @@ export default function App() {
     });
   }, []);
 
-  const sessionResult = useQuery({
+  const sessionQuery = useQuery({
     queryKey: ["session"],
     queryFn: getSession,
     useErrorBoundary: true,
   });
 
-  const hasSession = !!sessionResult?.data?.session;
+  const hasSession = !!sessionQuery?.data?.session;
 
-  const exercisesResult = useQuery({
+  const exercisesQuery = useQuery({
     queryKey: ["exerciseMap"],
     queryFn: fetchExerciseMap,
     enabled: hasSession,
     useErrorBoundary: true,
   });
 
-  const workoutsResult = useQuery({
+  const workoutsQuery = useQuery({
     queryKey: ["workouts"],
     queryFn: fetchWorkouts,
     enabled: hasSession,
     useErrorBoundary: true,
   });
 
-  const setsResult = useQuery({
+  const setsQuery = useQuery({
     queryKey: ["setMap"],
     queryFn: fetchSetsByWorkouts,
     enabled: hasSession,
     useErrorBoundary: true,
   });
 
-  if (sessionResult.isLoading) {
+  if (sessionQuery.isLoading) {
     return <Message isLoading />;
   }
 
@@ -62,11 +62,11 @@ export default function App() {
         <>
           <SignOut />
           {isFetching && <Message isLoading />}
-          {exercisesResult.data && workoutsResult.data && setsResult.data && (
+          {exercisesQuery.data && workoutsQuery.data && setsQuery.data && (
             <WorkoutLog
-              exerciseMap={exercisesResult.data}
-              workouts={workoutsResult.data}
-              setMap={setsResult.data}
+              exerciseMap={exercisesQuery.data}
+              workouts={workoutsQuery.data}
+              setMap={setsQuery.data}
             />
           )}
         </>

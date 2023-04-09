@@ -1,6 +1,20 @@
 import { ExerciseMap, SetMap } from "../types";
 import supabase from "./client";
 
+export async function sendToken(email: string) {
+  const { error } = await supabase.auth.signInWithOtp({ email });
+  if (error) throw error;
+}
+
+export async function verifyToken(email: string, token: string) {
+  const { error } = await supabase.auth.verifyOtp({
+    email,
+    token,
+    type: "magiclink",
+  });
+  if (error) throw error;
+}
+
 export async function getSession() {
   const { data, error } = await supabase.auth.getSession();
   if (error) throw error;

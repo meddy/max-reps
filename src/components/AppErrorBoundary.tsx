@@ -32,7 +32,7 @@ export default function AppErrorBoundary(props: ErrorBoundaryProps) {
           <>
             <Message isError />
             <button onClick={resetErrorBoundary}>Refresh</button>
-            {hasSession ? <SignOut /> : <SignIn />}
+            {hasSession && <SignOut />}
           </>
         );
       }}
