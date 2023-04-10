@@ -8,6 +8,7 @@ import {
   getSession,
 } from "../supabase/api";
 import supabase from "../supabase/client";
+import generateMockData from "../supabase/generateMockData";
 import Message from "./Message";
 import SignIn from "./SignIn";
 import SignOut from "./SignOut";
@@ -30,6 +31,16 @@ export default function App() {
   });
 
   const hasSession = !!sessionQuery?.data?.session;
+  useEffect(() => {
+    const userId = sessionQuery.data?.session?.user.id;
+    if (import.meta.env.DEV && userId) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (window as any).generateMockData = async () => {
+        await generateMockData(userId);
+        window.location.reload();
+      };
+    }
+  }, [hasSession]);
 
   const exercisesQuery = useQuery({
     queryKey: ["exerciseMap"],
