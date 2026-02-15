@@ -17,6 +17,16 @@ A mobile-first workout tracking single-page app built with React, TypeScript, Vi
 - Page components in `src/pages/`, shared components in `src/components/`, hooks in `src/hooks/`, context providers in `src/contexts/`.
 - Environment variables prefixed with `VITE_` (Vite convention) and stored in `.env` (gitignored). A `.env.example` template is committed.
 
+## Working With React
+
+Reference docs/REACT_BEST_PRACTICES.md when:
+
+- Writing new React components
+- Implementing data fetching
+- Reviewing code for performance issues
+- Refactoring existing React code
+- Optimizing bundle size or load times
+
 ## Quality Gates
 
 Before submitting any changes, ensure:

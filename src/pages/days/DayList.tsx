@@ -17,10 +17,24 @@ import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { LoadingSpinner } from "../../components/LoadingSpinner";
 
 const PAGE_SIZE = 100;
+const SORT_STORAGE_KEY = "max-reps-day-sort";
+
+function getStoredSortOrder(): "asc" | "desc" {
+  try {
+    const stored = localStorage.getItem(SORT_STORAGE_KEY);
+    if (stored === "asc" || stored === "desc") return stored;
+  } catch {
+    /* ignore */
+  }
+  return "asc";
+}
 
 export function DayList() {
   const [days, setDays] = useState<Array<Day & { id: string }>>([]);
   const [loading, setLoading] = useState(true);
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">(() =>
+    getStoredSortOrder()
+  );
   const [createOpen, setCreateOpen] = useState(false);
   const [createName, setCreateName] = useState("");
   const [createError, setCreateError] = useState("");
@@ -31,7 +45,7 @@ export function DayList() {
   const fetchDays = useCallback(async () => {
     setLoading(true);
     const ref = getCollectionRef("days");
-    const q = query(ref, orderBy("nameLower"), limit(PAGE_SIZE));
+    const q = query(ref, orderBy("nameLower", sortOrder), limit(PAGE_SIZE));
     const snapshot = await getDocs(q);
     const list = snapshot.docs.map((d) => ({
       id: d.id,
@@ -39,7 +53,7 @@ export function DayList() {
     })) as Array<Day & { id: string }>;
     setDays(list);
     setLoading(false);
-  }, []);
+  }, [sortOrder]);
 
   useEffect(() => {
     void fetchDays();
@@ -76,8 +90,11 @@ export function DayList() {
           updatedAt: unknown;
         },
       ];
-      next.sort((a, b) => a.nameLower.localeCompare(b.nameLower));
-      return next;
+      return [...next].sort((a, b) =>
+        sortOrder === "asc"
+          ? a.nameLower.localeCompare(b.nameLower)
+          : b.nameLower.localeCompare(a.nameLower)
+      );
     });
   };
 
@@ -100,9 +117,46 @@ export function DayList() {
     void fetchDays();
   };
 
+  const handleSortChange = (order: "asc" | "desc") => {
+    setSortOrder(order);
+    try {
+      localStorage.setItem(SORT_STORAGE_KEY, order);
+    } catch {
+      /* ignore */
+    }
+  };
+
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex justify-end">
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        <div
+          className="flex rounded-xl border border-gray-300 bg-white p-0.5"
+          role="group"
+          aria-label="Sort days"
+        >
+          <button
+            type="button"
+            onClick={() => handleSortChange("asc")}
+            className={`min-h-[40px] rounded-lg px-3 text-sm font-medium transition-colors ${
+              sortOrder === "asc"
+                ? "bg-indigo-600 text-white"
+                : "text-gray-600 hover:bg-gray-100"
+            }`}
+          >
+            A → Z
+          </button>
+          <button
+            type="button"
+            onClick={() => handleSortChange("desc")}
+            className={`min-h-[40px] rounded-lg px-3 text-sm font-medium transition-colors ${
+              sortOrder === "desc"
+                ? "bg-indigo-600 text-white"
+                : "text-gray-600 hover:bg-gray-100"
+            }`}
+          >
+            Z → A
+          </button>
+        </div>
         <button
           type="button"
           onClick={() => {

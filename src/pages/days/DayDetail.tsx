@@ -105,6 +105,7 @@ export function DayDetail() {
       setExerciseResults([]);
       return;
     }
+    let ignore = false;
     const term = exerciseSearch.trim().toLowerCase();
     const ref = getCollectionRef("exercises");
     const q = query(
@@ -115,20 +116,22 @@ export function DayDetail() {
       limit(20)
     );
     getDocs(q).then((snap) => {
+      if (ignore) return;
       const list = snap.docs.map((d) => ({
         id: d.id,
         ...d.data(),
       })) as Array<Exercise & { id: string }>;
       setExerciseResults(list);
     });
+    return () => {
+      ignore = true;
+    };
   }, [addOpen, exerciseSearch]);
 
   const handleAddTemplate = async () => {
     if (!id || !selectedExerciseId) return;
     const maxOrder =
-      templates.length > 0
-        ? Math.max(...templates.map((t) => t.order))
-        : -1;
+      templates.length > 0 ? Math.max(...templates.map((t) => t.order)) : -1;
     await createDoc("exerciseSetTemplates", {
       dayId: id,
       exerciseId: selectedExerciseId,
@@ -396,9 +399,7 @@ export function DayDetail() {
                     type="number"
                     min={1}
                     value={newNumSets}
-                    onChange={(e) =>
-                      setNewNumSets(Number(e.target.value) || 1)
-                    }
+                    onChange={(e) => setNewNumSets(Number(e.target.value) || 1)}
                     className="ml-2 w-16 rounded border border-gray-300 px-2 py-1"
                   />
                 </label>

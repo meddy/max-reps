@@ -1,24 +1,29 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { getDocRef, getCollectionRef, getDoc, getDocs, query, where, orderBy, limit } from "../../lib/firestore";
+import {
+  getDocRef,
+  getCollectionRef,
+  getDoc,
+  getDocs,
+  query,
+  where,
+  orderBy,
+  limit,
+} from "../../lib/firestore";
 import type { Exercise, WorkoutSet } from "../../types";
 import { LoadingSpinner } from "../../components/LoadingSpinner";
-import type { Timestamp } from "firebase/firestore";
-
-function formatDate(ts: Timestamp): string {
-  return ts.toDate().toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-}
+import { formatDate } from "../../lib/format";
 
 export function ExerciseDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [exercise, setExercise] = useState<(Exercise & { id: string }) | null>(null);
+  const [exercise, setExercise] = useState<(Exercise & { id: string }) | null>(
+    null
+  );
   const [sets, setSets] = useState<Array<WorkoutSet & { id: string }>>([]);
-  const [prSet, setPrSet] = useState<(WorkoutSet & { id: string }) | null>(null);
+  const [prSet, setPrSet] = useState<(WorkoutSet & { id: string }) | null>(
+    null
+  );
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
@@ -29,7 +34,9 @@ export function ExerciseDetail() {
       setLoading(false);
       return;
     }
-    setExercise({ id: docSnap.id, ...docSnap.data() } as Exercise & { id: string });
+    setExercise({ id: docSnap.id, ...docSnap.data() } as Exercise & {
+      id: string;
+    });
 
     const setsRef = query(
       getCollectionRef("sets"),
@@ -37,20 +44,21 @@ export function ExerciseDetail() {
       orderBy("performedAt", "desc"),
       limit(100)
     );
-    const setsSnap = await getDocs(setsRef);
-    const setsList = setsSnap.docs.map((d) => ({
-      id: d.id,
-      ...d.data(),
-    })) as Array<WorkoutSet & { id: string }>;
-    setSets(setsList);
-
     const prRef = query(
       getCollectionRef("sets"),
       where("exerciseId", "==", id),
       orderBy("weight", "desc"),
       limit(1)
     );
-    const prSnap = await getDocs(prRef);
+    const [setsSnap, prSnap] = await Promise.all([
+      getDocs(setsRef),
+      getDocs(prRef),
+    ]);
+    const setsList = setsSnap.docs.map((d) => ({
+      id: d.id,
+      ...d.data(),
+    })) as Array<WorkoutSet & { id: string }>;
+    setSets(setsList);
     if (!prSnap.empty) {
       const d = prSnap.docs[0];
       setPrSet({ id: d.id, ...d.data() } as WorkoutSet & { id: string });

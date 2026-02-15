@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   collection,
@@ -23,7 +23,6 @@ import type {
   Day,
   Exercise,
   ExerciseSetTemplate,
-  Workout,
   WorkoutSet,
 } from "../../types";
 import { LoadingSpinner } from "../../components/LoadingSpinner";
@@ -54,6 +53,9 @@ export function CreateWorkout() {
     return d.toISOString().slice(0, 16);
   });
   const [workoutId, setWorkoutId] = useState<string | null>(null);
+  const [workoutPerformedAt, setWorkoutPerformedAt] =
+    useState<Timestamp | null>(null);
+  const nextSetOrderRef = useRef(0);
   const [templates, setTemplates] = useState<TemplateWithName[]>([]);
   const [setsByExercise, setSetsByExercise] = useState<
     Record<string, SetDraft[]>
@@ -69,6 +71,7 @@ export function CreateWorkout() {
       setDayResults([]);
       return;
     }
+    let ignore = false;
     const term = daySearch.trim().toLowerCase();
     const ref = getCollectionRef("days");
     const q = query(
@@ -79,12 +82,16 @@ export function CreateWorkout() {
       limit(20)
     );
     getDocs(q).then((snap) => {
+      if (ignore) return;
       const list = snap.docs.map((d) => ({
         id: d.id,
         ...d.data(),
       })) as Array<Day & { id: string }>;
       setDayResults(list);
     });
+    return () => {
+      ignore = true;
+    };
   }, [step, daySearch]);
 
   const selectDay = useCallback(
@@ -94,14 +101,6 @@ export function CreateWorkout() {
       const date = new Date(workoutDate);
       const workoutRef = doc(collection(db, "workouts"));
       const id = workoutRef.id;
-      await setDoc(workoutRef, {
-        date: Timestamp.fromDate(date),
-        dayId: day.id,
-        dayNameSnapshot: day.displayName,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
-      setWorkoutId(id);
 
       const templatesRef = getCollectionRef("exerciseSetTemplates");
       const tq = query(
@@ -110,7 +109,20 @@ export function CreateWorkout() {
         orderBy("order"),
         limit(100)
       );
-      const tSnap = await getDocs(tq);
+      const [_, tSnap] = await Promise.all([
+        setDoc(workoutRef, {
+          date: Timestamp.fromDate(date),
+          dayId: day.id,
+          dayNameSnapshot: day.displayName,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        }),
+        getDocs(tq),
+      ]);
+      setWorkoutId(id);
+      setWorkoutPerformedAt(Timestamp.fromDate(date));
+      nextSetOrderRef.current = 0;
+
       const tList = tSnap.docs.map((d) => ({
         id: d.id,
         ...d.data(),
@@ -130,31 +142,42 @@ export function CreateWorkout() {
       setTemplates(withNames);
 
       const initialSets: Record<string, SetDraft[]> = {};
-      const last: Record<string, { reps: number; weight: number; note?: string }> =
-        {};
       for (const t of withNames) {
         initialSets[t.id] = Array.from({ length: t.numSets }, () => ({
           reps: 0,
           weight: 0,
           note: "",
         }));
-        const setsRef = getCollectionRef("sets");
-        const sq = query(
-          setsRef,
-          where("exerciseId", "==", t.exerciseId),
-          orderBy("performedAt", "desc"),
-          limit(1)
-        );
-        const sSnap = await getDocs(sq);
-        if (!sSnap.empty) {
-          const d = sSnap.docs[0].data() as WorkoutSet;
-          last[t.exerciseId] = {
-            reps: d.reps,
-            weight: d.weight,
-            note: d.note,
-          };
-        }
       }
+
+      const lastResults = await Promise.all(
+        withNames.map(async (t) => {
+          const setsRef = getCollectionRef("sets");
+          const sq = query(
+            setsRef,
+            where("exerciseId", "==", t.exerciseId),
+            orderBy("performedAt", "desc"),
+            limit(1)
+          );
+          const sSnap = await getDocs(sq);
+          if (!sSnap.empty) {
+            const d = sSnap.docs[0].data() as WorkoutSet;
+            return [
+              t.exerciseId,
+              { reps: d.reps, weight: d.weight, note: d.note },
+            ] as const;
+          }
+          return [t.exerciseId, null] as const;
+        })
+      );
+      const last: Record<
+        string,
+        { reps: number; weight: number; note?: string }
+      > = {};
+      for (const [eid, val] of lastResults) {
+        if (val) last[eid] = val;
+      }
+
       setSetsByExercise(initialSets);
       setLastPerformed(last);
       setLoading(false);
@@ -175,7 +198,10 @@ export function CreateWorkout() {
   const addSetRow = (templateId: string) => {
     setSetsByExercise((prev) => ({
       ...prev,
-      [templateId]: [...(prev[templateId] ?? []), { reps: 0, weight: 0, note: "" }],
+      [templateId]: [
+        ...(prev[templateId] ?? []),
+        { reps: 0, weight: 0, note: "" },
+      ],
     }));
   };
 
@@ -198,19 +224,13 @@ export function CreateWorkout() {
     rowIndex: number,
     draft: SetDraft
   ) => {
-    if (!workoutId || draft.reps <= 0 && draft.weight <= 0) return;
-    const workoutSnap = await getDoc(getDocRef("workouts", workoutId));
-    if (!workoutSnap.exists()) return;
-    const workout = workoutSnap.data() as Workout;
-    const performedAt = workout.date;
-    const setsSoFar = (await getDocs(
-      query(
-        getCollectionRef("sets"),
-        where("workoutId", "==", workoutId),
-        orderBy("order"),
-        limit(500)
-      )
-    )).docs.length;
+    if (
+      !workoutId ||
+      !workoutPerformedAt ||
+      (draft.reps <= 0 && draft.weight <= 0)
+    )
+      return;
+    const order = nextSetOrderRef.current++;
     const id = await createDoc("sets", {
       workoutId,
       exerciseId: template.exerciseId,
@@ -219,8 +239,8 @@ export function CreateWorkout() {
       weight: draft.weight || 0,
       unit: "lbs",
       note: draft.note ?? "",
-      performedAt,
-      order: setsSoFar,
+      performedAt: workoutPerformedAt,
+      order,
     } as unknown as Omit<WorkoutSet, "id" | "createdAt">);
     setSetsByExercise((prev) => {
       const rows = [...(prev[templateId] ?? [])];
@@ -304,7 +324,9 @@ export function CreateWorkout() {
           </ul>
         )}
         {daySearch.trim() && dayResults.length === 0 && !loading && (
-          <p className="text-sm text-gray-500">No days match. Create a day from the Days tab.</p>
+          <p className="text-sm text-gray-500">
+            No days match. Create a day from the Days tab.
+          </p>
         )}
       </div>
     );
@@ -329,10 +351,7 @@ export function CreateWorkout() {
         const rows = setsByExercise[template.id] ?? [];
         const last = lastPerformed[template.exerciseId];
         return (
-          <div
-            key={template.id}
-            className="rounded-xl bg-white p-4 shadow-sm"
-          >
+          <div key={template.id} className="rounded-xl bg-white p-4 shadow-sm">
             <p className="font-medium text-gray-900">{template.exerciseName}</p>
             <p className="text-sm text-gray-500">
               Target: {template.repsLower}–{template.repsUpper} reps
@@ -351,7 +370,12 @@ export function CreateWorkout() {
                     placeholder="Reps"
                     value={row.reps || ""}
                     onChange={(e) =>
-                      updateSetRow(template.id, idx, "reps", Number(e.target.value) || 0)
+                      updateSetRow(
+                        template.id,
+                        idx,
+                        "reps",
+                        Number(e.target.value) || 0
+                      )
                     }
                     className="w-16 rounded-lg border border-gray-300 px-2 py-1.5 text-sm"
                   />
@@ -362,7 +386,12 @@ export function CreateWorkout() {
                     placeholder="Weight"
                     value={row.weight || ""}
                     onChange={(e) =>
-                      updateSetRow(template.id, idx, "weight", Number(e.target.value) || 0)
+                      updateSetRow(
+                        template.id,
+                        idx,
+                        "weight",
+                        Number(e.target.value) || 0
+                      )
                     }
                     className="w-20 rounded-lg border border-gray-300 px-2 py-1.5 text-sm"
                   />

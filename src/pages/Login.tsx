@@ -8,7 +8,8 @@ export function Login() {
   const { user, loading, error, signIn, clearError } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const from = (location.state as { from?: { pathname: string } })?.from?.pathname ?? "/";
+  const from =
+    (location.state as { from?: { pathname: string } })?.from?.pathname ?? "/";
 
   useEffect(() => {
     if (user && !loading) {

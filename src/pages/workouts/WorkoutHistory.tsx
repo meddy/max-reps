@@ -11,18 +11,9 @@ import {
 import type { Workout } from "../../types";
 import { EmptyState } from "../../components/EmptyState";
 import { LoadingSpinner } from "../../components/LoadingSpinner";
-import type { Timestamp } from "firebase/firestore";
+import { formatDate } from "../../lib/format";
 
 const PAGE_SIZE = 100;
-
-function formatDate(ts: Timestamp): string {
-  return ts.toDate().toLocaleDateString(undefined, {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-}
 
 export function WorkoutHistory() {
   const [workouts, setWorkouts] = useState<
@@ -89,11 +80,9 @@ export function WorkoutHistory() {
             className="block min-h-[44px] rounded-xl bg-white p-4 shadow-sm"
           >
             <p className="font-medium text-gray-900">
-              {formatDate(w.date)} — {w.dayNameSnapshot}
+              {formatDate(w.date, { weekday: true })} — {w.dayNameSnapshot}
             </p>
-            <p className="text-sm text-gray-500">
-              {w.setCount ?? 0} sets
-            </p>
+            <p className="text-sm text-gray-500">{w.setCount ?? 0} sets</p>
           </Link>
         </li>
       ))}

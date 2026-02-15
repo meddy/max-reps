@@ -29,16 +29,18 @@ export function ExportPage() {
         "workouts",
         "sets",
       ] as const;
-      const data: Record<string, unknown[]> = {};
-      for (const name of collections) {
-        const ref = getCollectionRef(name);
-        const q = query(ref, limit(10000));
-        const snap = await getDocs(q);
-        data[name] = snap.docs.map((d) => ({
-          id: d.id,
-          ...d.data(),
-        }));
-      }
+      const results = await Promise.all(
+        collections.map(async (name) => {
+          const ref = getCollectionRef(name);
+          const q = query(ref, limit(10000));
+          const snap = await getDocs(q);
+          return [
+            name,
+            snap.docs.map((d) => ({ id: d.id, ...d.data() })),
+          ] as const;
+        })
+      );
+      const data = Object.fromEntries(results) as Record<string, unknown[]>;
       const blob = new Blob([JSON.stringify(data, null, 2)], {
         type: "application/json",
       });
@@ -68,7 +70,9 @@ export function ExportPage() {
           x.weight,
           x.unit,
           x.note,
-          x.performedAt != null && typeof (x.performedAt as { toDate?: () => Date }).toDate === "function"
+          x.performedAt != null &&
+          typeof (x.performedAt as { toDate?: () => Date }).toDate ===
+            "function"
             ? (x.performedAt as { toDate: () => Date }).toDate().toISOString()
             : "",
           x.order,
@@ -79,7 +83,9 @@ export function ExportPage() {
       const csv =
         header +
         rows
-          .map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(","))
+          .map((r) =>
+            r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")
+          )
           .join("\n");
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
       downloadBlob(
@@ -102,7 +108,7 @@ export function ExportPage() {
           type="button"
           disabled={loading}
           onClick={() => void exportJson()}
-          className="min-h-[44px] rounded-xl bg-indigo-600 px-4 font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
+          className="w-fit min-h-[44px] rounded-xl bg-indigo-600 px-4 font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
         >
           {loading ? "Exporting…" : "Export all data (JSON)"}
         </button>
@@ -110,7 +116,7 @@ export function ExportPage() {
           type="button"
           disabled={loading}
           onClick={() => void exportSetsCsv()}
-          className="min-h-[44px] rounded-xl border border-gray-300 bg-white font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+          className="w-fit min-h-[44px] rounded-xl border border-gray-300 bg-white px-4 font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
         >
           {loading ? "Exporting…" : "Export sets (CSV)"}
         </button>

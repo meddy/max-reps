@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useTransition } from "react";
 import { Link } from "react-router-dom";
 import {
   getCollectionRef,
@@ -17,13 +17,27 @@ import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { LoadingSpinner } from "../../components/LoadingSpinner";
 
 const PAGE_SIZE = 100;
+const SORT_STORAGE_KEY = "max-reps-exercise-sort";
+
+function getStoredSortOrder(): "asc" | "desc" {
+  try {
+    const stored = localStorage.getItem(SORT_STORAGE_KEY);
+    if (stored === "asc" || stored === "desc") return stored;
+  } catch {
+    /* ignore */
+  }
+  return "asc";
+}
 
 export function ExerciseList() {
   const [exercises, setExercises] = useState<Array<Exercise & { id: string }>>(
     []
   );
-  const [loading, setLoading] = useState(true);
+  const [isPending, startTransition] = useTransition();
   const [search, setSearch] = useState("");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">(() =>
+    getStoredSortOrder()
+  );
   const [createOpen, setCreateOpen] = useState(false);
   const [createName, setCreateName] = useState("");
   const [createError, setCreateError] = useState("");
@@ -32,33 +46,38 @@ export function ExerciseList() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const fetchExercises = useCallback(async () => {
-    setLoading(true);
     const ref = getCollectionRef("exercises");
     const q = search.trim()
       ? query(
           ref,
           where("nameLower", ">=", search.trim().toLowerCase()),
-          where(
-            "nameLower",
-            "<=",
-            search.trim().toLowerCase() + "\uf8ff"
-          ),
-          orderBy("nameLower"),
+          where("nameLower", "<=", search.trim().toLowerCase() + "\uf8ff"),
+          orderBy("nameLower", sortOrder),
           limit(PAGE_SIZE)
         )
-      : query(ref, orderBy("nameLower"), limit(PAGE_SIZE));
+      : query(ref, orderBy("nameLower", sortOrder), limit(PAGE_SIZE));
     const snapshot = await getDocs(q);
     const list = snapshot.docs.map((d) => ({
       id: d.id,
       ...d.data(),
     })) as Array<Exercise & { id: string }>;
     setExercises(list);
-    setLoading(false);
-  }, [search]);
+  }, [search, sortOrder]);
 
   useEffect(() => {
-    void fetchExercises();
-  }, [fetchExercises]);
+    startTransition(() => {
+      void fetchExercises();
+    });
+  }, [fetchExercises, startTransition]);
+
+  const handleSortChange = (order: "asc" | "desc") => {
+    setSortOrder(order);
+    try {
+      localStorage.setItem(SORT_STORAGE_KEY, order);
+    } catch {
+      /* ignore */
+    }
+  };
 
   const handleCreate = async () => {
     const displayName = createName.trim();
@@ -83,9 +102,15 @@ export function ExerciseList() {
     setCreateOpen(false);
     setCreateName("");
     setExercises((prev) => {
-      const next = [...prev, { id, nameLower, displayName } as Exercise & { id: string; createdAt: unknown; updatedAt: unknown }];
-      next.sort((a, b) => a.nameLower.localeCompare(b.nameLower));
-      return next;
+      const next = [
+        ...prev,
+        { id, nameLower, displayName } as Exercise & {
+          id: string;
+          createdAt: unknown;
+          updatedAt: unknown;
+        },
+      ];
+      return [...next].sort((a, b) => a.nameLower.localeCompare(b.nameLower));
     });
   };
 
@@ -103,26 +128,54 @@ export function ExerciseList() {
     await updateDocById("exercises", editId, { nameLower, displayName });
     setEditId(null);
     setEditName("");
-    void fetchExercises();
+    startTransition(() => void fetchExercises());
   };
 
   const handleDelete = async () => {
     if (!deleteId) return;
     await deleteDocById("exercises", deleteId);
     setDeleteId(null);
-    void fetchExercises();
+    startTransition(() => void fetchExercises());
   };
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <input
           type="search"
           placeholder="Search exercises"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="min-h-[44px] flex-1 rounded-xl border border-gray-300 bg-white px-4 text-gray-900 placeholder-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          className="min-h-[44px] flex-1 rounded-xl border border-gray-300 bg-white px-4 text-gray-900 placeholder-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 min-w-[120px]"
         />
+        <div
+          className="flex rounded-xl border border-gray-300 bg-white p-0.5"
+          role="group"
+          aria-label="Sort exercises"
+        >
+          <button
+            type="button"
+            onClick={() => handleSortChange("asc")}
+            className={`min-h-[40px] rounded-lg px-3 text-sm font-medium transition-colors ${
+              sortOrder === "asc"
+                ? "bg-indigo-600 text-white"
+                : "text-gray-600 hover:bg-gray-100"
+            }`}
+          >
+            A → Z
+          </button>
+          <button
+            type="button"
+            onClick={() => handleSortChange("desc")}
+            className={`min-h-[40px] rounded-lg px-3 text-sm font-medium transition-colors ${
+              sortOrder === "desc"
+                ? "bg-indigo-600 text-white"
+                : "text-gray-600 hover:bg-gray-100"
+            }`}
+          >
+            Z → A
+          </button>
+        </div>
         <button
           type="button"
           onClick={() => {
@@ -133,13 +186,23 @@ export function ExerciseList() {
           className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-xl bg-indigo-600 text-white hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
           aria-label="Add exercise"
         >
-          <svg className="size-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          <svg
+            className="size-6"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 4v16m8-8H4"
+            />
           </svg>
         </button>
       </div>
 
-      {loading ? (
+      {isPending ? (
         <div className="flex justify-center py-8">
           <LoadingSpinner />
         </div>
@@ -199,7 +262,9 @@ export function ExerciseList() {
       {createOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-lg">
-            <h3 className="text-lg font-semibold text-gray-900">New exercise</h3>
+            <h3 className="text-lg font-semibold text-gray-900">
+              New exercise
+            </h3>
             <input
               type="text"
               placeholder="Exercise name"
@@ -237,7 +302,9 @@ export function ExerciseList() {
       {editId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-lg">
-            <h3 className="text-lg font-semibold text-gray-900">Edit exercise</h3>
+            <h3 className="text-lg font-semibold text-gray-900">
+              Edit exercise
+            </h3>
             <input
               type="text"
               value={editName}

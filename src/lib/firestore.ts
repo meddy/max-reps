@@ -125,8 +125,7 @@ export async function paginatedQuery<T extends DocumentData>(
     id: d.id,
     data: d.data() as T,
   }));
-  const newLastDoc =
-    docs.length > 0 ? snapshot.docs[docs.length - 1] : null;
+  const newLastDoc = docs.length > 0 ? snapshot.docs[docs.length - 1] : null;
   return { docs, lastDoc: newLastDoc, hasMore };
 }
 

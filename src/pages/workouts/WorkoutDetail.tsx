@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   getDocRef,
@@ -18,18 +18,7 @@ import type { Workout, WorkoutSet, Exercise } from "../../types";
 import { LoadingSpinner } from "../../components/LoadingSpinner";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { Timestamp } from "firebase/firestore";
-
-function formatDate(ts: Timestamp): string {
-  return ts.toDate().toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-}
-
-function formatDateTime(ts: Timestamp): string {
-  return ts.toDate().toISOString().slice(0, 16);
-}
+import { formatDate, formatDateTime } from "../../lib/format";
 
 type SetWithId = WorkoutSet & { id: string };
 
@@ -56,6 +45,10 @@ export function WorkoutDetail() {
   const [newReps, setNewReps] = useState(0);
   const [newWeight, setNewWeight] = useState(0);
   const [newNote, setNewNote] = useState("");
+  const setsRef = useRef<SetWithId[]>([]);
+  useEffect(() => {
+    setsRef.current = sets;
+  }, [sets]);
 
   const loadWorkout = useCallback(async () => {
     if (!id) return;
@@ -68,6 +61,7 @@ export function WorkoutDetail() {
     const w = { id: snap.id, ...snap.data() } as Workout & { id: string };
     setWorkout(w);
     setDateInput(formatDateTime(w.date));
+    setLoading(false);
   }, [id]);
 
   const loadSets = useCallback(async () => {
@@ -95,14 +89,11 @@ export function WorkoutDetail() {
   }, [loadSets]);
 
   useEffect(() => {
-    setLoading(false);
-  }, [workout]);
-
-  useEffect(() => {
     if (!addSetOpen || !exerciseSearch.trim()) {
       setExerciseResults([]);
       return;
     }
+    let ignore = false;
     const term = exerciseSearch.trim().toLowerCase();
     const ref = getCollectionRef("exercises");
     const q = query(
@@ -113,12 +104,16 @@ export function WorkoutDetail() {
       limit(20)
     );
     getDocs(q).then((snap) => {
+      if (ignore) return;
       const list = snap.docs.map((d) => ({
         id: d.id,
         ...d.data(),
       })) as Array<Exercise & { id: string }>;
       setExerciseResults(list);
     });
+    return () => {
+      ignore = true;
+    };
   }, [addSetOpen, exerciseSearch]);
 
   const saveDate = async () => {
@@ -133,17 +128,24 @@ export function WorkoutDetail() {
     setEditingDate(false);
   };
 
-  const updateSet = async (
+  const updateSetLocal = (
     setId: string,
     updates: { reps?: number; weight?: number; note?: string }
   ) => {
-    await updateDocById("sets", setId, updates);
     setSets((prev) =>
-      prev.map((s) =>
-        s.id === setId ? { ...s, ...updates } : s
-      )
+      prev.map((s) => (s.id === setId ? { ...s, ...updates } : s))
     );
   };
+
+  const persistSet = useCallback((setId: string) => {
+    const s = setsRef.current.find((x) => x.id === setId);
+    if (!s) return;
+    void updateDocById("sets", setId, {
+      reps: s.reps,
+      weight: s.weight,
+      note: s.note,
+    });
+  }, []);
 
   const handleDeleteSet = async () => {
     if (!deleteSetId) return;
@@ -282,17 +284,21 @@ export function WorkoutDetail() {
           </h3>
           <ul className="divide-y divide-gray-100">
             {groupSets.map((s) => (
-              <li key={s.id} className="flex flex-wrap items-center gap-2 px-4 py-2">
+              <li
+                key={s.id}
+                className="flex flex-wrap items-center gap-2 px-4 py-2"
+              >
                 <input
                   type="number"
                   min={0}
                   className="w-14 rounded border border-gray-300 px-2 py-1 text-sm"
                   value={s.reps}
                   onChange={(e) =>
-                    updateSet(s.id, {
+                    updateSetLocal(s.id, {
                       reps: Number(e.target.value) || 0,
                     })
                   }
+                  onBlur={() => persistSet(s.id)}
                 />
                 <span className="text-gray-500">×</span>
                 <input
@@ -302,10 +308,11 @@ export function WorkoutDetail() {
                   className="w-16 rounded border border-gray-300 px-2 py-1 text-sm"
                   value={s.weight}
                   onChange={(e) =>
-                    updateSet(s.id, {
+                    updateSetLocal(s.id, {
                       weight: Number(e.target.value) || 0,
                     })
                   }
+                  onBlur={() => persistSet(s.id)}
                 />
                 <span className="text-sm text-gray-500">lbs</span>
                 <input
@@ -314,8 +321,9 @@ export function WorkoutDetail() {
                   className="min-w-[80px] flex-1 rounded border border-gray-300 px-2 py-1 text-sm"
                   value={s.note}
                   onChange={(e) =>
-                    updateSet(s.id, { note: e.target.value })
+                    updateSetLocal(s.id, { note: e.target.value })
                   }
+                  onBlur={() => persistSet(s.id)}
                 />
                 <button
                   type="button"
@@ -374,9 +382,7 @@ export function WorkoutDetail() {
                     type="number"
                     min={0}
                     value={newReps || ""}
-                    onChange={(e) =>
-                      setNewReps(Number(e.target.value) || 0)
-                    }
+                    onChange={(e) => setNewReps(Number(e.target.value) || 0)}
                     className="ml-2 w-16 rounded border px-2 py-1"
                   />
                 </label>
@@ -387,9 +393,7 @@ export function WorkoutDetail() {
                     min={0}
                     step={0.5}
                     value={newWeight || ""}
-                    onChange={(e) =>
-                      setNewWeight(Number(e.target.value) || 0)
-                    }
+                    onChange={(e) => setNewWeight(Number(e.target.value) || 0)}
                     className="ml-2 w-20 rounded border px-2 py-1"
                   />{" "}
                   lbs
