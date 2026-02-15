@@ -62,8 +62,13 @@ node_modules/
 # Yarn Integrity file
 .yarn-integrity
 
+# Build output
+dist/
+
 # dotenv environment variables file
 .env
 
 # dataconnect generated files
 .dataconnect
+
+.cursor
