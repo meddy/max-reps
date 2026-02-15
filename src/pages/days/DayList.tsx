@@ -2,23 +2,43 @@ import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   getCollectionRef,
+  getDocRef,
   createDoc,
   updateDocById,
   deleteDocAndRelated,
+  getDoc,
   getDocs,
   query,
   where,
   orderBy,
   limit,
 } from "../../lib/firestore";
-import type { Day } from "../../types";
+import type { Day, Exercise, ExerciseSetTemplate } from "../../types";
 import { EmptyState } from "../../components/EmptyState";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { LoadingSpinner } from "../../components/LoadingSpinner";
 import { Modal } from "../../components/Modal";
 
 const PAGE_SIZE = 100;
+const TEMPLATES_LIMIT = 500;
 const SORT_STORAGE_KEY = "max-reps-day-sort";
+
+type DaySummaryItem = {
+  exerciseName: string;
+  numSets: number;
+  repsLower: number;
+  repsUpper: number;
+};
+
+function formatSetsReps(
+  numSets: number,
+  repsLower: number,
+  repsUpper: number
+): string {
+  const reps =
+    repsLower === repsUpper ? String(repsLower) : `${repsLower}–${repsUpper}`;
+  return `${numSets}x${reps}`;
+}
 
 function getStoredSortOrder(): "asc" | "desc" {
   try {
@@ -32,6 +52,9 @@ function getStoredSortOrder(): "asc" | "desc" {
 
 export function DayList() {
   const [days, setDays] = useState<Array<Day & { id: string }>>([]);
+  const [summariesByDayId, setSummariesByDayId] = useState<
+    Record<string, DaySummaryItem[]>
+  >({});
   const [loading, setLoading] = useState(true);
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">(() =>
     getStoredSortOrder()
@@ -56,9 +79,55 @@ export function DayList() {
     setLoading(false);
   }, [sortOrder]);
 
+  const fetchSummaries = useCallback(async (dayIds: string[]) => {
+    if (dayIds.length === 0) {
+      setSummariesByDayId({});
+      return;
+    }
+    const dayIdSet = new Set(dayIds);
+    const ref = getCollectionRef("exerciseSetTemplates");
+    const q = query(ref, limit(TEMPLATES_LIMIT));
+    const snapshot = await getDocs(q);
+    const templates = snapshot.docs.map((d) => ({
+      id: d.id,
+      ...d.data(),
+    })) as Array<ExerciseSetTemplate & { id: string }>;
+    const forOurDays = templates
+      .filter((t) => dayIdSet.has(t.dayId))
+      .sort((a, b) =>
+        a.dayId !== b.dayId ? a.dayId.localeCompare(b.dayId) : a.order - b.order
+      );
+    const exerciseIds = [...new Set(forOurDays.map((t) => t.exerciseId))];
+    const nameMap: Record<string, string> = {};
+    await Promise.all(
+      exerciseIds.map(async (eid) => {
+        const snap = await getDoc(getDocRef("exercises", eid));
+        if (snap.exists()) {
+          nameMap[eid] = (snap.data() as Exercise).displayName;
+        }
+      })
+    );
+    const byDay: Record<string, DaySummaryItem[]> = {};
+    for (const t of forOurDays) {
+      const list = byDay[t.dayId] ?? [];
+      list.push({
+        exerciseName: nameMap[t.exerciseId] ?? "—",
+        numSets: t.numSets,
+        repsLower: t.repsLower,
+        repsUpper: t.repsUpper,
+      });
+      byDay[t.dayId] = list;
+    }
+    setSummariesByDayId(byDay);
+  }, []);
+
   useEffect(() => {
     void fetchDays();
   }, [fetchDays]);
+
+  useEffect(() => {
+    void fetchSummaries(days.map((d) => d.id));
+  }, [days, fetchSummaries]);
 
   const handleCreate = async () => {
     const displayName = createName.trim();
@@ -204,40 +273,57 @@ export function DayList() {
         />
       ) : (
         <ul className="flex flex-col gap-2">
-          {days.map((day) => (
-            <li
-              key={day.id}
-              className="flex items-center justify-between rounded-xl bg-white p-4 shadow-sm"
-            >
-              <Link
-                to={`/days/${day.id}`}
-                className="min-h-[44px] flex-1 font-medium text-gray-900"
+          {days.map((day) => {
+            const summary = summariesByDayId[day.id] ?? [];
+            return (
+              <li
+                key={day.id}
+                className="flex items-center justify-between gap-3 rounded-xl bg-white p-4 shadow-sm"
               >
-                {day.displayName}
-              </Link>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEditId(day.id);
-                    setEditName(day.displayName);
-                  }}
-                  className="min-h-[44px] min-w-[44px] rounded-lg px-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
-                  aria-label={`Edit ${day.displayName}`}
+                <Link
+                  to={`/days/${day.id}`}
+                  className="min-h-[44px] flex-1 font-medium text-gray-900"
                 >
-                  Edit
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setDeleteId(day.id)}
-                  className="min-h-[44px] min-w-[44px] rounded-lg px-2 text-red-600 hover:bg-red-50"
-                  aria-label={`Delete ${day.displayName}`}
-                >
-                  Delete
-                </button>
-              </div>
-            </li>
-          ))}
+                  <span className="block">{day.displayName}</span>
+                  {summary.length > 0 && (
+                    <ul className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-sm font-normal text-gray-500">
+                      {summary.map((item, i) => (
+                        <li key={i}>
+                          {item.exerciseName}{" "}
+                          {formatSetsReps(
+                            item.numSets,
+                            item.repsLower,
+                            item.repsUpper
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </Link>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditId(day.id);
+                      setEditName(day.displayName);
+                    }}
+                    className="min-h-[44px] min-w-[44px] rounded-lg px-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+                    aria-label={`Edit ${day.displayName}`}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDeleteId(day.id)}
+                    className="min-h-[44px] min-w-[44px] rounded-lg px-2 text-red-600 hover:bg-red-50"
+                    aria-label={`Delete ${day.displayName}`}
+                  >
+                    Delete
+                  </button>
+                </div>
+              </li>
+            );
+          })}
         </ul>
       )}
 

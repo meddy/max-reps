@@ -39,9 +39,9 @@ const DayList = lazy(() =>
 const DayDetail = lazy(() =>
   import("./pages/days/DayDetail").then((m) => ({ default: m.DayDetail }))
 );
-const ExportPage = lazy(() =>
-  import("./pages/export/ExportPage").then((m) => ({
-    default: m.ExportPage,
+const SettingsPage = lazy(() =>
+  import("./pages/settings/SettingsPage").then((m) => ({
+    default: m.SettingsPage,
   }))
 );
 
@@ -74,7 +74,7 @@ function App() {
               <Route path="exercises/:id" element={<ExerciseDetail />} />
               <Route path="days" element={<DayList />} />
               <Route path="days/:id" element={<DayDetail />} />
-              <Route path="export" element={<ExportPage />} />
+              <Route path="settings" element={<SettingsPage />} />
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

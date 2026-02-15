@@ -302,19 +302,24 @@ export function DayDetail() {
                       <input
                         type="number"
                         min={0}
+                        max={editRepsUpper}
                         value={editRepsLower}
                         onChange={(e) =>
-                          setEditRepsLower(Number(e.target.value) || 0)
+                          setEditRepsLower(
+                            Math.min(Number(e.target.value) || 0, editRepsUpper)
+                          )
                         }
                         className="w-14 rounded border border-gray-300 px-2 py-1 text-sm"
                       />
                       –
                       <input
                         type="number"
-                        min={0}
+                        min={editRepsLower}
                         value={editRepsUpper}
                         onChange={(e) =>
-                          setEditRepsUpper(Number(e.target.value) || 0)
+                          setEditRepsUpper(
+                            Math.max(Number(e.target.value) || 0, editRepsLower)
+                          )
                         }
                         className="w-14 rounded border border-gray-300 px-2 py-1 text-sm"
                       />
@@ -488,17 +493,26 @@ export function DayDetail() {
                   id="add-reps-lower"
                   type="number"
                   min={0}
+                  max={newRepsUpper}
                   value={newRepsLower}
-                  onChange={(e) => setNewRepsLower(Number(e.target.value) || 0)}
+                  onChange={(e) =>
+                    setNewRepsLower(
+                      Math.min(Number(e.target.value) || 0, newRepsUpper)
+                    )
+                  }
                   className="w-14 rounded border border-gray-300 px-2 py-1"
                 />
                 <span className="text-gray-500">–</span>
                 <input
                   id="add-reps-upper"
                   type="number"
-                  min={0}
+                  min={newRepsLower}
                   value={newRepsUpper}
-                  onChange={(e) => setNewRepsUpper(Number(e.target.value) || 0)}
+                  onChange={(e) =>
+                    setNewRepsUpper(
+                      Math.max(Number(e.target.value) || 0, newRepsLower)
+                    )
+                  }
                   className="w-14 rounded border border-gray-300 px-2 py-1"
                 />
               </div>

@@ -6,6 +6,7 @@ import {
   orderBy,
   limit,
 } from "../../lib/firestore";
+import { useAuth } from "../../contexts/AuthContext";
 
 function downloadBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
@@ -16,7 +17,8 @@ function downloadBlob(blob: Blob, filename: string) {
   URL.revokeObjectURL(url);
 }
 
-export function ExportPage() {
+export function SettingsPage() {
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
 
   const exportJson = async () => {
@@ -98,29 +100,48 @@ export function ExportPage() {
   };
 
   return (
-    <div className="flex flex-col gap-4">
-      <h2 className="text-lg font-semibold text-gray-900">Export data</h2>
-      <p className="text-sm text-gray-500">
-        Download your data as JSON (all collections) or CSV (sets only).
-      </p>
-      <div className="flex flex-col gap-2">
-        <button
-          type="button"
-          disabled={loading}
-          onClick={() => void exportJson()}
-          className="w-fit min-h-[44px] rounded-xl bg-indigo-600 px-4 font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
-        >
-          {loading ? "Exporting…" : "Export all data (JSON)"}
-        </button>
-        <button
-          type="button"
-          disabled={loading}
-          onClick={() => void exportSetsCsv()}
-          className="w-fit min-h-[44px] rounded-xl border border-gray-300 bg-white px-4 font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-        >
-          {loading ? "Exporting…" : "Export sets (CSV)"}
-        </button>
-      </div>
+    <div className="flex flex-col gap-6">
+      <h2 className="text-lg font-semibold text-gray-900">Settings</h2>
+
+      <section className="rounded-xl border border-gray-200 bg-white p-4">
+        <h3 className="text-sm font-medium text-gray-900">UID</h3>
+        <p className="mt-1 text-xs text-gray-500">
+          Your Firebase UID (must match firestore.rules and VITE_ALLOWED_UID).
+        </p>
+        {user && (
+          <p
+            className="mt-2 truncate font-mono text-sm text-gray-700"
+            title={user.uid}
+          >
+            {user.uid}
+          </p>
+        )}
+      </section>
+
+      <section className="rounded-xl border border-gray-200 bg-white p-4">
+        <h3 className="text-sm font-medium text-gray-900">Export</h3>
+        <p className="mt-1 text-xs text-gray-500">
+          Download your data as JSON (all collections) or CSV (sets only).
+        </p>
+        <div className="mt-3 flex flex-col gap-2">
+          <button
+            type="button"
+            disabled={loading}
+            onClick={() => void exportJson()}
+            className="w-fit min-h-[44px] rounded-xl bg-indigo-600 px-4 font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
+          >
+            {loading ? "Exporting…" : "Export all data (JSON)"}
+          </button>
+          <button
+            type="button"
+            disabled={loading}
+            onClick={() => void exportSetsCsv()}
+            className="w-fit min-h-[44px] rounded-xl border border-gray-300 bg-white px-4 font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+          >
+            {loading ? "Exporting…" : "Export sets (CSV)"}
+          </button>
+        </div>
+      </section>
     </div>
   );
 }
