@@ -15,6 +15,7 @@ import type { Day } from "../../types";
 import { EmptyState } from "../../components/EmptyState";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { LoadingSpinner } from "../../components/LoadingSpinner";
+import { Modal } from "../../components/Modal";
 
 const PAGE_SIZE = 100;
 const SORT_STORAGE_KEY = "max-reps-day-sort";
@@ -240,77 +241,81 @@ export function DayList() {
         </ul>
       )}
 
-      {createOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-lg">
-            <h3 className="text-lg font-semibold text-gray-900">New day</h3>
-            <input
-              type="text"
-              placeholder="Day name (e.g. Push, Legs)"
-              value={createName}
-              onChange={(e) => setCreateName(e.target.value)}
-              className="mt-3 min-h-[44px] w-full rounded-xl border border-gray-300 px-4 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-              autoFocus
-            />
-            {createError && (
-              <p className="mt-2 text-sm text-red-600">{createError}</p>
-            )}
-            <div className="mt-4 flex gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setCreateOpen(false);
-                  setCreateError("");
-                }}
-                className="min-h-[44px] flex-1 rounded-xl border border-gray-300 bg-white font-medium text-gray-700"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => void handleCreate()}
-                className="min-h-[44px] flex-1 rounded-xl bg-indigo-600 font-medium text-white hover:bg-indigo-500"
-              >
-                Create
-              </button>
-            </div>
-          </div>
+      <Modal
+        open={createOpen}
+        onClose={() => {
+          setCreateOpen(false);
+          setCreateError("");
+        }}
+        title="New day"
+      >
+        <input
+          type="text"
+          placeholder="Day name (e.g. Push, Legs)"
+          value={createName}
+          onChange={(e) => setCreateName(e.target.value)}
+          className="mt-3 min-h-[44px] w-full rounded-xl border border-gray-300 px-4 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          autoFocus
+        />
+        {createError && (
+          <p className="mt-2 text-sm text-red-600">{createError}</p>
+        )}
+        <div className="mt-4 flex gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              setCreateOpen(false);
+              setCreateError("");
+            }}
+            className="min-h-[44px] flex-1 rounded-xl border border-gray-300 bg-white font-medium text-gray-700"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleCreate()}
+            className="min-h-[44px] flex-1 rounded-xl bg-indigo-600 font-medium text-white hover:bg-indigo-500"
+          >
+            Create
+          </button>
         </div>
-      )}
+      </Modal>
 
-      {editId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-lg">
-            <h3 className="text-lg font-semibold text-gray-900">Edit day</h3>
-            <input
-              type="text"
-              value={editName}
-              onChange={(e) => setEditName(e.target.value)}
-              className="mt-3 min-h-[44px] w-full rounded-xl border border-gray-300 px-4 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-              autoFocus
-            />
-            <div className="mt-4 flex gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setEditId(null);
-                  setEditName("");
-                }}
-                className="min-h-[44px] flex-1 rounded-xl border border-gray-300 bg-white font-medium text-gray-700"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => void handleEdit()}
-                className="min-h-[44px] flex-1 rounded-xl bg-indigo-600 font-medium text-white hover:bg-indigo-500"
-              >
-                Save
-              </button>
-            </div>
-          </div>
+      <Modal
+        open={!!editId}
+        onClose={() => {
+          setEditId(null);
+          setEditName("");
+        }}
+        title="Edit day"
+      >
+        <input
+          type="text"
+          value={editName}
+          onChange={(e) => setEditName(e.target.value)}
+          className="mt-3 min-h-[44px] w-full rounded-xl border border-gray-300 px-4 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          autoFocus
+        />
+        <div className="mt-4 flex gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              setEditId(null);
+              setEditName("");
+            }}
+            className="min-h-[44px] flex-1 rounded-xl border border-gray-300 bg-white font-medium text-gray-700"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleEdit()}
+            className="min-h-[44px] flex-1 rounded-xl bg-indigo-600 font-medium text-white hover:bg-indigo-500"
+          >
+            Save
+          </button>
         </div>
-      )}
+      </Modal>
 
       <ConfirmDialog
         open={deleteId != null}

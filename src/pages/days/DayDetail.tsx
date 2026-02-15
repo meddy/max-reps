@@ -17,6 +17,7 @@ import type { Day, Exercise, ExerciseSetTemplate } from "../../types";
 import { LoadingSpinner } from "../../components/LoadingSpinner";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { EmptyState } from "../../components/EmptyState";
+import { Modal } from "../../components/Modal";
 
 export function DayDetail() {
   const { id } = useParams<{ id: string }>();
@@ -34,6 +35,9 @@ export function DayDetail() {
   const [selectedExerciseId, setSelectedExerciseId] = useState<string | null>(
     null
   );
+  const [selectedExerciseDisplayName, setSelectedExerciseDisplayName] =
+    useState<string | null>(null);
+  const [createExerciseError, setCreateExerciseError] = useState("");
   const [newNumSets, setNewNumSets] = useState(3);
   const [newRepsLower, setNewRepsLower] = useState(8);
   const [newRepsUpper, setNewRepsUpper] = useState(12);
@@ -128,6 +132,28 @@ export function DayDetail() {
     };
   }, [addOpen, exerciseSearch]);
 
+  const handleCreateExercise = async () => {
+    const displayName = exerciseSearch.trim();
+    if (!displayName) return;
+    setCreateExerciseError("");
+    const nameLower = displayName.toLowerCase();
+    const ref = getCollectionRef("exercises");
+    const existing = await getDocs(
+      query(ref, where("nameLower", "==", nameLower))
+    );
+    if (!existing.empty) {
+      setCreateExerciseError("An exercise with this name already exists");
+      return;
+    }
+    const newId = await createDoc("exercises", {
+      nameLower,
+      displayName,
+    } as unknown as Omit<Exercise, "id" | "createdAt" | "updatedAt">);
+    setSelectedExerciseId(newId);
+    setSelectedExerciseDisplayName(displayName);
+    setExerciseSearch("");
+  };
+
   const handleAddTemplate = async () => {
     if (!id || !selectedExerciseId) return;
     const maxOrder =
@@ -145,6 +171,7 @@ export function DayDetail() {
     >);
     setAddOpen(false);
     setSelectedExerciseId(null);
+    setSelectedExerciseDisplayName(null);
     setExerciseSearch("");
     setNewNumSets(3);
     setNewRepsLower(8);
@@ -226,7 +253,9 @@ export function DayDetail() {
           onClick={() => {
             setAddOpen(true);
             setSelectedExerciseId(null);
+            setSelectedExerciseDisplayName(null);
             setExerciseSearch("");
+            setCreateExerciseError("");
           }}
           className="min-h-[44px] rounded-xl bg-indigo-600 px-4 text-sm font-medium text-white hover:bg-indigo-500"
         >
@@ -361,17 +390,48 @@ export function DayDetail() {
         </ul>
       )}
 
-      {addOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="max-h-[90vh] w-full max-w-sm overflow-auto rounded-xl bg-white p-6 shadow-lg">
-            <h3 className="text-lg font-semibold text-gray-900">
-              Add exercise to day
-            </h3>
+      <Modal
+        open={addOpen}
+        onClose={() => {
+          setAddOpen(false);
+          setSelectedExerciseId(null);
+          setSelectedExerciseDisplayName(null);
+          setExerciseSearch("");
+          setCreateExerciseError("");
+        }}
+        title="Add exercise to day"
+      >
+        {selectedExerciseId ? (
+          <div className="mt-3 flex min-h-[44px] w-full items-center gap-2 rounded-xl border border-gray-300 bg-gray-50 px-4">
+            <span className="flex-1 truncate text-sm font-medium text-gray-900">
+              {selectedExerciseDisplayName ??
+                exerciseResults.find((e) => e.id === selectedExerciseId)
+                  ?.displayName ??
+                "—"}
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedExerciseId(null);
+                setSelectedExerciseDisplayName(null);
+                setExerciseSearch("");
+              }}
+              className="flex size-8 shrink-0 items-center justify-center rounded text-gray-500 hover:bg-gray-200 hover:text-gray-700"
+              aria-label="Clear selection"
+            >
+              <span className="text-sm">✕</span>
+            </button>
+          </div>
+        ) : (
+          <>
             <input
               type="text"
               placeholder="Search exercises"
               value={exerciseSearch}
-              onChange={(e) => setExerciseSearch(e.target.value)}
+              onChange={(e) => {
+                setExerciseSearch(e.target.value);
+                setCreateExerciseError("");
+              }}
               className="mt-3 min-h-[44px] w-full rounded-xl border border-gray-300 px-4 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
             />
             <ul className="mt-2 max-h-40 overflow-auto">
@@ -379,76 +439,95 @@ export function DayDetail() {
                 <li key={ex.id}>
                   <button
                     type="button"
-                    onClick={() => setSelectedExerciseId(ex.id)}
-                    className={`min-h-[44px] w-full rounded-lg px-3 text-left text-sm ${
-                      selectedExerciseId === ex.id
-                        ? "bg-indigo-100 font-medium text-indigo-900"
-                        : "text-gray-700 hover:bg-gray-50"
-                    }`}
+                    onClick={() => {
+                      setSelectedExerciseId(ex.id);
+                      setSelectedExerciseDisplayName(ex.displayName);
+                    }}
+                    className="min-h-[44px] w-full rounded-lg px-3 text-left text-sm text-gray-700 hover:bg-gray-50"
                   >
                     {ex.displayName}
                   </button>
                 </li>
               ))}
             </ul>
-            {selectedExerciseId && (
-              <div className="mt-4 flex flex-col gap-2">
-                <label className="text-sm text-gray-600">
-                  Sets:{" "}
-                  <input
-                    type="number"
-                    min={1}
-                    value={newNumSets}
-                    onChange={(e) => setNewNumSets(Number(e.target.value) || 1)}
-                    className="ml-2 w-16 rounded border border-gray-300 px-2 py-1"
-                  />
-                </label>
-                <label className="text-sm text-gray-600">
-                  Rep range:{" "}
-                  <input
-                    type="number"
-                    min={0}
-                    value={newRepsLower}
-                    onChange={(e) =>
-                      setNewRepsLower(Number(e.target.value) || 0)
-                    }
-                    className="mx-1 w-14 rounded border border-gray-300 px-2 py-1"
-                  />
-                  –
-                  <input
-                    type="number"
-                    min={0}
-                    value={newRepsUpper}
-                    onChange={(e) =>
-                      setNewRepsUpper(Number(e.target.value) || 0)
-                    }
-                    className="mx-1 w-14 rounded border border-gray-300 px-2 py-1"
-                  />
-                </label>
-                <div className="mt-2 flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAddOpen(false);
-                      setSelectedExerciseId(null);
-                    }}
-                    className="min-h-[44px] flex-1 rounded-xl border border-gray-300 bg-white font-medium text-gray-700"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void handleAddTemplate()}
-                    className="min-h-[44px] flex-1 rounded-xl bg-indigo-600 font-medium text-white hover:bg-indigo-500"
-                  >
-                    Add
-                  </button>
-                </div>
+            {exerciseSearch.trim() !== "" && exerciseResults.length === 0 && (
+              <div className="mt-2 flex flex-col gap-2">
+                <button
+                  type="button"
+                  onClick={() => void handleCreateExercise()}
+                  className="min-h-[44px] w-full rounded-xl border border-dashed border-gray-400 bg-gray-50 font-medium text-gray-700 hover:border-indigo-500 hover:bg-indigo-50 hover:text-indigo-700"
+                >
+                  Create exercise &ldquo;{exerciseSearch.trim()}&rdquo;
+                </button>
+                {createExerciseError && (
+                  <p className="text-sm text-red-600">{createExerciseError}</p>
+                )}
               </div>
             )}
+          </>
+        )}
+        {selectedExerciseId && (
+          <div className="mt-4 flex flex-col gap-2">
+            <div className="grid grid-cols-[minmax(5rem,auto)_1fr] items-center gap-x-3 gap-y-2">
+              <label className="text-sm text-gray-600" htmlFor="add-num-sets">
+                Sets:
+              </label>
+              <input
+                id="add-num-sets"
+                type="number"
+                min={1}
+                value={newNumSets}
+                onChange={(e) => setNewNumSets(Number(e.target.value) || 1)}
+                className="w-16 rounded border border-gray-300 px-2 py-1"
+              />
+              <label className="text-sm text-gray-600" htmlFor="add-reps-lower">
+                Rep range:
+              </label>
+              <div className="flex items-center gap-1">
+                <input
+                  id="add-reps-lower"
+                  type="number"
+                  min={0}
+                  value={newRepsLower}
+                  onChange={(e) => setNewRepsLower(Number(e.target.value) || 0)}
+                  className="w-14 rounded border border-gray-300 px-2 py-1"
+                />
+                <span className="text-gray-500">–</span>
+                <input
+                  id="add-reps-upper"
+                  type="number"
+                  min={0}
+                  value={newRepsUpper}
+                  onChange={(e) => setNewRepsUpper(Number(e.target.value) || 0)}
+                  className="w-14 rounded border border-gray-300 px-2 py-1"
+                />
+              </div>
+            </div>
+            <div className="mt-2 flex gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setAddOpen(false);
+                  setSelectedExerciseId(null);
+                  setSelectedExerciseDisplayName(null);
+                  setExerciseSearch("");
+                  setCreateExerciseError("");
+                }}
+                className="min-h-[44px] flex-1 rounded-xl border border-gray-300 bg-white font-medium text-gray-700"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleAddTemplate()}
+                className="min-h-[44px] flex-1 rounded-xl bg-indigo-600 font-medium text-white hover:bg-indigo-500"
+              >
+                Add
+              </button>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
 
       <ConfirmDialog
         open={deleteTemplateId != null}

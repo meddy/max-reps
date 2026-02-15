@@ -15,6 +15,7 @@ import type { Exercise } from "../../types";
 import { EmptyState } from "../../components/EmptyState";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { LoadingSpinner } from "../../components/LoadingSpinner";
+import { Modal } from "../../components/Modal";
 
 const PAGE_SIZE = 100;
 const SORT_STORAGE_KEY = "max-reps-exercise-sort";
@@ -259,81 +260,81 @@ export function ExerciseList() {
         </ul>
       )}
 
-      {createOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-lg">
-            <h3 className="text-lg font-semibold text-gray-900">
-              New exercise
-            </h3>
-            <input
-              type="text"
-              placeholder="Exercise name"
-              value={createName}
-              onChange={(e) => setCreateName(e.target.value)}
-              className="mt-3 w-full min-h-[44px] rounded-xl border border-gray-300 px-4 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-              autoFocus
-            />
-            {createError && (
-              <p className="mt-2 text-sm text-red-600">{createError}</p>
-            )}
-            <div className="mt-4 flex gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setCreateOpen(false);
-                  setCreateError("");
-                }}
-                className="min-h-[44px] flex-1 rounded-xl border border-gray-300 bg-white font-medium text-gray-700"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => void handleCreate()}
-                className="min-h-[44px] flex-1 rounded-xl bg-indigo-600 font-medium text-white hover:bg-indigo-500"
-              >
-                Create
-              </button>
-            </div>
-          </div>
+      <Modal
+        open={createOpen}
+        onClose={() => {
+          setCreateOpen(false);
+          setCreateError("");
+        }}
+        title="New exercise"
+      >
+        <input
+          type="text"
+          placeholder="Exercise name"
+          value={createName}
+          onChange={(e) => setCreateName(e.target.value)}
+          className="mt-3 w-full min-h-[44px] rounded-xl border border-gray-300 px-4 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          autoFocus
+        />
+        {createError && (
+          <p className="mt-2 text-sm text-red-600">{createError}</p>
+        )}
+        <div className="mt-4 flex gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              setCreateOpen(false);
+              setCreateError("");
+            }}
+            className="min-h-[44px] flex-1 rounded-xl border border-gray-300 bg-white font-medium text-gray-700"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleCreate()}
+            className="min-h-[44px] flex-1 rounded-xl bg-indigo-600 font-medium text-white hover:bg-indigo-500"
+          >
+            Create
+          </button>
         </div>
-      )}
+      </Modal>
 
-      {editId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-lg">
-            <h3 className="text-lg font-semibold text-gray-900">
-              Edit exercise
-            </h3>
-            <input
-              type="text"
-              value={editName}
-              onChange={(e) => setEditName(e.target.value)}
-              className="mt-3 w-full min-h-[44px] rounded-xl border border-gray-300 px-4 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-              autoFocus
-            />
-            <div className="mt-4 flex gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setEditId(null);
-                  setEditName("");
-                }}
-                className="min-h-[44px] flex-1 rounded-xl border border-gray-300 bg-white font-medium text-gray-700"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => void handleEdit()}
-                className="min-h-[44px] flex-1 rounded-xl bg-indigo-600 font-medium text-white hover:bg-indigo-500"
-              >
-                Save
-              </button>
-            </div>
-          </div>
+      <Modal
+        open={!!editId}
+        onClose={() => {
+          setEditId(null);
+          setEditName("");
+        }}
+        title="Edit exercise"
+      >
+        <input
+          type="text"
+          value={editName}
+          onChange={(e) => setEditName(e.target.value)}
+          className="mt-3 w-full min-h-[44px] rounded-xl border border-gray-300 px-4 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          autoFocus
+        />
+        <div className="mt-4 flex gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              setEditId(null);
+              setEditName("");
+            }}
+            className="min-h-[44px] flex-1 rounded-xl border border-gray-300 bg-white font-medium text-gray-700"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleEdit()}
+            className="min-h-[44px] flex-1 rounded-xl bg-indigo-600 font-medium text-white hover:bg-indigo-500"
+          >
+            Save
+          </button>
         </div>
-      )}
+      </Modal>
 
       <ConfirmDialog
         open={deleteId != null}

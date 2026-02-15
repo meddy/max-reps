@@ -17,6 +17,7 @@ import {
 import type { Workout, WorkoutSet, Exercise } from "../../types";
 import { LoadingSpinner } from "../../components/LoadingSpinner";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
+import { Modal } from "../../components/Modal";
 import { Timestamp } from "firebase/firestore";
 import { formatDate, formatDateTime } from "../../lib/format";
 
@@ -346,89 +347,91 @@ export function WorkoutDetail() {
         Delete workout
       </button>
 
-      {addSetOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-lg">
-            <h3 className="text-lg font-semibold text-gray-900">Add set</h3>
+      <Modal
+        open={addSetOpen}
+        onClose={() => {
+          setAddSetOpen(false);
+          setSelectedExerciseId(null);
+        }}
+        title="Add set"
+      >
+        <input
+          type="text"
+          placeholder="Search exercises"
+          value={exerciseSearch}
+          onChange={(e) => setExerciseSearch(e.target.value)}
+          className="mt-3 min-h-[44px] w-full rounded-xl border border-gray-300 px-4"
+        />
+        <ul className="mt-2 max-h-40 overflow-auto">
+          {exerciseResults.map((ex) => (
+            <li key={ex.id}>
+              <button
+                type="button"
+                onClick={() => setSelectedExerciseId(ex.id)}
+                className={`min-h-[44px] w-full rounded-lg px-3 text-left text-sm ${
+                  selectedExerciseId === ex.id
+                    ? "bg-indigo-100 font-medium text-indigo-900"
+                    : "text-gray-700 hover:bg-gray-50"
+                }`}
+              >
+                {ex.displayName}
+              </button>
+            </li>
+          ))}
+        </ul>
+        {selectedExerciseId && (
+          <div className="mt-4 flex flex-col gap-2">
+            <label className="text-sm">
+              Reps:{" "}
+              <input
+                type="number"
+                min={0}
+                value={newReps || ""}
+                onChange={(e) => setNewReps(Number(e.target.value) || 0)}
+                className="ml-2 w-16 rounded border px-2 py-1"
+              />
+            </label>
+            <label className="text-sm">
+              Weight:{" "}
+              <input
+                type="number"
+                min={0}
+                step={0.5}
+                value={newWeight || ""}
+                onChange={(e) => setNewWeight(Number(e.target.value) || 0)}
+                className="ml-2 w-20 rounded border px-2 py-1"
+              />{" "}
+              lbs
+            </label>
             <input
               type="text"
-              placeholder="Search exercises"
-              value={exerciseSearch}
-              onChange={(e) => setExerciseSearch(e.target.value)}
-              className="mt-3 min-h-[44px] w-full rounded-xl border border-gray-300 px-4"
+              placeholder="Note"
+              value={newNote}
+              onChange={(e) => setNewNote(e.target.value)}
+              className="rounded border border-gray-300 px-2 py-1 text-sm"
             />
-            <ul className="mt-2 max-h-40 overflow-auto">
-              {exerciseResults.map((ex) => (
-                <li key={ex.id}>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedExerciseId(ex.id)}
-                    className={`min-h-[44px] w-full rounded-lg px-3 text-left text-sm ${
-                      selectedExerciseId === ex.id
-                        ? "bg-indigo-100 font-medium text-indigo-900"
-                        : "text-gray-700 hover:bg-gray-50"
-                    }`}
-                  >
-                    {ex.displayName}
-                  </button>
-                </li>
-              ))}
-            </ul>
-            {selectedExerciseId && (
-              <div className="mt-4 flex flex-col gap-2">
-                <label className="text-sm">
-                  Reps:{" "}
-                  <input
-                    type="number"
-                    min={0}
-                    value={newReps || ""}
-                    onChange={(e) => setNewReps(Number(e.target.value) || 0)}
-                    className="ml-2 w-16 rounded border px-2 py-1"
-                  />
-                </label>
-                <label className="text-sm">
-                  Weight:{" "}
-                  <input
-                    type="number"
-                    min={0}
-                    step={0.5}
-                    value={newWeight || ""}
-                    onChange={(e) => setNewWeight(Number(e.target.value) || 0)}
-                    className="ml-2 w-20 rounded border px-2 py-1"
-                  />{" "}
-                  lbs
-                </label>
-                <input
-                  type="text"
-                  placeholder="Note"
-                  value={newNote}
-                  onChange={(e) => setNewNote(e.target.value)}
-                  className="rounded border border-gray-300 px-2 py-1 text-sm"
-                />
-                <div className="mt-2 flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAddSetOpen(false);
-                      setSelectedExerciseId(null);
-                    }}
-                    className="min-h-[44px] flex-1 rounded-xl border border-gray-300 bg-white font-medium text-gray-700"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void handleAddSet()}
-                    className="min-h-[44px] flex-1 rounded-xl bg-indigo-600 font-medium text-white hover:bg-indigo-500"
-                  >
-                    Add
-                  </button>
-                </div>
-              </div>
-            )}
+            <div className="mt-2 flex gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setAddSetOpen(false);
+                  setSelectedExerciseId(null);
+                }}
+                className="min-h-[44px] flex-1 rounded-xl border border-gray-300 bg-white font-medium text-gray-700"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleAddSet()}
+                className="min-h-[44px] flex-1 rounded-xl bg-indigo-600 font-medium text-white hover:bg-indigo-500"
+              >
+                Add
+              </button>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
 
       <ConfirmDialog
         open={deleteSetId != null}
