@@ -14,14 +14,57 @@ import {
   orderBy,
   limit,
 } from "../../lib/firestore";
-import type { Workout, WorkoutSet, Exercise } from "../../types";
+import type { Workout, WorkoutSet } from "../../types";
 import { LoadingSpinner } from "../../components/LoadingSpinner";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
-import { Modal } from "../../components/Modal";
+import { ExerciseCard } from "../../components/ExerciseCard";
+import { SetRow } from "../../components/SetRow";
+import { AddExerciseModal } from "../../components/AddExerciseModal";
 import { Timestamp } from "firebase/firestore";
 import { formatDate, formatDateTime } from "../../lib/format";
 
 type SetWithId = WorkoutSet & { id: string };
+
+type SetRowData = {
+  key: string;
+  id?: string;
+  reps: number;
+  weight: number;
+  note: string;
+};
+
+type ExerciseGroup = {
+  exerciseId: string;
+  exerciseName: string;
+};
+
+function buildStateFromSets(sets: SetWithId[]): {
+  exerciseGroups: ExerciseGroup[];
+  setsByExercise: Record<string, SetRowData[]>;
+} {
+  const exerciseGroups: ExerciseGroup[] = [];
+  const seen = new Set<string>();
+  const setsByExercise: Record<string, SetRowData[]> = {};
+
+  for (const s of sets) {
+    if (!seen.has(s.exerciseId)) {
+      seen.add(s.exerciseId);
+      exerciseGroups.push({
+        exerciseId: s.exerciseId,
+        exerciseName: s.exerciseNameSnapshot,
+      });
+    }
+    if (!setsByExercise[s.exerciseId]) setsByExercise[s.exerciseId] = [];
+    setsByExercise[s.exerciseId].push({
+      key: s.id,
+      id: s.id,
+      reps: s.reps,
+      weight: s.weight,
+      note: s.note ?? "",
+    });
+  }
+  return { exerciseGroups, setsByExercise };
+}
 
 export function WorkoutDetail() {
   const { id } = useParams<{ id: string }>();
@@ -29,27 +72,31 @@ export function WorkoutDetail() {
   const [workout, setWorkout] = useState<(Workout & { id: string }) | null>(
     null
   );
-  const [sets, setSets] = useState<SetWithId[]>([]);
+  const [exerciseGroups, setExerciseGroups] = useState<ExerciseGroup[]>([]);
+  const [setsByExercise, setSetsByExercise] = useState<
+    Record<string, SetRowData[]>
+  >({});
+  const nextOrderRef = useRef(0);
+  const setsByExerciseRef = useRef<Record<string, SetRowData[]>>({});
   const [loading, setLoading] = useState(true);
   const [editingDate, setEditingDate] = useState(false);
   const [dateInput, setDateInput] = useState("");
-  const [deleteSetId, setDeleteSetId] = useState<string | null>(null);
-  const [deleteWorkoutConfirm, setDeleteWorkoutConfirm] = useState(false);
-  const [addSetOpen, setAddSetOpen] = useState(false);
-  const [exerciseSearch, setExerciseSearch] = useState("");
-  const [exerciseResults, setExerciseResults] = useState<
-    Array<Exercise & { id: string }>
-  >([]);
-  const [selectedExerciseId, setSelectedExerciseId] = useState<string | null>(
+  const [deleteSetKey, setDeleteSetKey] = useState<string | null>(null);
+  const [deleteSetExerciseId, setDeleteSetExerciseId] = useState<string | null>(
     null
   );
-  const [newReps, setNewReps] = useState(0);
-  const [newWeight, setNewWeight] = useState(0);
-  const [newNote, setNewNote] = useState("");
-  const setsRef = useRef<SetWithId[]>([]);
+  const [deleteSetRowIndex, setDeleteSetRowIndex] = useState<number | null>(
+    null
+  );
+  const [removeExerciseConfirmId, setRemoveExerciseConfirmId] = useState<
+    string | null
+  >(null);
+  const [deleteWorkoutConfirm, setDeleteWorkoutConfirm] = useState(false);
+  const [addExerciseOpen, setAddExerciseOpen] = useState(false);
+
   useEffect(() => {
-    setsRef.current = sets;
-  }, [sets]);
+    setsByExerciseRef.current = setsByExercise;
+  }, [setsByExercise]);
 
   const loadWorkout = useCallback(async () => {
     if (!id) return;
@@ -78,7 +125,11 @@ export function WorkoutDetail() {
       id: d.id,
       ...d.data(),
     })) as SetWithId[];
-    setSets(list);
+    const { exerciseGroups: groups, setsByExercise: byEx } =
+      buildStateFromSets(list);
+    setExerciseGroups(groups);
+    setSetsByExercise(byEx);
+    nextOrderRef.current = list.length;
   }, [id]);
 
   useEffect(() => {
@@ -88,34 +139,6 @@ export function WorkoutDetail() {
   useEffect(() => {
     void loadSets();
   }, [loadSets]);
-
-  useEffect(() => {
-    if (!addSetOpen || !exerciseSearch.trim()) {
-      setExerciseResults([]);
-      return;
-    }
-    let ignore = false;
-    const term = exerciseSearch.trim().toLowerCase();
-    const ref = getCollectionRef("exercises");
-    const q = query(
-      ref,
-      where("nameLower", ">=", term),
-      where("nameLower", "<=", term + "\uf8ff"),
-      orderBy("nameLower"),
-      limit(20)
-    );
-    getDocs(q).then((snap) => {
-      if (ignore) return;
-      const list = snap.docs.map((d) => ({
-        id: d.id,
-        ...d.data(),
-      })) as Array<Exercise & { id: string }>;
-      setExerciseResults(list);
-    });
-    return () => {
-      ignore = true;
-    };
-  }, [addSetOpen, exerciseSearch]);
 
   const saveDate = async () => {
     if (!workout || !dateInput) return;
@@ -129,31 +152,145 @@ export function WorkoutDetail() {
     setEditingDate(false);
   };
 
-  const updateSetLocal = (
-    setId: string,
-    updates: { reps?: number; weight?: number; note?: string }
+  const updateSetRow = (
+    exerciseId: string,
+    rowIndex: number,
+    updates: Partial<Pick<SetRowData, "reps" | "weight" | "note">>
   ) => {
-    setSets((prev) =>
-      prev.map((s) => (s.id === setId ? { ...s, ...updates } : s))
-    );
-  };
-
-  const persistSet = useCallback((setId: string) => {
-    const s = setsRef.current.find((x) => x.id === setId);
-    if (!s) return;
-    void updateDocById("sets", setId, {
-      reps: s.reps,
-      weight: s.weight,
-      note: s.note,
+    setSetsByExercise((prev) => {
+      const rows = [...(prev[exerciseId] ?? [])];
+      rows[rowIndex] = { ...rows[rowIndex], ...updates };
+      return { ...prev, [exerciseId]: rows };
     });
-  }, []);
-
-  const handleDeleteSet = async () => {
-    if (!deleteSetId) return;
-    await deleteDocById("sets", deleteSetId);
-    setDeleteSetId(null);
-    void loadSets();
   };
+
+  const persistSet = useCallback(
+    (exerciseId: string, rowIndex: number) => {
+      const rows = setsByExerciseRef.current[exerciseId] ?? [];
+      const row = rows[rowIndex];
+      if (!row) return;
+      if (row.id) {
+        void updateDocById("sets", row.id, {
+          reps: row.reps,
+          weight: row.weight,
+          note: row.note,
+        });
+        return;
+      }
+      if (row.reps <= 0) return;
+      if (!id || !workout) return;
+      const exGroup = exerciseGroups.find((g) => g.exerciseId === exerciseId);
+      const exerciseName = exGroup?.exerciseName ?? "—";
+      const order = nextOrderRef.current++;
+      createDoc("sets", {
+        workoutId: id,
+        exerciseId,
+        exerciseNameSnapshot: exerciseName,
+        reps: row.reps,
+        weight: row.weight,
+        unit: "lbs",
+        note: row.note,
+        performedAt: workout.date,
+        order,
+      } as unknown as Omit<WorkoutSet, "id" | "createdAt">).then((newId) => {
+        setSetsByExercise((prev) => {
+          const rows = [...(prev[exerciseId] ?? [])];
+          rows[rowIndex] = { ...rows[rowIndex], id: newId, key: newId };
+          return { ...prev, [exerciseId]: rows };
+        });
+      });
+    },
+    [id, workout, exerciseGroups]
+  );
+
+  const addSetRow = (exerciseId: string) => {
+    setSetsByExercise((prev) => ({
+      ...prev,
+      [exerciseId]: [
+        ...(prev[exerciseId] ?? []),
+        {
+          key: crypto.randomUUID(),
+          reps: 0,
+          weight: 0,
+          note: "",
+        },
+      ],
+    }));
+  };
+
+  const removeSetRow = (
+    exerciseId: string,
+    rowIndex: number,
+    row: SetRowData
+  ) => {
+    if (row.id) {
+      setDeleteSetKey(row.id);
+      setDeleteSetExerciseId(exerciseId);
+      setDeleteSetRowIndex(rowIndex);
+      return;
+    }
+    setSetsByExercise((prev) => {
+      const rows = [...(prev[exerciseId] ?? [])];
+      rows.splice(rowIndex, 1);
+      return { ...prev, [exerciseId]: rows };
+    });
+  };
+
+  const handleConfirmDeleteSet = async () => {
+    if (!deleteSetKey || !deleteSetExerciseId || deleteSetRowIndex === null)
+      return;
+    await deleteDocById("sets", deleteSetKey);
+    setSetsByExercise((prev) => {
+      const rows = [...(prev[deleteSetExerciseId] ?? [])];
+      rows.splice(deleteSetRowIndex, 1);
+      return { ...prev, [deleteSetExerciseId]: rows };
+    });
+    setDeleteSetKey(null);
+    setDeleteSetExerciseId(null);
+    setDeleteSetRowIndex(null);
+  };
+
+  const removeExerciseFromView = (exerciseId: string) => {
+    setRemoveExerciseConfirmId(exerciseId);
+  };
+
+  const handleConfirmRemoveExercise = async () => {
+    const exerciseId = removeExerciseConfirmId;
+    if (!exerciseId) return;
+    const rows = setsByExercise[exerciseId] ?? [];
+    for (const row of rows) {
+      if (row.id) await deleteDocById("sets", row.id);
+    }
+    setExerciseGroups((prev) =>
+      prev.filter((g) => g.exerciseId !== exerciseId)
+    );
+    setSetsByExercise((prev) => {
+      const next = { ...prev };
+      delete next[exerciseId];
+      return next;
+    });
+    setRemoveExerciseConfirmId(null);
+  };
+
+  const handleAddExercise = useCallback(
+    (exerciseId: string, exerciseName: string) => {
+      if (exerciseGroups.some((g) => g.exerciseId === exerciseId)) return;
+      setExerciseGroups((prev) => [...prev, { exerciseId, exerciseName }]);
+      setSetsByExercise((prev) => ({
+        ...prev,
+        [exerciseId]: [
+          {
+            key: crypto.randomUUID(),
+            reps: 0,
+            weight: 0,
+            note: "",
+          },
+        ],
+      }));
+      setAddExerciseOpen(false);
+    },
+    [exerciseGroups]
+  );
 
   const handleDeleteWorkout = async () => {
     if (!id) return;
@@ -163,39 +300,6 @@ export function WorkoutDetail() {
     setDeleteWorkoutConfirm(false);
     navigate("/workouts");
   };
-
-  const handleAddSet = async () => {
-    if (!id || !workout || !selectedExerciseId) return;
-    const exSnap = await getDoc(getDocRef("exercises", selectedExerciseId));
-    const exerciseName = exSnap.exists()
-      ? (exSnap.data() as Exercise).displayName
-      : "—";
-    const nextOrder = sets.length;
-    await createDoc("sets", {
-      workoutId: id,
-      exerciseId: selectedExerciseId,
-      exerciseNameSnapshot: exerciseName,
-      reps: newReps,
-      weight: newWeight,
-      unit: "lbs",
-      note: newNote,
-      performedAt: workout.date,
-      order: nextOrder,
-    } as unknown as Omit<WorkoutSet, "id" | "createdAt">);
-    setAddSetOpen(false);
-    setSelectedExerciseId(null);
-    setNewReps(0);
-    setNewWeight(0);
-    setNewNote("");
-    void loadSets();
-  };
-
-  const groups = sets.reduce<Record<string, SetWithId[]>>((acc, s) => {
-    const name = s.exerciseNameSnapshot;
-    if (!acc[name]) acc[name] = [];
-    acc[name].push(s);
-    return acc;
-  }, {});
 
   if (loading && !workout) {
     return (
@@ -268,76 +372,51 @@ export function WorkoutDetail() {
         )}
       </div>
 
-      <div className="flex justify-end">
-        <button
-          type="button"
-          onClick={() => setAddSetOpen(true)}
-          className="min-h-[44px] rounded-xl bg-indigo-600 px-4 text-sm font-medium text-white hover:bg-indigo-500"
-        >
-          Add set
-        </button>
-      </div>
-
-      {Object.entries(groups).map(([name, groupSets]) => (
-        <div key={name} className="rounded-xl bg-white shadow-sm">
-          <h3 className="border-b border-gray-100 px-4 py-2 font-medium text-gray-900">
-            {name}
-          </h3>
-          <ul className="divide-y divide-gray-100">
-            {groupSets.map((s) => (
-              <li
-                key={s.id}
-                className="flex flex-wrap items-center gap-2 px-4 py-2"
-              >
-                <input
-                  type="number"
-                  min={0}
-                  className="w-14 rounded border border-gray-300 px-2 py-1 text-sm"
-                  value={s.reps}
-                  onChange={(e) =>
-                    updateSetLocal(s.id, {
-                      reps: Number(e.target.value) || 0,
-                    })
-                  }
-                  onBlur={() => persistSet(s.id)}
-                />
-                <span className="text-gray-500">×</span>
-                <input
-                  type="number"
-                  min={0}
-                  step={0.5}
-                  className="w-16 rounded border border-gray-300 px-2 py-1 text-sm"
-                  value={s.weight}
-                  onChange={(e) =>
-                    updateSetLocal(s.id, {
-                      weight: Number(e.target.value) || 0,
-                    })
-                  }
-                  onBlur={() => persistSet(s.id)}
-                />
-                <span className="text-sm text-gray-500">lbs</span>
-                <input
-                  type="text"
-                  placeholder="Note"
-                  className="min-w-[80px] flex-1 rounded border border-gray-300 px-2 py-1 text-sm"
-                  value={s.note}
-                  onChange={(e) =>
-                    updateSetLocal(s.id, { note: e.target.value })
-                  }
-                  onBlur={() => persistSet(s.id)}
-                />
-                <button
-                  type="button"
-                  onClick={() => setDeleteSetId(s.id)}
-                  className="text-sm text-red-600 hover:bg-red-50"
-                >
-                  Delete
-                </button>
-              </li>
+      {exerciseGroups.map((group) => {
+        const rows = setsByExercise[group.exerciseId] ?? [];
+        return (
+          <ExerciseCard
+            key={group.exerciseId}
+            exerciseName={group.exerciseName}
+            onRemove={() => removeExerciseFromView(group.exerciseId)}
+            onAddSet={() => addSetRow(group.exerciseId)}
+          >
+            {rows.map((row, idx) => (
+              <SetRow
+                key={row.key}
+                reps={row.reps}
+                weight={row.weight}
+                note={row.note}
+                onRepsChange={(val) =>
+                  updateSetRow(group.exerciseId, idx, { reps: val })
+                }
+                onWeightChange={(val) =>
+                  updateSetRow(group.exerciseId, idx, { weight: val })
+                }
+                onNoteChange={(val) =>
+                  updateSetRow(group.exerciseId, idx, { note: val })
+                }
+                onBlur={() => persistSet(group.exerciseId, idx)}
+                onDelete={() => removeSetRow(group.exerciseId, idx, row)}
+              />
             ))}
-          </ul>
-        </div>
-      ))}
+          </ExerciseCard>
+        );
+      })}
+
+      <button
+        type="button"
+        onClick={() => setAddExerciseOpen(true)}
+        className="min-h-[44px] w-full rounded-xl border border-dashed border-gray-400 bg-white font-medium text-gray-700 hover:border-indigo-500 hover:bg-indigo-50 hover:text-indigo-700"
+      >
+        + Add exercise
+      </button>
+
+      <AddExerciseModal
+        open={addExerciseOpen}
+        onClose={() => setAddExerciseOpen(false)}
+        onAdd={handleAddExercise}
+      />
 
       <button
         type="button"
@@ -347,101 +426,40 @@ export function WorkoutDetail() {
         Delete workout
       </button>
 
-      <Modal
-        open={addSetOpen}
-        onClose={() => {
-          setAddSetOpen(false);
-          setSelectedExerciseId(null);
-        }}
-        title="Add set"
-      >
-        <input
-          type="text"
-          placeholder="Search exercises"
-          value={exerciseSearch}
-          onChange={(e) => setExerciseSearch(e.target.value)}
-          className="mt-3 min-h-[44px] w-full rounded-xl border border-gray-300 px-4"
-        />
-        <ul className="mt-2 max-h-40 overflow-auto">
-          {exerciseResults.map((ex) => (
-            <li key={ex.id}>
-              <button
-                type="button"
-                onClick={() => setSelectedExerciseId(ex.id)}
-                className={`min-h-[44px] w-full rounded-lg px-3 text-left text-sm ${
-                  selectedExerciseId === ex.id
-                    ? "bg-indigo-100 font-medium text-indigo-900"
-                    : "text-gray-700 hover:bg-gray-50"
-                }`}
-              >
-                {ex.displayName}
-              </button>
-            </li>
-          ))}
-        </ul>
-        {selectedExerciseId && (
-          <div className="mt-4 flex flex-col gap-2">
-            <label className="text-sm">
-              Reps:{" "}
-              <input
-                type="number"
-                min={0}
-                value={newReps || ""}
-                onChange={(e) => setNewReps(Number(e.target.value) || 0)}
-                className="ml-2 w-16 rounded border px-2 py-1"
-              />
-            </label>
-            <label className="text-sm">
-              Weight:{" "}
-              <input
-                type="number"
-                min={0}
-                step={0.5}
-                value={newWeight || ""}
-                onChange={(e) => setNewWeight(Number(e.target.value) || 0)}
-                className="ml-2 w-20 rounded border px-2 py-1"
-              />{" "}
-              lbs
-            </label>
-            <input
-              type="text"
-              placeholder="Note"
-              value={newNote}
-              onChange={(e) => setNewNote(e.target.value)}
-              className="rounded border border-gray-300 px-2 py-1 text-sm"
-            />
-            <div className="mt-2 flex gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setAddSetOpen(false);
-                  setSelectedExerciseId(null);
-                }}
-                className="min-h-[44px] flex-1 rounded-xl border border-gray-300 bg-white font-medium text-gray-700"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => void handleAddSet()}
-                className="min-h-[44px] flex-1 rounded-xl bg-indigo-600 font-medium text-white hover:bg-indigo-500"
-              >
-                Add
-              </button>
-            </div>
-          </div>
-        )}
-      </Modal>
-
       <ConfirmDialog
-        open={deleteSetId != null}
+        open={deleteSetKey != null}
         title="Delete set"
         message="Remove this set from the workout?"
         confirmLabel="Delete"
         cancelLabel="Cancel"
         variant="danger"
-        onConfirm={() => void handleDeleteSet()}
-        onCancel={() => setDeleteSetId(null)}
+        onConfirm={() => void handleConfirmDeleteSet()}
+        onCancel={() => {
+          setDeleteSetKey(null);
+          setDeleteSetExerciseId(null);
+          setDeleteSetRowIndex(null);
+        }}
+      />
+
+      <ConfirmDialog
+        open={removeExerciseConfirmId != null}
+        title="Remove exercise"
+        message={(() => {
+          const eid = removeExerciseConfirmId;
+          if (!eid) return "";
+          const group = exerciseGroups.find((g) => g.exerciseId === eid);
+          const rows = setsByExercise[eid] ?? [];
+          const savedCount = rows.filter((r) => r.id).length;
+          const name = group?.exerciseName ?? "this exercise";
+          return savedCount > 0
+            ? `Remove ${name} from this workout and delete its ${savedCount} set(s)?`
+            : `Remove ${name} from this workout?`;
+        })()}
+        confirmLabel="Remove"
+        cancelLabel="Cancel"
+        variant="danger"
+        onConfirm={() => void handleConfirmRemoveExercise()}
+        onCancel={() => setRemoveExerciseConfirmId(null)}
       />
 
       <ConfirmDialog

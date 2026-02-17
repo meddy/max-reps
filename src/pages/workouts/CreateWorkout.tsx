@@ -29,7 +29,9 @@ import type {
 } from "../../types";
 import { LoadingSpinner } from "../../components/LoadingSpinner";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
-import { Modal } from "../../components/Modal";
+import { ExerciseCard } from "../../components/ExerciseCard";
+import { SetRow } from "../../components/SetRow";
+import { AddExerciseModal } from "../../components/AddExerciseModal";
 
 type TemplateWithName = ExerciseSetTemplate & {
   id: string;
@@ -82,16 +84,6 @@ export function CreateWorkout() {
   const [removeExerciseConfirmTemplateId, setRemoveExerciseConfirmTemplateId] =
     useState<string | null>(null);
   const [addExerciseOpen, setAddExerciseOpen] = useState(false);
-  const [exerciseSearch, setExerciseSearch] = useState("");
-  const [exerciseResults, setExerciseResults] = useState<
-    Array<Exercise & { id: string }>
-  >([]);
-  const [selectedExerciseId, setSelectedExerciseId] = useState<string | null>(
-    null
-  );
-  const [selectedExerciseDisplayName, setSelectedExerciseDisplayName] =
-    useState<string | null>(null);
-  const [createExerciseError, setCreateExerciseError] = useState("");
 
   useEffect(() => {
     setsByExerciseRef.current = setsByExercise;
@@ -133,34 +125,6 @@ export function CreateWorkout() {
       ignore = true;
     };
   }, [step, daySearch]);
-
-  useEffect(() => {
-    if (!addExerciseOpen || !exerciseSearch.trim()) {
-      setExerciseResults([]);
-      return;
-    }
-    let ignore = false;
-    const term = exerciseSearch.trim().toLowerCase();
-    const ref = getCollectionRef("exercises");
-    const q = query(
-      ref,
-      where("nameLower", ">=", term),
-      where("nameLower", "<=", term + "\uf8ff"),
-      orderBy("nameLower"),
-      limit(20)
-    );
-    getDocs(q).then((snap) => {
-      if (ignore) return;
-      const list = snap.docs.map((d) => ({
-        id: d.id,
-        ...d.data(),
-      })) as Array<Exercise & { id: string }>;
-      setExerciseResults(list);
-    });
-    return () => {
-      ignore = true;
-    };
-  }, [addExerciseOpen, exerciseSearch]);
 
   const selectDay = useCallback(
     async (day: Day & { id: string }) => {
@@ -444,80 +408,56 @@ export function CreateWorkout() {
     navigate("/workouts");
   };
 
-  const handleCreateExercise = async () => {
-    const displayName = exerciseSearch.trim();
-    if (!displayName) return;
-    setCreateExerciseError("");
-    const nameLower = displayName.toLowerCase();
-    const ref = getCollectionRef("exercises");
-    const existing = await getDocs(
-      query(ref, where("nameLower", "==", nameLower))
-    );
-    if (!existing.empty) {
-      setCreateExerciseError("An exercise with this name already exists");
-      return;
-    }
-    const newId = await createDoc("exercises", {
-      nameLower,
-      displayName,
-    } as unknown as Omit<Exercise, "id" | "createdAt" | "updatedAt">);
-    setSelectedExerciseId(newId);
-    setSelectedExerciseDisplayName(displayName);
-    setExerciseSearch("");
-  };
-
-  const handleAddExercise = async () => {
-    if (!selectedExerciseId || !selectedExerciseDisplayName || !selectedDay)
-      return;
-    const syntheticId = `adhoc-${crypto.randomUUID()}`;
-    const maxOrder =
-      templates.length > 0 ? Math.max(...templates.map((t) => t.order)) : -1;
-    const now = Timestamp.now();
-    const virtualTemplate: TemplateWithName = {
-      id: syntheticId,
-      dayId: selectedDay.id,
-      exerciseId: selectedExerciseId,
-      exerciseName: selectedExerciseDisplayName,
-      numSets: 1,
-      repsLower: 0,
-      repsUpper: 0,
-      order: maxOrder + 1,
-      createdAt: now,
-      updatedAt: now,
-      isAdHoc: true,
-    };
-    setTemplates((prev) => [...prev, virtualTemplate]);
-    setSetsByExercise((prev) => ({
-      ...prev,
-      [syntheticId]: [
-        { draftId: crypto.randomUUID(), reps: 0, weight: 0, note: "" },
-      ],
-    }));
-    const setsRef = getCollectionRef("sets");
-    const sq = query(
-      setsRef,
-      where("exerciseId", "==", selectedExerciseId),
-      orderBy("performedAt", "desc"),
-      limit(1)
-    );
-    const sSnap = await getDocs(sq);
-    if (!sSnap.empty) {
-      const d = sSnap.docs[0].data() as WorkoutSet;
-      setLastPerformed((prev) => ({
+  const handleAddExercise = useCallback(
+    async (exerciseId: string, exerciseName: string) => {
+      if (!selectedDay) return;
+      const syntheticId = `adhoc-${crypto.randomUUID()}`;
+      const maxOrder =
+        templates.length > 0 ? Math.max(...templates.map((t) => t.order)) : -1;
+      const now = Timestamp.now();
+      const virtualTemplate: TemplateWithName = {
+        id: syntheticId,
+        dayId: selectedDay.id,
+        exerciseId,
+        exerciseName,
+        numSets: 1,
+        repsLower: 0,
+        repsUpper: 0,
+        order: maxOrder + 1,
+        createdAt: now,
+        updatedAt: now,
+        isAdHoc: true,
+      };
+      setTemplates((prev) => [...prev, virtualTemplate]);
+      setSetsByExercise((prev) => ({
         ...prev,
-        [selectedExerciseId]: {
-          reps: d.reps,
-          weight: d.weight,
-          note: d.note,
-        },
+        [syntheticId]: [
+          { draftId: crypto.randomUUID(), reps: 0, weight: 0, note: "" },
+        ],
       }));
-    }
-    setAddExerciseOpen(false);
-    setSelectedExerciseId(null);
-    setSelectedExerciseDisplayName(null);
-    setExerciseSearch("");
-    setCreateExerciseError("");
-  };
+      const setsRef = getCollectionRef("sets");
+      const sq = query(
+        setsRef,
+        where("exerciseId", "==", exerciseId),
+        orderBy("performedAt", "desc"),
+        limit(1)
+      );
+      const sSnap = await getDocs(sq);
+      if (!sSnap.empty) {
+        const d = sSnap.docs[0].data() as WorkoutSet;
+        setLastPerformed((prev) => ({
+          ...prev,
+          [exerciseId]: {
+            reps: d.reps,
+            weight: d.weight,
+            note: d.note,
+          },
+        }));
+      }
+      setAddExerciseOpen(false);
+    },
+    [selectedDay, templates]
+  );
 
   const handleConfirmLeave = async () => {
     if (workoutId && savedSetCount === 0) {
@@ -604,259 +544,89 @@ export function CreateWorkout() {
       {templates.map((template) => {
         const rows = setsByExercise[template.id] ?? [];
         const last = lastPerformed[template.exerciseId];
-        return (
-          <div key={template.id} className="rounded-xl bg-white p-4 shadow-sm">
-            <div className="flex items-center justify-between">
-              <p className="font-medium text-gray-900">
-                {template.exerciseName}
-              </p>
-              <button
-                type="button"
-                onClick={() => removeExerciseFromView(template.id)}
-                className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg border border-red-200 bg-white p-2 text-red-600 hover:bg-red-50"
-                aria-label="Remove exercise"
-              >
-                <svg
-                  className="size-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                  aria-hidden
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                  />
-                </svg>
-              </button>
-            </div>
-            {!template.isAdHoc ? (
-              <p className="text-sm text-gray-500">
-                Target: {template.repsLower}–{template.repsUpper} reps
-                {last && (
-                  <span className="ml-2">
-                    · Last: {last.reps} × {last.weight} lbs
-                  </span>
-                )}
-              </p>
-            ) : (
-              last && (
-                <p className="text-sm text-gray-500">
-                  Last: {last.reps} × {last.weight} lbs
-                </p>
-              )
+        const metadata = !template.isAdHoc ? (
+          <p className="text-sm text-gray-500">
+            Target: {template.repsLower}–{template.repsUpper} reps
+            {last && (
+              <span className="ml-2">
+                · Last: {last.reps} × {last.weight} lbs
+              </span>
             )}
-            <ul className="mt-3 flex flex-col gap-6 sm:gap-2">
-              {rows.map((row, idx) => (
-                <li key={idx} className="flex flex-wrap items-center gap-2">
-                  <div className="flex min-w-0 flex-1 basis-full items-center gap-2 sm:basis-auto sm:flex-initial">
-                    <input
-                      type="number"
-                      min={0}
-                      placeholder="Reps"
-                      value={row.reps || ""}
-                      onChange={(e) =>
-                        updateSetRow(
-                          template.id,
-                          idx,
-                          "reps",
-                          Number(e.target.value) || 0,
-                          row.draftId,
-                          template
-                        )
-                      }
-                      className="min-w-0 flex-1 rounded-lg border border-gray-300 px-2 py-1.5 text-sm sm:w-20 sm:min-w-[5rem] sm:flex-none"
-                    />
-                    <input
-                      type="number"
-                      min={0}
-                      step={0.5}
-                      placeholder="Weight"
-                      value={row.weight}
-                      onChange={(e) =>
-                        updateSetRow(
-                          template.id,
-                          idx,
-                          "weight",
-                          Number(e.target.value) || 0,
-                          row.draftId,
-                          template
-                        )
-                      }
-                      className="min-w-0 flex-1 rounded-lg border border-gray-300 px-2 py-1.5 text-sm sm:w-24 sm:min-w-[6rem] sm:flex-none"
-                    />
-                    <span className="text-sm text-gray-500">lbs</span>
-                  </div>
-                  <input
-                    type="text"
-                    placeholder="Note"
-                    value={row.note}
-                    onChange={(e) =>
-                      updateSetRow(
-                        template.id,
-                        idx,
-                        "note",
-                        e.target.value,
-                        row.draftId,
-                        template
-                      )
-                    }
-                    className="min-w-0 basis-full rounded-lg border border-gray-300 px-2 py-1.5 text-sm sm:basis-auto sm:flex-1 sm:min-w-[80px]"
-                  />
-                  <div className="flex min-w-0 flex-1 basis-full gap-2 sm:basis-auto sm:flex-initial">
-                    <button
-                      type="button"
-                      onClick={() => removeSetRow(template.id, idx, row)}
-                      className="flex flex-1 shrink-0 items-center justify-center rounded-lg border border-red-200 bg-white p-1.5 text-red-600 hover:bg-red-50 sm:h-8 sm:w-8 sm:flex-none"
-                      aria-label={row.savedId ? "Delete set" : "Remove set"}
-                    >
-                      <svg
-                        className="size-5"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                        aria-hidden
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                        />
-                      </svg>
-                    </button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-            <button
-              type="button"
-              onClick={() => addSetRow(template.id)}
-              className="mt-2 min-h-[44px] text-sm text-indigo-600 hover:underline"
-            >
-              + Add set
-            </button>
-          </div>
+          </p>
+        ) : (
+          last && (
+            <p className="text-sm text-gray-500">
+              Last: {last.reps} × {last.weight} lbs
+            </p>
+          )
+        );
+        return (
+          <ExerciseCard
+            key={template.id}
+            exerciseName={template.exerciseName}
+            metadata={metadata}
+            onRemove={() => removeExerciseFromView(template.id)}
+            onAddSet={() => addSetRow(template.id)}
+          >
+            {rows.map((row, idx) => (
+              <SetRow
+                key={row.draftId}
+                reps={row.reps}
+                weight={row.weight}
+                note={row.note}
+                onRepsChange={(val) =>
+                  updateSetRow(
+                    template.id,
+                    idx,
+                    "reps",
+                    val,
+                    row.draftId,
+                    template
+                  )
+                }
+                onWeightChange={(val) =>
+                  updateSetRow(
+                    template.id,
+                    idx,
+                    "weight",
+                    val,
+                    row.draftId,
+                    template
+                  )
+                }
+                onNoteChange={(val) =>
+                  updateSetRow(
+                    template.id,
+                    idx,
+                    "note",
+                    val,
+                    row.draftId,
+                    template
+                  )
+                }
+                onDelete={() => removeSetRow(template.id, idx, row)}
+                deleteAriaLabel={row.savedId ? "Delete set" : "Remove set"}
+              />
+            ))}
+          </ExerciseCard>
         );
       })}
 
       <button
         type="button"
-        onClick={() => {
-          setAddExerciseOpen(true);
-          setSelectedExerciseId(null);
-          setSelectedExerciseDisplayName(null);
-          setExerciseSearch("");
-          setCreateExerciseError("");
-        }}
+        onClick={() => setAddExerciseOpen(true)}
         className="min-h-[44px] w-full rounded-xl border border-dashed border-gray-400 bg-white font-medium text-gray-700 hover:border-indigo-500 hover:bg-indigo-50 hover:text-indigo-700"
       >
         + Add exercise
       </button>
 
-      <Modal
+      <AddExerciseModal
         open={addExerciseOpen}
-        onClose={() => {
-          setAddExerciseOpen(false);
-          setSelectedExerciseId(null);
-          setSelectedExerciseDisplayName(null);
-          setExerciseSearch("");
-          setCreateExerciseError("");
-        }}
-        title="Add exercise to workout"
-      >
-        {selectedExerciseId ? (
-          <div className="mt-3 flex min-h-[44px] w-full items-center gap-2 rounded-xl border border-gray-300 bg-gray-50 px-4">
-            <span className="flex-1 truncate text-sm font-medium text-gray-900">
-              {selectedExerciseDisplayName ??
-                exerciseResults.find((e) => e.id === selectedExerciseId)
-                  ?.displayName ??
-                "—"}
-            </span>
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedExerciseId(null);
-                setSelectedExerciseDisplayName(null);
-                setExerciseSearch("");
-              }}
-              className="flex size-8 shrink-0 items-center justify-center rounded text-gray-500 hover:bg-gray-200 hover:text-gray-700"
-              aria-label="Clear selection"
-            >
-              <span className="text-sm">✕</span>
-            </button>
-          </div>
-        ) : (
-          <>
-            <input
-              type="text"
-              placeholder="Search exercises"
-              value={exerciseSearch}
-              onChange={(e) => {
-                setExerciseSearch(e.target.value);
-                setCreateExerciseError("");
-              }}
-              className="mt-3 min-h-[44px] w-full rounded-xl border border-gray-300 px-4 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-            />
-            <ul className="mt-2 max-h-40 overflow-auto">
-              {exerciseResults.map((ex) => (
-                <li key={ex.id}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedExerciseId(ex.id);
-                      setSelectedExerciseDisplayName(ex.displayName);
-                    }}
-                    className="min-h-[44px] w-full rounded-lg px-3 text-left text-sm text-gray-700 hover:bg-gray-50"
-                  >
-                    {ex.displayName}
-                  </button>
-                </li>
-              ))}
-            </ul>
-            {exerciseSearch.trim() !== "" && exerciseResults.length === 0 && (
-              <div className="mt-2 flex flex-col gap-2">
-                <button
-                  type="button"
-                  onClick={() => void handleCreateExercise()}
-                  className="min-h-[44px] w-full rounded-xl border border-dashed border-gray-400 bg-gray-50 font-medium text-gray-700 hover:border-indigo-500 hover:bg-indigo-50 hover:text-indigo-700"
-                >
-                  Create exercise &ldquo;{exerciseSearch.trim()}&rdquo;
-                </button>
-                {createExerciseError && (
-                  <p className="text-sm text-red-600">{createExerciseError}</p>
-                )}
-              </div>
-            )}
-          </>
-        )}
-        {selectedExerciseId && (
-          <div className="mt-4 flex gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                setAddExerciseOpen(false);
-                setSelectedExerciseId(null);
-                setSelectedExerciseDisplayName(null);
-                setExerciseSearch("");
-                setCreateExerciseError("");
-              }}
-              className="min-h-[44px] flex-1 rounded-xl border border-gray-300 bg-white font-medium text-gray-700"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={() => void handleAddExercise()}
-              className="min-h-[44px] flex-1 rounded-xl bg-indigo-600 font-medium text-white hover:bg-indigo-500"
-            >
-              Add
-            </button>
-          </div>
-        )}
-      </Modal>
+        onClose={() => setAddExerciseOpen(false)}
+        onAdd={(exerciseId, exerciseName) =>
+          void handleAddExercise(exerciseId, exerciseName)
+        }
+      />
 
       <div className="flex gap-2">
         <button
