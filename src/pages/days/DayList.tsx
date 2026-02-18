@@ -17,6 +17,7 @@ import type { Day, Exercise, ExerciseSetTemplate } from "../../types";
 import { EmptyState } from "../../components/EmptyState";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { IconPencil, IconPlus, IconTrash } from "../../components/Icons";
+import { SortToggleButton } from "../../components/SortToggleButton";
 import { LoadingSpinner } from "../../components/LoadingSpinner";
 import { Modal } from "../../components/Modal";
 
@@ -200,34 +201,11 @@ export function DayList() {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-end gap-2">
-        <div
-          className="flex rounded-xl border border-gray-300 bg-white p-0.5"
-          role="group"
-          aria-label="Sort days"
-        >
-          <button
-            type="button"
-            onClick={() => handleSortChange("asc")}
-            className={`min-h-[40px] rounded-lg px-3 text-sm font-medium transition-colors ${
-              sortOrder === "asc"
-                ? "bg-indigo-600 text-white"
-                : "text-gray-600 hover:bg-gray-100"
-            }`}
-          >
-            A → Z
-          </button>
-          <button
-            type="button"
-            onClick={() => handleSortChange("desc")}
-            className={`min-h-[40px] rounded-lg px-3 text-sm font-medium transition-colors ${
-              sortOrder === "desc"
-                ? "bg-indigo-600 text-white"
-                : "text-gray-600 hover:bg-gray-100"
-            }`}
-          >
-            Z → A
-          </button>
-        </div>
+        <SortToggleButton
+          value={sortOrder}
+          onChange={handleSortChange}
+          ariaLabel="Sort days"
+        />
         <button
           type="button"
           onClick={() => {
@@ -237,6 +215,7 @@ export function DayList() {
           }}
           className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-xl bg-indigo-600 text-white hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
           aria-label="Add day"
+          title="Add day"
         >
           <IconPlus className="size-6" />
         </button>

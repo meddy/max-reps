@@ -692,7 +692,9 @@ export function WorkoutDetail() {
 
         <div className="rounded-xl bg-white p-4 shadow-sm">
           <div className="flex items-center justify-between">
-            <p className="font-medium text-gray-900">{workout.dayNameSnapshot}</p>
+            <p className="font-medium text-gray-900">
+              {workout.dayNameSnapshot}
+            </p>
             <button
               type="button"
               onClick={() => setDeleteWorkoutConfirm(true)}

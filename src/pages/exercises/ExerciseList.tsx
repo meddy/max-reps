@@ -15,6 +15,7 @@ import type { Exercise } from "../../types";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { EmptyState } from "../../components/EmptyState";
 import { IconPencil, IconPlus, IconTrash } from "../../components/Icons";
+import { SortToggleButton } from "../../components/SortToggleButton";
 import { LoadingSpinner } from "../../components/LoadingSpinner";
 import { Modal } from "../../components/Modal";
 
@@ -150,34 +151,11 @@ export function ExerciseList() {
           onChange={(e) => setSearch(e.target.value)}
           className="min-h-[44px] flex-1 rounded-xl border border-gray-300 bg-white px-4 text-gray-900 placeholder-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 min-w-[120px]"
         />
-        <div
-          className="flex rounded-xl border border-gray-300 bg-white p-0.5"
-          role="group"
-          aria-label="Sort exercises"
-        >
-          <button
-            type="button"
-            onClick={() => handleSortChange("asc")}
-            className={`min-h-[40px] rounded-lg px-3 text-sm font-medium transition-colors ${
-              sortOrder === "asc"
-                ? "bg-indigo-600 text-white"
-                : "text-gray-600 hover:bg-gray-100"
-            }`}
-          >
-            A → Z
-          </button>
-          <button
-            type="button"
-            onClick={() => handleSortChange("desc")}
-            className={`min-h-[40px] rounded-lg px-3 text-sm font-medium transition-colors ${
-              sortOrder === "desc"
-                ? "bg-indigo-600 text-white"
-                : "text-gray-600 hover:bg-gray-100"
-            }`}
-          >
-            Z → A
-          </button>
-        </div>
+        <SortToggleButton
+          value={sortOrder}
+          onChange={handleSortChange}
+          ariaLabel="Sort exercises"
+        />
         <button
           type="button"
           onClick={() => {
@@ -187,6 +165,7 @@ export function ExerciseList() {
           }}
           className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-xl bg-indigo-600 text-white hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
           aria-label="Add exercise"
+          title="Add exercise"
         >
           <IconPlus className="size-6" />
         </button>

@@ -15,6 +15,7 @@ export function Layout() {
               to="/settings"
               className="min-h-[44px] flex min-w-[44px] items-center justify-center text-indigo-600 hover:text-indigo-500"
               aria-label="Settings"
+              title="Settings"
             >
               <IconSettings className="size-6" />
             </Link>
