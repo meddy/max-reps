@@ -8,11 +8,6 @@ import { LoadingSpinner } from "./components/LoadingSpinner";
 const Login = lazy(() =>
   import("./pages/Login").then((m) => ({ default: m.Login }))
 );
-const CreateWorkout = lazy(() =>
-  import("./pages/workouts/CreateWorkout").then((m) => ({
-    default: m.CreateWorkout,
-  }))
-);
 const WorkoutHistory = lazy(() =>
   import("./pages/workouts/WorkoutHistory").then((m) => ({
     default: m.WorkoutHistory,
@@ -66,8 +61,7 @@ function App() {
                 </ProtectedRoute>
               }
             >
-              <Route index element={<Navigate to="/workouts/new" replace />} />
-              <Route path="workouts/new" element={<CreateWorkout />} />
+              <Route index element={<Navigate to="/workouts" replace />} />
               <Route path="workouts" element={<WorkoutHistory />} />
               <Route path="workouts/:id" element={<WorkoutDetail />} />
               <Route path="exercises" element={<ExerciseList />} />

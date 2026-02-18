@@ -22,10 +22,11 @@ export function ExerciseCard({
         <button
           type="button"
           onClick={onRemove}
-          className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg border border-red-200 bg-white p-2 text-red-600 hover:bg-red-50"
-          aria-label="Remove exercise"
+          className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-red-600 hover:bg-red-50"
+          aria-label={`Remove ${exerciseName}`}
+          title={`Remove ${exerciseName}`}
         >
-          <IconTrash className="size-5" />
+          <IconTrash className="size-6" />
         </button>
       </div>
       {metadata}

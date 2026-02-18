@@ -1,15 +1,13 @@
 import { NavLink } from "react-router-dom";
-import { IconCalendar, IconClock, IconList, IconPlus } from "./Icons";
+import { IconCalendar, IconClock, IconList } from "./Icons";
 
 const navItems = [
-  { to: "/workouts/new", label: "Workout", icon: "plus" },
   { to: "/workouts", label: "History", icon: "history" },
   { to: "/exercises", label: "Exercises", icon: "list" },
   { to: "/days", label: "Days", icon: "calendar" },
 ] as const;
 
 const navIcons = {
-  plus: IconPlus,
   history: IconClock,
   list: IconList,
   calendar: IconCalendar,
