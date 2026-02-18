@@ -7,6 +7,10 @@ body {
   color: theme("colors.gray.900");
 }
 
+button {
+  cursor: pointer;
+}
+
 input,
 textarea,
 select {

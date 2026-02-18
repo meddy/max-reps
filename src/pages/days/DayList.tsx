@@ -16,6 +16,7 @@ import {
 import type { Day, Exercise, ExerciseSetTemplate } from "../../types";
 import { EmptyState } from "../../components/EmptyState";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
+import { IconPencil, IconPlus, IconTrash } from "../../components/Icons";
 import { LoadingSpinner } from "../../components/LoadingSpinner";
 import { Modal } from "../../components/Modal";
 
@@ -237,19 +238,7 @@ export function DayList() {
           className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-xl bg-indigo-600 text-white hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
           aria-label="Add day"
         >
-          <svg
-            className="size-6"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M12 4v16m8-8H4"
-            />
-          </svg>
+          <IconPlus className="size-6" />
         </button>
       </div>
 
@@ -307,18 +296,20 @@ export function DayList() {
                       setEditId(day.id);
                       setEditName(day.displayName);
                     }}
-                    className="min-h-[44px] min-w-[44px] rounded-lg px-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+                    className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700"
                     aria-label={`Edit ${day.displayName}`}
+                    title={`Edit ${day.displayName}`}
                   >
-                    Edit
+                    <IconPencil className="size-6" />
                   </button>
                   <button
                     type="button"
                     onClick={() => setDeleteId(day.id)}
-                    className="min-h-[44px] min-w-[44px] rounded-lg px-2 text-red-600 hover:bg-red-50"
+                    className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-red-600 hover:bg-red-50"
                     aria-label={`Delete ${day.displayName}`}
+                    title={`Delete ${day.displayName}`}
                   >
-                    Delete
+                    <IconTrash className="size-6" />
                   </button>
                 </div>
               </li>

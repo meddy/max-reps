@@ -14,9 +14,10 @@ import {
   limit,
 } from "../../lib/firestore";
 import type { Day, Exercise, ExerciseSetTemplate } from "../../types";
-import { LoadingSpinner } from "../../components/LoadingSpinner";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { EmptyState } from "../../components/EmptyState";
+import { IconPencil, IconTrash } from "../../components/Icons";
+import { LoadingSpinner } from "../../components/LoadingSpinner";
 import { Modal } from "../../components/Modal";
 
 export function DayDetail() {
@@ -376,16 +377,20 @@ export function DayDetail() {
                         setEditRepsLower(t.repsLower);
                         setEditRepsUpper(t.repsUpper);
                       }}
-                      className="min-h-[44px] rounded-lg px-2 text-sm text-gray-500 hover:bg-gray-100"
+                      className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100"
+                      aria-label="Edit template"
+                      title="Edit template"
                     >
-                      Edit
+                      <IconPencil className="size-6" />
                     </button>
                     <button
                       type="button"
                       onClick={() => setDeleteTemplateId(t.id)}
-                      className="min-h-[44px] rounded-lg px-2 text-sm text-red-600 hover:bg-red-50"
+                      className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-red-600 hover:bg-red-50"
+                      aria-label="Delete template"
+                      title="Delete template"
                     >
-                      Delete
+                      <IconTrash className="size-6" />
                     </button>
                   </>
                 )}

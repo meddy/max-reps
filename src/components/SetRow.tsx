@@ -1,3 +1,5 @@
+import { IconTrash } from "./Icons";
+
 export interface SetRowProps {
   reps: number;
   weight: number;
@@ -60,20 +62,7 @@ export function SetRow({
           className="flex flex-1 shrink-0 items-center justify-center rounded-lg border border-red-200 bg-white p-1.5 text-red-600 hover:bg-red-50 sm:h-8 sm:w-8 sm:flex-none"
           aria-label={deleteAriaLabel}
         >
-          <svg
-            className="size-5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-            aria-hidden
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-            />
-          </svg>
+          <IconTrash className="size-5" />
         </button>
       </div>
     </li>

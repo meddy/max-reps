@@ -12,8 +12,9 @@ import {
   limit,
 } from "../../lib/firestore";
 import type { Exercise } from "../../types";
-import { EmptyState } from "../../components/EmptyState";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
+import { EmptyState } from "../../components/EmptyState";
+import { IconPencil, IconPlus, IconTrash } from "../../components/Icons";
 import { LoadingSpinner } from "../../components/LoadingSpinner";
 import { Modal } from "../../components/Modal";
 
@@ -187,19 +188,7 @@ export function ExerciseList() {
           className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-xl bg-indigo-600 text-white hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
           aria-label="Add exercise"
         >
-          <svg
-            className="size-6"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M12 4v16m8-8H4"
-            />
-          </svg>
+          <IconPlus className="size-6" />
         </button>
       </div>
 
@@ -241,18 +230,20 @@ export function ExerciseList() {
                     setEditId(ex.id);
                     setEditName(ex.displayName);
                   }}
-                  className="min-h-[44px] min-w-[44px] rounded-lg px-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+                  className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700"
                   aria-label={`Edit ${ex.displayName}`}
+                  title={`Edit ${ex.displayName}`}
                 >
-                  Edit
+                  <IconPencil className="size-6" />
                 </button>
                 <button
                   type="button"
                   onClick={() => setDeleteId(ex.id)}
-                  className="min-h-[44px] min-w-[44px] rounded-lg px-2 text-red-600 hover:bg-red-50"
+                  className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-red-600 hover:bg-red-50"
                   aria-label={`Delete ${ex.displayName}`}
+                  title={`Delete ${ex.displayName}`}
                 >
-                  Delete
+                  <IconTrash className="size-6" />
                 </button>
               </div>
             </li>
