@@ -9,6 +9,8 @@ import {
 } from "firebase/firestore";
 import {
   getCollectionRef,
+  getDocRef,
+  getDoc,
   getDocs,
   query,
   where,
@@ -16,7 +18,14 @@ import {
   limit,
 } from "../../lib/firestore";
 import { db } from "../../lib/firebase";
-import type { Day, Workout } from "../../types";
+import type { Day, Exercise, ExerciseSetTemplate, Workout } from "../../types";
+
+type DaySummaryItem = {
+  exerciseName: string;
+  numSets: number;
+  repsLower: number;
+  repsUpper: number;
+};
 import { EmptyState } from "../../components/EmptyState";
 import { IconPlus } from "../../components/Icons";
 import { LoadingSpinner } from "../../components/LoadingSpinner";
@@ -40,7 +49,14 @@ function getStoredSortOrder(): "asc" | "desc" {
 export function WorkoutHistory() {
   const navigate = useNavigate();
   const [workouts, setWorkouts] = useState<
-    Array<Workout & { id: string; setCount?: number }>
+    Array<
+      Workout & {
+        id: string;
+        setCount?: number;
+        exerciseCount?: number;
+        totalLoad?: number;
+      }
+    >
   >([]);
   const [loading, setLoading] = useState(true);
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">(() =>
@@ -53,6 +69,10 @@ export function WorkoutHistory() {
   });
   const [daySearch, setDaySearch] = useState("");
   const [dayResults, setDayResults] = useState<Array<Day & { id: string }>>([]);
+  const [templatesByDayId, setTemplatesByDayId] = useState<
+    Record<string, DaySummaryItem[]>
+  >({});
+  const [templatesLoading, setTemplatesLoading] = useState(false);
   const [selectedDay, setSelectedDay] = useState<(Day & { id: string }) | null>(
     null
   );
@@ -72,7 +92,19 @@ export function WorkoutHistory() {
         const setsSnap = await getDocs(
           query(getCollectionRef("sets"), where("workoutId", "==", w.id))
         );
-        return { ...w, setCount: setsSnap.size };
+        const exerciseIds = new Set<string>();
+        let totalLoad = 0;
+        setsSnap.docs.forEach((d) => {
+          const data = d.data();
+          exerciseIds.add(data.exerciseId);
+          totalLoad += (data.reps ?? 0) * (data.weight ?? 0);
+        });
+        return {
+          ...w,
+          setCount: setsSnap.size,
+          exerciseCount: exerciseIds.size,
+          totalLoad,
+        };
       })
     );
     setWorkouts(withCounts);
@@ -120,6 +152,71 @@ export function WorkoutHistory() {
     };
   }, [daySearch]);
 
+  useEffect(() => {
+    if (!addWorkoutOpen || dayResults.length === 0) {
+      setTemplatesByDayId({});
+      setTemplatesLoading(false);
+      return;
+    }
+    let ignore = false;
+    setTemplatesByDayId({});
+    setTemplatesLoading(true);
+    const dayIds = dayResults.map((d) => d.id);
+    const dayIdSet = new Set(dayIds);
+    const templatesRef = getCollectionRef("exerciseSetTemplates");
+    const q = query(templatesRef, where("dayId", "in", dayIds), limit(500));
+    getDocs(q)
+      .then((snap) => {
+        if (ignore) return;
+        const templates = snap.docs.map((d) => ({
+          id: d.id,
+          ...d.data(),
+        })) as Array<ExerciseSetTemplate & { id: string }>;
+        const forOurDays = templates
+          .filter((t) => dayIdSet.has(t.dayId))
+          .sort((a, b) =>
+            a.dayId !== b.dayId
+              ? a.dayId.localeCompare(b.dayId)
+              : a.order - b.order
+          );
+        const exerciseIds = [...new Set(forOurDays.map((t) => t.exerciseId))];
+        return Promise.all(
+          exerciseIds.map(async (eid) => {
+            const docSnap = await getDoc(getDocRef("exercises", eid));
+            return [
+              eid,
+              docSnap.exists() ? (docSnap.data() as Exercise).displayName : "—",
+            ] as const;
+          })
+        ).then((pairs) => {
+          const nameMap = Object.fromEntries(pairs);
+          const byDay: Record<string, DaySummaryItem[]> = {};
+          for (const t of forOurDays) {
+            const list = byDay[t.dayId] ?? [];
+            list.push({
+              exerciseName: nameMap[t.exerciseId] ?? "—",
+              numSets: t.numSets,
+              repsLower: t.repsLower,
+              repsUpper: t.repsUpper,
+            });
+            byDay[t.dayId] = list;
+          }
+          return byDay;
+        });
+      })
+      .then((byDay) => {
+        if (ignore || byDay == null) return;
+        setTemplatesByDayId(byDay);
+        setTemplatesLoading(false);
+      })
+      .catch(() => {
+        if (!ignore) setTemplatesLoading(false);
+      });
+    return () => {
+      ignore = true;
+    };
+  }, [addWorkoutOpen, dayResults]);
+
   const openAddWorkoutModal = useCallback(() => {
     setWorkoutDate(new Date().toISOString().slice(0, 10));
     setDaySearch("");
@@ -145,6 +242,7 @@ export function WorkoutHistory() {
       date: Timestamp.fromDate(date),
       dayId: selectedDay.id,
       dayNameSnapshot: selectedDay.displayName,
+      note: "",
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
@@ -203,7 +301,12 @@ export function WorkoutHistory() {
                 <p className="font-medium text-gray-900">
                   {formatDate(w.date, { weekday: true })} — {w.dayNameSnapshot}
                 </p>
-                <p className="text-sm text-gray-500">{w.setCount ?? 0} sets</p>
+                <p className="text-sm text-gray-500">
+                  {w.exerciseCount ?? 0} exercises - {w.setCount ?? 0} sets
+                  {w.totalLoad != null &&
+                    w.totalLoad > 0 &&
+                    ` - ${w.totalLoad.toLocaleString()} lbs`}
+                </p>
               </Link>
             </li>
           ))}
@@ -235,21 +338,39 @@ export function WorkoutHistory() {
           />
         </label>
         <ul className="mt-2 flex max-h-48 flex-col gap-2 overflow-auto">
-          {dayResults.map((day) => (
-            <li key={day.id}>
-              <button
-                type="button"
-                onClick={() => setSelectedDay(day)}
-                className={`min-h-[44px] w-full rounded-xl px-4 text-left font-medium shadow-sm ${
-                  selectedDay?.id === day.id
-                    ? "bg-indigo-100 text-indigo-900 ring-1 ring-indigo-300"
-                    : "bg-white text-gray-900 hover:bg-gray-50"
-                }`}
-              >
-                {day.displayName}
-              </button>
-            </li>
-          ))}
+          {dayResults.map((day) => {
+            const summaries = templatesByDayId[day.id] ?? [];
+            const isLoading = templatesLoading && summaries.length === 0;
+            return (
+              <li key={day.id}>
+                <button
+                  type="button"
+                  onClick={() => setSelectedDay(day)}
+                  className={`w-full rounded-xl px-4 py-3 text-left shadow-sm ${
+                    selectedDay?.id === day.id
+                      ? "bg-indigo-100 text-indigo-900 ring-1 ring-indigo-300"
+                      : "bg-white text-gray-900 hover:bg-gray-50"
+                  }`}
+                >
+                  <p className="font-medium text-gray-900">{day.displayName}</p>
+                  {isLoading ? (
+                    <p className="mt-1 text-sm text-gray-400">Loading…</p>
+                  ) : summaries.length > 0 ? (
+                    <ul className="mt-1 space-y-0.5">
+                      {summaries.map((s, i) => (
+                        <li key={i} className="text-sm text-gray-500">
+                          {s.exerciseName} — {s.numSets} × {s.repsLower}–
+                          {s.repsUpper} reps
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="mt-1 text-sm text-gray-500">No exercises</p>
+                  )}
+                </button>
+              </li>
+            );
+          })}
         </ul>
         {daySearch.trim() && dayResults.length === 0 && (
           <p className="mt-2 text-sm text-gray-500">

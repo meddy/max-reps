@@ -227,7 +227,7 @@ export function DayDetail() {
           onClick={() => navigate("/days")}
           className="mt-2 text-indigo-600 hover:underline"
         >
-          Back to days
+          Back to Days
         </button>
       </div>
     );
@@ -244,7 +244,7 @@ export function DayDetail() {
           onClick={() => navigate("/days")}
           className="min-h-[44px] rounded-xl border border-gray-300 bg-white px-3 text-sm font-medium text-gray-700 hover:bg-gray-50"
         >
-          Back
+          Back to Days
         </button>
       </div>
 

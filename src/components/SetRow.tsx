@@ -29,23 +29,23 @@ export function SetRow({
         <input
           type="number"
           min={0}
+          step={0.5}
+          placeholder="Weight"
+          value={weight || ""}
+          onChange={(e) => onWeightChange(Number(e.target.value) || 0)}
+          onBlur={onBlur}
+          className="min-w-0 flex-1 rounded-lg border border-gray-300 px-2 py-1.5 text-sm sm:w-24 sm:min-w-[6rem] sm:flex-none"
+        />
+        <span className="text-sm text-gray-500"> × </span>
+        <input
+          type="number"
+          min={0}
           placeholder="Reps"
           value={reps || ""}
           onChange={(e) => onRepsChange(Number(e.target.value) || 0)}
           onBlur={onBlur}
           className="min-w-0 flex-1 rounded-lg border border-gray-300 px-2 py-1.5 text-sm sm:w-20 sm:min-w-[5rem] sm:flex-none"
         />
-        <input
-          type="number"
-          min={0}
-          step={0.5}
-          placeholder="Weight"
-          value={weight}
-          onChange={(e) => onWeightChange(Number(e.target.value) || 0)}
-          onBlur={onBlur}
-          className="min-w-0 flex-1 rounded-lg border border-gray-300 px-2 py-1.5 text-sm sm:w-24 sm:min-w-[6rem] sm:flex-none"
-        />
-        <span className="text-sm text-gray-500">lbs</span>
       </div>
       <input
         type="text"

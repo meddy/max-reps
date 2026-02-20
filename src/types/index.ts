@@ -33,6 +33,7 @@ export interface Workout {
   date: Timestamp;
   dayId: string;
   dayNameSnapshot: string;
+  note?: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }

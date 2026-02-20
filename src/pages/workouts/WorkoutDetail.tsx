@@ -267,7 +267,7 @@ export function WorkoutDetail() {
 
   useEffect(() => {
     if (workout) void loadSets();
-  }, [workout, loadSets]);
+  }, [workout?.id, loadSets]);
 
   const saveDate = async () => {
     if (!workout || !dateInput) return;
@@ -279,6 +279,12 @@ export function WorkoutDetail() {
       prev ? { ...prev, date: Timestamp.fromDate(date) } : null
     );
     setEditingDate(false);
+  };
+
+  const saveNote = async (value: string) => {
+    if (!workout) return;
+    await updateDocById("workouts", workout.id, { note: value });
+    setWorkout((prev) => (prev ? { ...prev, note: value } : null));
   };
 
   const updateSetRow = (
@@ -671,7 +677,7 @@ export function WorkoutDetail() {
           onClick={() => navigate("/workouts")}
           className="mt-2 text-indigo-600 hover:underline"
         >
-          Back to history
+          Back to History
         </button>
       </div>
     );
@@ -686,11 +692,11 @@ export function WorkoutDetail() {
             onClick={() => navigate("/workouts")}
             className="min-h-[44px] rounded-xl border border-gray-300 bg-white px-3 text-sm font-medium text-gray-700"
           >
-            Back
+            Back to History
           </button>
         </div>
 
-        <div className="rounded-xl bg-white p-4 shadow-sm">
+        <div className="rounded-xl border-l-4 border-indigo-500 bg-white p-4 shadow-sm">
           <div className="flex items-center justify-between">
             <p className="font-medium text-gray-900">
               {workout.dayNameSnapshot}
@@ -712,6 +718,18 @@ export function WorkoutDetail() {
           >
             {formatDate(workout.date)}
           </button>
+          <input
+            type="text"
+            placeholder="Add a note (optional)"
+            value={workout.note ?? ""}
+            onChange={(e) =>
+              setWorkout((prev) =>
+                prev ? { ...prev, note: e.target.value } : null
+              )
+            }
+            onBlur={(e) => void saveNote(e.target.value)}
+            className="mt-2 min-h-[44px] w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+          />
         </div>
 
         {templates.map((template) => {
@@ -855,11 +873,11 @@ export function WorkoutDetail() {
           onClick={() => navigate("/workouts")}
           className="min-h-[44px] rounded-xl border border-gray-300 bg-white px-3 text-sm font-medium text-gray-700"
         >
-          Back
+          Back to History
         </button>
       </div>
 
-      <div className="rounded-xl bg-white p-4 shadow-sm">
+      <div className="rounded-xl border-l-4 border-indigo-500 bg-white p-4 shadow-sm">
         <div className="flex items-center justify-between">
           <p className="font-medium text-gray-900">{workout.dayNameSnapshot}</p>
           <button
@@ -904,6 +922,18 @@ export function WorkoutDetail() {
             {formatDate(workout.date)}
           </button>
         )}
+        <input
+          type="text"
+          placeholder="Add a note (optional)"
+          value={workout.note ?? ""}
+          onChange={(e) =>
+            setWorkout((prev) =>
+              prev ? { ...prev, note: e.target.value } : null
+            )
+          }
+          onBlur={(e) => void saveNote(e.target.value)}
+          className="mt-2 min-h-[44px] w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+        />
       </div>
 
       {exerciseGroups.map((group) => {

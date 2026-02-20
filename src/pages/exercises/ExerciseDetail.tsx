@@ -106,7 +106,7 @@ export function ExerciseDetail() {
           onClick={() => navigate("/exercises")}
           className="min-h-[44px] rounded-xl border border-gray-300 bg-white px-3 text-sm font-medium text-gray-700 hover:bg-gray-50"
         >
-          Back
+          Back to Exercises
         </button>
       </div>
 
