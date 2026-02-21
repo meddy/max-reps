@@ -21,6 +21,7 @@ import {
   where,
 } from "firebase/firestore";
 import { db } from "./firebase";
+import { endSaving, startSaving } from "./savingStore";
 import type { CollectionName } from "../types";
 
 export function getCollectionRef(name: CollectionName): CollectionReference {
@@ -43,17 +44,22 @@ export async function createDoc<T extends DataWithTimestamps>(
   collectionName: CollectionName,
   data: Omit<T, "id" | "createdAt" | "updatedAt">
 ): Promise<string> {
-  const ref = collection(db, collectionName);
-  const withTimestamps =
-    collectionName === "sets"
-      ? { ...data, createdAt: serverTimestamp() }
-      : {
-          ...data,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        };
-  const docRef = await addDoc(ref, withTimestamps);
-  return docRef.id;
+  startSaving();
+  try {
+    const ref = collection(db, collectionName);
+    const withTimestamps =
+      collectionName === "sets"
+        ? { ...data, createdAt: serverTimestamp() }
+        : {
+            ...data,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          };
+    const docRef = await addDoc(ref, withTimestamps);
+    return docRef.id;
+  } finally {
+    endSaving();
+  }
 }
 
 export async function updateDocById(
@@ -61,14 +67,19 @@ export async function updateDocById(
   id: string,
   data: Record<string, unknown>
 ): Promise<void> {
-  const ref = doc(db, collectionName, id);
-  const payload =
-    collectionName === "sets"
-      ? data
-      : { ...data, updatedAt: serverTimestamp() };
-  // Firebase updateDoc expects FieldValue for some keys; we pass timestamps and primitives
-  // @ts-expect-error payload shape is valid at runtime
-  await updateDoc(ref, payload);
+  startSaving();
+  try {
+    const ref = doc(db, collectionName, id);
+    const payload =
+      collectionName === "sets"
+        ? data
+        : { ...data, updatedAt: serverTimestamp() };
+    // Firebase updateDoc expects FieldValue for some keys; we pass timestamps and primitives
+    // @ts-expect-error payload shape is valid at runtime
+    await updateDoc(ref, payload);
+  } finally {
+    endSaving();
+  }
 }
 
 type Cascade = { collection: CollectionName; field: string };
@@ -77,8 +88,13 @@ export async function deleteDocById(
   collectionName: CollectionName,
   id: string
 ): Promise<void> {
-  const ref = doc(db, collectionName, id);
-  await deleteDoc(ref);
+  startSaving();
+  try {
+    const ref = doc(db, collectionName, id);
+    await deleteDoc(ref);
+  } finally {
+    endSaving();
+  }
 }
 
 export async function deleteDocAndRelated(
@@ -86,20 +102,25 @@ export async function deleteDocAndRelated(
   id: string,
   cascades: Cascade[]
 ): Promise<void> {
-  const batch = writeBatch(db);
+  startSaving();
+  try {
+    const batch = writeBatch(db);
 
-  for (const { collection: childName, field } of cascades) {
-    const childRef = collection(db, childName);
-    const q = query(childRef, where(field, "==", id));
-    const snapshot = await getDocs(q);
-    for (const d of snapshot.docs) {
-      batch.delete(d.ref);
+    for (const { collection: childName, field } of cascades) {
+      const childRef = collection(db, childName);
+      const q = query(childRef, where(field, "==", id));
+      const snapshot = await getDocs(q);
+      for (const d of snapshot.docs) {
+        batch.delete(d.ref);
+      }
     }
-  }
 
-  const docRef = doc(db, collectionName, id);
-  batch.delete(docRef);
-  await batch.commit();
+    const docRef = doc(db, collectionName, id);
+    batch.delete(docRef);
+    await batch.commit();
+  } finally {
+    endSaving();
+  }
 }
 
 export async function paginatedQuery<T extends DocumentData>(

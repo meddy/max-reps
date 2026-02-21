@@ -246,7 +246,7 @@ export function DayList() {
             return (
               <li
                 key={day.id}
-                className="flex items-center justify-between gap-3 rounded-xl bg-white p-4 shadow-sm"
+                className="flex items-center justify-between gap-3 rounded-xl bg-white p-4 shadow-sm transition-colors hover:bg-gray-50"
               >
                 <Link
                   to={`/days/${day.id}`}

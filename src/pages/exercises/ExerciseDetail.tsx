@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   getDocRef,
@@ -10,7 +10,7 @@ import {
   orderBy,
   limit,
 } from "../../lib/firestore";
-import type { Exercise, WorkoutSet } from "../../types";
+import type { Exercise, Workout, WorkoutSet } from "../../types";
 import { LoadingSpinner } from "../../components/LoadingSpinner";
 import { formatDate } from "../../lib/format";
 
@@ -21,6 +21,9 @@ export function ExerciseDetail() {
     null
   );
   const [sets, setSets] = useState<Array<WorkoutSet & { id: string }>>([]);
+  const [workoutNotesByWorkoutId, setWorkoutNotesByWorkoutId] = useState<
+    Record<string, string>
+  >({});
   const [prSet, setPrSet] = useState<(WorkoutSet & { id: string }) | null>(
     null
   );
@@ -59,6 +62,21 @@ export function ExerciseDetail() {
       ...d.data(),
     })) as Array<WorkoutSet & { id: string }>;
     setSets(setsList);
+
+    const workoutIds = [...new Set(setsList.map((s) => s.workoutId))];
+    const workoutSnaps = await Promise.all(
+      workoutIds.map((wid) => getDoc(getDocRef("workouts", wid)))
+    );
+    const notes: Record<string, string> = {};
+    for (let i = 0; i < workoutIds.length; i++) {
+      const snap = workoutSnaps[i];
+      if (snap?.exists()) {
+        const note = (snap.data() as Workout).note;
+        if (note) notes[workoutIds[i]] = note;
+      }
+    }
+    setWorkoutNotesByWorkoutId(notes);
+
     if (!prSnap.empty) {
       const d = prSnap.docs[0];
       setPrSet({ id: d.id, ...d.data() } as WorkoutSet & { id: string });
@@ -71,6 +89,34 @@ export function ExerciseDetail() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  const setNumberBySetId = useMemo(() => {
+    const byWorkout = new Map<string, Array<WorkoutSet & { id: string }>>();
+    for (const s of sets) {
+      const list = byWorkout.get(s.workoutId) ?? [];
+      list.push(s);
+      byWorkout.set(s.workoutId, list);
+    }
+    const result = new Map<string, number>();
+    for (const workoutSets of byWorkout.values()) {
+      const sorted = [...workoutSets].sort(
+        (a, b) => (a.order ?? 0) - (b.order ?? 0)
+      );
+      sorted.forEach((s, i) => result.set(s.id, i + 1));
+    }
+    return result;
+  }, [sets]);
+
+  const sortedSets = useMemo(() => {
+    return [...sets].sort((a, b) => {
+      const aTime = a.performedAt?.toMillis?.() ?? 0;
+      const bTime = b.performedAt?.toMillis?.() ?? 0;
+      if (bTime !== aTime) return bTime - aTime;
+      const aNum = setNumberBySetId.get(a.id) ?? 0;
+      const bNum = setNumberBySetId.get(b.id) ?? 0;
+      return aNum - bNum;
+    });
+  }, [sets, setNumberBySetId]);
 
   if (loading) {
     return (
@@ -130,21 +176,40 @@ export function ExerciseDetail() {
           <p className="p-4 text-sm text-gray-500">No sets recorded yet.</p>
         ) : (
           <ul className="divide-y divide-gray-100">
-            {sets.map((s) => (
-              <li key={s.id} className="px-4 py-3">
+            {sortedSets.map((s) => (
+              <li
+                key={s.id}
+                role="button"
+                tabIndex={0}
+                className="cursor-pointer px-4 py-3 transition-colors hover:bg-gray-50 active:bg-gray-100"
+                onClick={() => navigate(`/workouts/${s.workoutId}`)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    navigate(`/workouts/${s.workoutId}`);
+                  }
+                }}
+              >
                 <div className="flex justify-between gap-2">
-                  <span className="font-medium text-gray-900">
-                    {s.reps} × {s.weight} {s.unit}
-                  </span>
-                  <span className="text-sm text-gray-500">
+                  <div className="flex min-w-0 flex-1 items-baseline gap-2">
+                    <span className="font-medium text-gray-900">
+                      {s.reps} × {s.weight} {s.unit}
+                    </span>
+                    <span className="min-w-0 truncate text-sm text-gray-500">
+                      ·{" "}
+                      {[
+                        `Set ${setNumberBySetId.get(s.id) ?? 1}`,
+                        workoutNotesByWorkoutId[s.workoutId],
+                        s.note || undefined,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </span>
+                  </div>
+                  <span className="shrink-0 text-sm text-gray-500">
                     {formatDate(s.performedAt)}
                   </span>
                 </div>
-                {s.note && (
-                  <p className="mt-0.5 truncate text-sm text-gray-500">
-                    {s.note}
-                  </p>
-                )}
               </li>
             ))}
           </ul>

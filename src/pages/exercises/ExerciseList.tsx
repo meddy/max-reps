@@ -194,7 +194,7 @@ export function ExerciseList() {
           {exercises.map((ex) => (
             <li
               key={ex.id}
-              className="flex items-center justify-between rounded-xl bg-white p-4 shadow-sm"
+              className="flex items-center justify-between rounded-xl bg-white p-4 shadow-sm transition-colors hover:bg-gray-50"
             >
               <Link
                 to={`/exercises/${ex.id}`}

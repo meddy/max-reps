@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import {
   getDocRef,
   getCollectionRef,
@@ -283,10 +283,15 @@ export function DayDetail() {
           {templates.map((t, index) => (
             <li
               key={t.id}
-              className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-white p-4 shadow-sm"
+              className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-white p-4 shadow-sm transition-colors hover:bg-gray-50"
             >
               <div>
-                <p className="font-medium text-gray-900">{t.exerciseName}</p>
+                <Link
+                  to={`/exercises/${t.exerciseId}`}
+                  className="font-medium text-gray-900 hover:text-indigo-600"
+                >
+                  {t.exerciseName}
+                </Link>
                 <p className="text-sm text-gray-500">
                   {editingTemplateId === t.id ? (
                     <span className="flex flex-wrap items-center gap-2">

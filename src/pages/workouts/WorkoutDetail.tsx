@@ -60,6 +60,37 @@ type SetDraft = {
 
 const DEBOUNCE_MS = 800;
 
+async function fetchLastSetsForExercise(
+  exerciseId: string,
+  excludeWorkoutId?: string
+): Promise<Array<{ reps: number; weight: number; note?: string }>> {
+  const setsRef = getCollectionRef("sets");
+  const sq = query(
+    setsRef,
+    where("exerciseId", "==", exerciseId),
+    orderBy("performedAt", "desc"),
+    limit(50)
+  );
+  const sSnap = await getDocs(sq);
+  if (sSnap.empty) return [];
+  const docs = sSnap.docs.map((d) => ({
+    id: d.id,
+    ...d.data(),
+  })) as (WorkoutSet & { id: string })[];
+  const targetWorkoutId = docs.find(
+    (d) => !excludeWorkoutId || d.workoutId !== excludeWorkoutId
+  )?.workoutId;
+  if (!targetWorkoutId) return [];
+  const group = docs
+    .filter((d) => d.workoutId === targetWorkoutId)
+    .sort((a, b) => a.order - b.order);
+  return group.map((s) => ({
+    reps: s.reps,
+    weight: s.weight,
+    note: s.note,
+  }));
+}
+
 function buildStateFromSets(sets: SetWithId[]): {
   exerciseGroups: ExerciseGroup[];
   setsByExercise: Record<string, SetRowData[]>;
@@ -123,7 +154,7 @@ export function WorkoutDetail() {
     Record<string, SetDraft[]>
   >({});
   const [lastPerformed, setLastPerformed] = useState<
-    Record<string, { reps: number; weight: number; note?: string }>
+    Record<string, Array<{ reps: number; weight: number; note?: string }>>
   >({});
   const [deleteSetConfirm, setDeleteSetConfirm] = useState<{
     setId: string;
@@ -136,6 +167,9 @@ export function WorkoutDetail() {
   const debounceTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>(
     {}
   );
+  const persistDebounceTimers = useRef<
+    Record<string, ReturnType<typeof setTimeout>>
+  >({});
   const templateSetsByExerciseRef = useRef<Record<string, SetDraft[]>>({});
 
   useEffect(() => {
@@ -152,6 +186,10 @@ export function WorkoutDetail() {
         clearTimeout(debounceTimers.current[key]);
       }
       debounceTimers.current = {};
+      for (const key of Object.keys(persistDebounceTimers.current)) {
+        clearTimeout(persistDebounceTimers.current[key]);
+      }
+      persistDebounceTimers.current = {};
     };
   }, []);
 
@@ -228,30 +266,16 @@ export function WorkoutDetail() {
 
       const lastResults = await Promise.all(
         withNames.map(async (t) => {
-          const setsRef = getCollectionRef("sets");
-          const sq = query(
-            setsRef,
-            where("exerciseId", "==", t.exerciseId),
-            orderBy("performedAt", "desc"),
-            limit(1)
-          );
-          const sSnap = await getDocs(sq);
-          if (!sSnap.empty) {
-            const d = sSnap.docs[0].data() as WorkoutSet;
-            return [
-              t.exerciseId,
-              { reps: d.reps, weight: d.weight, note: d.note },
-            ] as const;
-          }
-          return [t.exerciseId, null] as const;
+          const sets = await fetchLastSetsForExercise(t.exerciseId, id);
+          return [t.exerciseId, sets] as const;
         })
       );
       const last: Record<
         string,
-        { reps: number; weight: number; note?: string }
+        Array<{ reps: number; weight: number; note?: string }>
       > = {};
-      for (const [eid, val] of lastResults) {
-        if (val) last[eid] = val;
+      for (const [eid, sets] of lastResults) {
+        if (sets.length > 0) last[eid] = sets;
       }
 
       setTemplateSetsByExercise(initialSets);
@@ -336,6 +360,33 @@ export function WorkoutDetail() {
       });
     },
     [id, workout, exerciseGroups]
+  );
+
+  const debouncedPersistSet = useCallback(
+    (exerciseId: string, rowIndex: number, rowKey: string) => {
+      const key = `persist-${exerciseId}-${rowKey}`;
+      if (persistDebounceTimers.current[key] != null) {
+        clearTimeout(persistDebounceTimers.current[key]);
+        delete persistDebounceTimers.current[key];
+      }
+      persistDebounceTimers.current[key] = setTimeout(() => {
+        delete persistDebounceTimers.current[key];
+        persistSet(exerciseId, rowIndex);
+      }, DEBOUNCE_MS);
+    },
+    [persistSet]
+  );
+
+  const flushPersistDebounceAndSave = useCallback(
+    (exerciseId: string, rowIndex: number, rowKey: string) => {
+      const key = `persist-${exerciseId}-${rowKey}`;
+      if (persistDebounceTimers.current[key] != null) {
+        clearTimeout(persistDebounceTimers.current[key]);
+        delete persistDebounceTimers.current[key];
+      }
+      persistSet(exerciseId, rowIndex);
+    },
+    [persistSet]
   );
 
   const addSetRow = (exerciseId: string) => {
@@ -619,23 +670,11 @@ export function WorkoutDetail() {
           { draftId: crypto.randomUUID(), reps: 0, weight: 0, note: "" },
         ],
       }));
-      const setsRef = getCollectionRef("sets");
-      const sq = query(
-        setsRef,
-        where("exerciseId", "==", exerciseId),
-        orderBy("performedAt", "desc"),
-        limit(1)
-      );
-      const sSnap = await getDocs(sq);
-      if (!sSnap.empty) {
-        const d = sSnap.docs[0].data() as WorkoutSet;
+      const sets = await fetchLastSetsForExercise(exerciseId, id);
+      if (sets.length > 0) {
         setLastPerformed((prev) => ({
           ...prev,
-          [exerciseId]: {
-            reps: d.reps,
-            weight: d.weight,
-            note: d.note,
-          },
+          [exerciseId]: sets,
         }));
       }
       setAddExerciseOpen(false);
@@ -735,20 +774,23 @@ export function WorkoutDetail() {
         {templates.map((template) => {
           const rows = templateSetsByExercise[template.id] ?? [];
           const last = lastPerformed[template.exerciseId];
+          const lastFormatted =
+            last && last.length > 0
+              ? last.map((s) => `${s.reps}×${s.weight}`).join(", ") + " lbs"
+              : null;
           const metadata = !template.isAdHoc ? (
             <p className="text-sm text-gray-500">
-              Target: {template.repsLower}–{template.repsUpper} reps
-              {last && (
+              <strong>Target:</strong> {template.repsLower}–{template.repsUpper}{" "}
+              reps
+              {lastFormatted && (
                 <span className="ml-2">
-                  · Last: {last.reps} × {last.weight} lbs
+                  <strong>Last:</strong> {lastFormatted}
                 </span>
               )}
             </p>
           ) : (
-            last && (
-              <p className="text-sm text-gray-500">
-                Last: {last.reps} × {last.weight} lbs
-              </p>
+            lastFormatted && (
+              <p className="text-sm text-gray-500">Last: {lastFormatted}</p>
             )
           );
           return (
@@ -951,16 +993,21 @@ export function WorkoutDetail() {
                 reps={row.reps}
                 weight={row.weight}
                 note={row.note}
-                onRepsChange={(val) =>
-                  updateSetRow(group.exerciseId, idx, { reps: val })
+                onRepsChange={(val) => {
+                  updateSetRow(group.exerciseId, idx, { reps: val });
+                  debouncedPersistSet(group.exerciseId, idx, row.key);
+                }}
+                onWeightChange={(val) => {
+                  updateSetRow(group.exerciseId, idx, { weight: val });
+                  debouncedPersistSet(group.exerciseId, idx, row.key);
+                }}
+                onNoteChange={(val) => {
+                  updateSetRow(group.exerciseId, idx, { note: val });
+                  debouncedPersistSet(group.exerciseId, idx, row.key);
+                }}
+                onBlur={() =>
+                  flushPersistDebounceAndSave(group.exerciseId, idx, row.key)
                 }
-                onWeightChange={(val) =>
-                  updateSetRow(group.exerciseId, idx, { weight: val })
-                }
-                onNoteChange={(val) =>
-                  updateSetRow(group.exerciseId, idx, { note: val })
-                }
-                onBlur={() => persistSet(group.exerciseId, idx)}
                 onDelete={() => removeSetRow(group.exerciseId, idx, row)}
               />
             ))}

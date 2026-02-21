@@ -296,7 +296,7 @@ export function WorkoutHistory() {
             <li key={w.id}>
               <Link
                 to={`/workouts/${w.id}`}
-                className="block min-h-[44px] rounded-xl bg-white p-4 shadow-sm"
+                className="block min-h-[44px] rounded-xl bg-white p-4 shadow-sm transition-colors hover:bg-gray-50"
               >
                 <p className="font-medium text-gray-900">
                   {formatDate(w.date, { weekday: true })} — {w.dayNameSnapshot}
