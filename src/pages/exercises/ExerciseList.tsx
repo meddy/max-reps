@@ -163,7 +163,7 @@ export function ExerciseList() {
             setCreateError("");
             setCreateName("");
           }}
-          className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-xl bg-indigo-600 text-white hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+          className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
           aria-label="Add exercise"
           title="Add exercise"
         >
@@ -183,7 +183,7 @@ export function ExerciseList() {
             <button
               type="button"
               onClick={() => setCreateOpen(true)}
-              className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500"
+              className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
             >
               Add exercise
             </button>
@@ -194,7 +194,7 @@ export function ExerciseList() {
           {exercises.map((ex) => (
             <li
               key={ex.id}
-              className="flex items-center justify-between rounded-xl bg-white p-4 shadow-sm transition-colors hover:bg-gray-50"
+              className="flex items-center justify-between rounded-xl bg-white p-4 shadow-sm transition-colors hover:bg-gray-100"
             >
               <Link
                 to={`/exercises/${ex.id}`}
@@ -209,7 +209,7 @@ export function ExerciseList() {
                     setEditId(ex.id);
                     setEditName(ex.displayName);
                   }}
-                  className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+                  className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-gray-500 hover:bg-gray-200 hover:text-gray-800"
                   aria-label={`Edit ${ex.displayName}`}
                   title={`Edit ${ex.displayName}`}
                 >
@@ -218,7 +218,7 @@ export function ExerciseList() {
                 <button
                   type="button"
                   onClick={() => setDeleteId(ex.id)}
-                  className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-red-600 hover:bg-red-50"
+                  className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-red-600 hover:bg-red-100"
                   aria-label={`Delete ${ex.displayName}`}
                   title={`Delete ${ex.displayName}`}
                 >
@@ -263,7 +263,7 @@ export function ExerciseList() {
           <button
             type="button"
             onClick={() => void handleCreate()}
-            className="min-h-[44px] flex-1 rounded-xl bg-indigo-600 font-medium text-white hover:bg-indigo-500"
+            className="min-h-[44px] flex-1 rounded-xl bg-indigo-600 font-medium text-white hover:bg-indigo-700"
           >
             Create
           </button>
@@ -299,7 +299,7 @@ export function ExerciseList() {
           <button
             type="button"
             onClick={() => void handleEdit()}
-            className="min-h-[44px] flex-1 rounded-xl bg-indigo-600 font-medium text-white hover:bg-indigo-500"
+            className="min-h-[44px] flex-1 rounded-xl bg-indigo-600 font-medium text-white hover:bg-indigo-700"
           >
             Save
           </button>

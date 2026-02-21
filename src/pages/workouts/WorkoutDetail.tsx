@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import {
   getDocRef,
   getCollectionRef,
@@ -63,7 +63,10 @@ const DEBOUNCE_MS = 800;
 async function fetchLastSetsForExercise(
   exerciseId: string,
   excludeWorkoutId?: string
-): Promise<Array<{ reps: number; weight: number; note?: string }>> {
+): Promise<{
+  sets: Array<{ reps: number; weight: number; note?: string }>;
+  workoutId?: string;
+}> {
   const setsRef = getCollectionRef("sets");
   const sq = query(
     setsRef,
@@ -72,7 +75,7 @@ async function fetchLastSetsForExercise(
     limit(50)
   );
   const sSnap = await getDocs(sq);
-  if (sSnap.empty) return [];
+  if (sSnap.empty) return { sets: [] };
   const docs = sSnap.docs.map((d) => ({
     id: d.id,
     ...d.data(),
@@ -80,15 +83,18 @@ async function fetchLastSetsForExercise(
   const targetWorkoutId = docs.find(
     (d) => !excludeWorkoutId || d.workoutId !== excludeWorkoutId
   )?.workoutId;
-  if (!targetWorkoutId) return [];
+  if (!targetWorkoutId) return { sets: [] };
   const group = docs
     .filter((d) => d.workoutId === targetWorkoutId)
     .sort((a, b) => a.order - b.order);
-  return group.map((s) => ({
-    reps: s.reps,
-    weight: s.weight,
-    note: s.note,
-  }));
+  return {
+    sets: group.map((s) => ({
+      reps: s.reps,
+      weight: s.weight,
+      note: s.note,
+    })),
+    workoutId: targetWorkoutId,
+  };
 }
 
 function buildStateFromSets(sets: SetWithId[]): {
@@ -154,7 +160,13 @@ export function WorkoutDetail() {
     Record<string, SetDraft[]>
   >({});
   const [lastPerformed, setLastPerformed] = useState<
-    Record<string, Array<{ reps: number; weight: number; note?: string }>>
+    Record<
+      string,
+      {
+        sets: Array<{ reps: number; weight: number; note?: string }>;
+        workoutId: string;
+      }
+    >
   >({});
   const [deleteSetConfirm, setDeleteSetConfirm] = useState<{
     setId: string;
@@ -266,16 +278,20 @@ export function WorkoutDetail() {
 
       const lastResults = await Promise.all(
         withNames.map(async (t) => {
-          const sets = await fetchLastSetsForExercise(t.exerciseId, id);
-          return [t.exerciseId, sets] as const;
+          const result = await fetchLastSetsForExercise(t.exerciseId, id);
+          return [t.exerciseId, result] as const;
         })
       );
       const last: Record<
         string,
-        Array<{ reps: number; weight: number; note?: string }>
+        {
+          sets: Array<{ reps: number; weight: number; note?: string }>;
+          workoutId: string;
+        }
       > = {};
-      for (const [eid, sets] of lastResults) {
-        if (sets.length > 0) last[eid] = sets;
+      for (const [eid, result] of lastResults) {
+        if (result.sets.length > 0 && result.workoutId)
+          last[eid] = { sets: result.sets, workoutId: result.workoutId };
       }
 
       setTemplateSetsByExercise(initialSets);
@@ -296,12 +312,21 @@ export function WorkoutDetail() {
   const saveDate = async () => {
     if (!workout || !dateInput) return;
     const date = new Date(dateInput);
-    await updateDocById("workouts", workout.id, {
-      date: Timestamp.fromDate(date),
-    });
-    setWorkout((prev) =>
-      prev ? { ...prev, date: Timestamp.fromDate(date) } : null
+    const newTimestamp = Timestamp.fromDate(date);
+    await updateDocById("workouts", workout.id, { date: newTimestamp });
+
+    const setsQuery = query(
+      getCollectionRef("sets"),
+      where("workoutId", "==", workout.id)
     );
+    const setsSnap = await getDocs(setsQuery);
+    await Promise.all(
+      setsSnap.docs.map((d) =>
+        updateDocById("sets", d.id, { performedAt: newTimestamp })
+      )
+    );
+
+    setWorkout((prev) => (prev ? { ...prev, date: newTimestamp } : null));
     setEditingDate(false);
   };
 
@@ -670,11 +695,12 @@ export function WorkoutDetail() {
           { draftId: crypto.randomUUID(), reps: 0, weight: 0, note: "" },
         ],
       }));
-      const sets = await fetchLastSetsForExercise(exerciseId, id);
-      if (sets.length > 0) {
+      const result = await fetchLastSetsForExercise(exerciseId, id);
+      const workoutId = result.workoutId;
+      if (result.sets.length > 0 && workoutId) {
         setLastPerformed((prev) => ({
           ...prev,
-          [exerciseId]: sets,
+          [exerciseId]: { sets: result.sets, workoutId },
         }));
       }
       setAddExerciseOpen(false);
@@ -743,7 +769,7 @@ export function WorkoutDetail() {
             <button
               type="button"
               onClick={() => setDeleteWorkoutConfirm(true)}
-              className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-red-600 hover:bg-red-50"
+              className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-red-600 hover:bg-red-100"
               aria-label="Delete workout"
               title="Delete workout"
             >
@@ -775,28 +801,50 @@ export function WorkoutDetail() {
           const rows = templateSetsByExercise[template.id] ?? [];
           const last = lastPerformed[template.exerciseId];
           const lastFormatted =
-            last && last.length > 0
-              ? last.map((s) => `${s.reps}×${s.weight}`).join(", ") + " lbs"
+            last && last.sets.length > 0
+              ? last.sets.map((s) => `${s.reps}×${s.weight}`).join(", ") +
+                " lbs"
               : null;
           const metadata = !template.isAdHoc ? (
             <p className="text-sm text-gray-500">
-              <strong>Target:</strong> {template.repsLower}–{template.repsUpper}{" "}
-              reps
-              {lastFormatted && (
+              <strong>Target:</strong>{" "}
+              <Link
+                to={`/days/${template.dayId}`}
+                className="text-indigo-600 hover:underline"
+              >
+                {template.repsLower}–{template.repsUpper} reps
+              </Link>
+              {lastFormatted && last.workoutId && (
                 <span className="ml-2">
-                  <strong>Last:</strong> {lastFormatted}
+                  <strong>Last:</strong>{" "}
+                  <Link
+                    to={`/workouts/${last.workoutId}`}
+                    className="text-indigo-600 hover:underline"
+                  >
+                    {lastFormatted}
+                  </Link>
                 </span>
               )}
             </p>
           ) : (
-            lastFormatted && (
-              <p className="text-sm text-gray-500">Last: {lastFormatted}</p>
+            lastFormatted &&
+            last.workoutId && (
+              <p className="text-sm text-gray-500">
+                Last:{" "}
+                <Link
+                  to={`/workouts/${last.workoutId}`}
+                  className="text-indigo-600 hover:underline"
+                >
+                  {lastFormatted}
+                </Link>
+              </p>
             )
           );
           return (
             <ExerciseCard
               key={template.id}
               exerciseName={template.exerciseName}
+              exerciseId={template.exerciseId}
               metadata={metadata}
               onRemove={() => templateRemoveExerciseFromView(template.id)}
               onAddSet={() => templateAddSetRow(template.id)}
@@ -848,7 +896,7 @@ export function WorkoutDetail() {
         <button
           type="button"
           onClick={() => setAddExerciseOpen(true)}
-          className="min-h-[44px] w-full rounded-xl border border-dashed border-gray-400 bg-white font-medium text-gray-700 hover:border-indigo-500 hover:bg-indigo-50 hover:text-indigo-700"
+          className="min-h-[44px] w-full rounded-xl border border-dashed border-gray-400 bg-white font-medium text-gray-700 hover:border-indigo-500 hover:bg-indigo-100 hover:text-indigo-700"
         >
           + Add exercise
         </button>
@@ -925,7 +973,7 @@ export function WorkoutDetail() {
           <button
             type="button"
             onClick={() => setDeleteWorkoutConfirm(true)}
-            className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-red-600 hover:bg-red-50"
+            className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-red-600 hover:bg-red-100"
             aria-label="Delete workout"
             title="Delete workout"
           >
@@ -984,6 +1032,7 @@ export function WorkoutDetail() {
           <ExerciseCard
             key={group.exerciseId}
             exerciseName={group.exerciseName}
+            exerciseId={group.exerciseId}
             onRemove={() => removeExerciseFromView(group.exerciseId)}
             onAddSet={() => addSetRow(group.exerciseId)}
           >
@@ -1018,7 +1067,7 @@ export function WorkoutDetail() {
       <button
         type="button"
         onClick={() => setAddExerciseOpen(true)}
-        className="min-h-[44px] w-full rounded-xl border border-dashed border-gray-400 bg-white font-medium text-gray-700 hover:border-indigo-500 hover:bg-indigo-50 hover:text-indigo-700"
+        className="min-h-[44px] w-full rounded-xl border border-dashed border-gray-400 bg-white font-medium text-gray-700 hover:border-indigo-500 hover:bg-indigo-100 hover:text-indigo-700"
       >
         + Add exercise
       </button>

@@ -242,7 +242,7 @@ export function DayDetail() {
         <button
           type="button"
           onClick={() => navigate("/days")}
-          className="min-h-[44px] rounded-xl border border-gray-300 bg-white px-3 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          className="min-h-[44px] rounded-xl border border-gray-300 bg-white px-3 text-sm font-medium text-gray-700 hover:bg-gray-100"
         >
           Back to Days
         </button>
@@ -258,7 +258,7 @@ export function DayDetail() {
             setExerciseSearch("");
             setCreateExerciseError("");
           }}
-          className="min-h-[44px] rounded-xl bg-indigo-600 px-4 text-sm font-medium text-white hover:bg-indigo-500"
+          className="min-h-[44px] rounded-xl bg-indigo-600 px-4 text-sm font-medium text-white hover:bg-indigo-700"
         >
           Add exercise
         </button>
@@ -272,7 +272,7 @@ export function DayDetail() {
             <button
               type="button"
               onClick={() => setAddOpen(true)}
-              className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500"
+              className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
             >
               Add exercise
             </button>
@@ -283,12 +283,12 @@ export function DayDetail() {
           {templates.map((t, index) => (
             <li
               key={t.id}
-              className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-white p-4 shadow-sm transition-colors hover:bg-gray-50"
+              className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-white p-4 shadow-sm transition-colors hover:bg-gray-100"
             >
               <div>
                 <Link
                   to={`/exercises/${t.exerciseId}`}
-                  className="font-medium text-gray-900 hover:text-indigo-600"
+                  className="font-medium text-gray-900 hover:text-indigo-700"
                 >
                   {t.exerciseName}
                 </Link>
@@ -342,7 +342,7 @@ export function DayDetail() {
                     <button
                       type="button"
                       onClick={() => void handleSaveEdit()}
-                      className="min-h-[44px] rounded-lg px-2 text-sm text-indigo-600 hover:bg-indigo-50"
+                      className="min-h-[44px] rounded-lg px-2 text-sm text-indigo-600 hover:bg-indigo-100"
                     >
                       Save
                     </button>
@@ -360,7 +360,7 @@ export function DayDetail() {
                       type="button"
                       onClick={() => moveTemplate(index, "up")}
                       disabled={index === 0}
-                      className="min-h-[44px] min-w-[44px] rounded-lg text-gray-500 hover:bg-gray-100 disabled:opacity-50"
+                      className="min-h-[44px] min-w-[44px] rounded-lg text-gray-500 hover:bg-gray-200 disabled:opacity-50"
                       aria-label="Move up"
                     >
                       ↑
@@ -369,7 +369,7 @@ export function DayDetail() {
                       type="button"
                       onClick={() => moveTemplate(index, "down")}
                       disabled={index === templates.length - 1}
-                      className="min-h-[44px] min-w-[44px] rounded-lg text-gray-500 hover:bg-gray-100 disabled:opacity-50"
+                      className="min-h-[44px] min-w-[44px] rounded-lg text-gray-500 hover:bg-gray-200 disabled:opacity-50"
                       aria-label="Move down"
                     >
                       ↓
@@ -382,7 +382,7 @@ export function DayDetail() {
                         setEditRepsLower(t.repsLower);
                         setEditRepsUpper(t.repsUpper);
                       }}
-                      className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100"
+                      className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-gray-500 hover:bg-gray-200"
                       aria-label="Edit template"
                       title="Edit template"
                     >
@@ -391,7 +391,7 @@ export function DayDetail() {
                     <button
                       type="button"
                       onClick={() => setDeleteTemplateId(t.id)}
-                      className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-red-600 hover:bg-red-50"
+                      className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-red-600 hover:bg-red-100"
                       aria-label="Delete template"
                       title="Delete template"
                     >
@@ -431,7 +431,7 @@ export function DayDetail() {
                 setSelectedExerciseDisplayName(null);
                 setExerciseSearch("");
               }}
-              className="flex size-8 shrink-0 items-center justify-center rounded text-gray-500 hover:bg-gray-200 hover:text-gray-700"
+              className="flex size-8 shrink-0 items-center justify-center rounded text-gray-500 hover:bg-gray-200 hover:text-gray-800"
               aria-label="Clear selection"
             >
               <span className="text-sm">✕</span>
@@ -458,7 +458,7 @@ export function DayDetail() {
                       setSelectedExerciseId(ex.id);
                       setSelectedExerciseDisplayName(ex.displayName);
                     }}
-                    className="min-h-[44px] w-full rounded-lg px-3 text-left text-sm text-gray-700 hover:bg-gray-50"
+                    className="min-h-[44px] w-full rounded-lg px-3 text-left text-sm text-gray-700 hover:bg-gray-100"
                   >
                     {ex.displayName}
                   </button>
@@ -470,7 +470,7 @@ export function DayDetail() {
                 <button
                   type="button"
                   onClick={() => void handleCreateExercise()}
-                  className="min-h-[44px] w-full rounded-xl border border-dashed border-gray-400 bg-gray-50 font-medium text-gray-700 hover:border-indigo-500 hover:bg-indigo-50 hover:text-indigo-700"
+                  className="min-h-[44px] w-full rounded-xl border border-dashed border-gray-400 bg-gray-50 font-medium text-gray-700 hover:border-indigo-500 hover:bg-indigo-100 hover:text-indigo-700"
                 >
                   Create exercise &ldquo;{exerciseSearch.trim()}&rdquo;
                 </button>
@@ -544,7 +544,7 @@ export function DayDetail() {
               <button
                 type="button"
                 onClick={() => void handleAddTemplate()}
-                className="min-h-[44px] flex-1 rounded-xl bg-indigo-600 font-medium text-white hover:bg-indigo-500"
+                className="min-h-[44px] flex-1 rounded-xl bg-indigo-600 font-medium text-white hover:bg-indigo-700"
               >
                 Add
               </button>

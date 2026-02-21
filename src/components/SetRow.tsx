@@ -24,7 +24,7 @@ export function SetRow({
   deleteAriaLabel = "Delete set",
 }: SetRowProps) {
   return (
-    <li className="flex flex-wrap items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-gray-50">
+    <li className="flex flex-wrap items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-gray-100">
       <div className="flex min-w-0 flex-1 basis-full items-center gap-2 sm:basis-auto sm:flex-initial">
         <input
           type="number"
@@ -59,7 +59,7 @@ export function SetRow({
         <button
           type="button"
           onClick={onDelete}
-          className="flex min-h-[36px] min-w-[36px] items-center justify-center rounded-lg text-red-600 hover:bg-red-50"
+          className="flex min-h-[36px] min-w-[36px] items-center justify-center rounded-lg text-red-600 hover:bg-red-100"
           aria-label={deleteAriaLabel}
           title={deleteAriaLabel}
         >

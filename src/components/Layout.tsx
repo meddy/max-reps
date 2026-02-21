@@ -31,7 +31,7 @@ export function Layout() {
             </div>
             <Link
               to="/settings"
-              className="min-h-[44px] flex min-w-[44px] items-center justify-center text-indigo-600 hover:text-indigo-500"
+              className="min-h-[44px] flex min-w-[44px] items-center justify-center text-indigo-600 hover:text-indigo-700"
               aria-label="Settings"
               title="Settings"
             >

@@ -128,7 +128,7 @@ export function SettingsPage() {
             type="button"
             disabled={loading}
             onClick={() => void exportJson()}
-            className="w-fit min-h-[44px] rounded-xl bg-indigo-600 px-4 font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
+            className="w-fit min-h-[44px] rounded-xl bg-indigo-600 px-4 font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
           >
             {loading ? "Exporting…" : "Export all data (JSON)"}
           </button>
@@ -136,7 +136,7 @@ export function SettingsPage() {
             type="button"
             disabled={loading}
             onClick={() => void exportSetsCsv()}
-            className="w-fit min-h-[44px] rounded-xl border border-gray-300 bg-white px-4 font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+            className="w-fit min-h-[44px] rounded-xl border border-gray-300 bg-white px-4 font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-50"
           >
             {loading ? "Exporting…" : "Export sets (CSV)"}
           </button>

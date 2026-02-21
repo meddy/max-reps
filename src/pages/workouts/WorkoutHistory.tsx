@@ -264,7 +264,7 @@ export function WorkoutHistory() {
         <button
           type="button"
           onClick={openAddWorkoutModal}
-          className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-xl bg-indigo-600 text-white hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+          className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
           aria-label="Add workout"
           title="Add workout"
         >
@@ -284,7 +284,7 @@ export function WorkoutHistory() {
             <button
               type="button"
               onClick={openAddWorkoutModal}
-              className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500"
+              className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
             >
               Add workout
             </button>
@@ -296,7 +296,7 @@ export function WorkoutHistory() {
             <li key={w.id}>
               <Link
                 to={`/workouts/${w.id}`}
-                className="block min-h-[44px] rounded-xl bg-white p-4 shadow-sm transition-colors hover:bg-gray-50"
+                className="block min-h-[44px] rounded-xl bg-white p-4 shadow-sm transition-colors hover:bg-gray-100"
               >
                 <p className="font-medium text-gray-900">
                   {formatDate(w.date, { weekday: true })} — {w.dayNameSnapshot}
@@ -349,7 +349,7 @@ export function WorkoutHistory() {
                   className={`w-full rounded-xl px-4 py-3 text-left shadow-sm ${
                     selectedDay?.id === day.id
                       ? "bg-indigo-100 text-indigo-900 ring-1 ring-indigo-300"
-                      : "bg-white text-gray-900 hover:bg-gray-50"
+                      : "bg-white text-gray-900 hover:bg-gray-100"
                   }`}
                 >
                   <p className="font-medium text-gray-900">{day.displayName}</p>
@@ -389,7 +389,7 @@ export function WorkoutHistory() {
             type="button"
             disabled={!workoutDate || !selectedDay || creating}
             onClick={() => void createWorkout()}
-            className="min-h-[44px] flex-1 rounded-xl bg-indigo-600 font-medium text-white hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
+            className="min-h-[44px] flex-1 rounded-xl bg-indigo-600 font-medium text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {creating ? "Creating…" : "Create"}
           </button>

@@ -119,7 +119,7 @@ export function AddExerciseModal({
               setSelectedExerciseDisplayName(null);
               setExerciseSearch("");
             }}
-            className="flex size-8 shrink-0 items-center justify-center rounded text-gray-500 hover:bg-gray-200 hover:text-gray-700"
+            className="flex size-8 shrink-0 items-center justify-center rounded text-gray-500 hover:bg-gray-300 hover:text-gray-800"
             aria-label="Clear selection"
           >
             <span className="text-sm">✕</span>
@@ -146,7 +146,7 @@ export function AddExerciseModal({
                     setSelectedExerciseId(ex.id);
                     setSelectedExerciseDisplayName(ex.displayName);
                   }}
-                  className="min-h-[44px] w-full rounded-lg px-3 text-left text-sm text-gray-700 hover:bg-gray-50"
+                  className="min-h-[44px] w-full rounded-lg px-3 text-left text-sm text-gray-700 hover:bg-gray-100"
                 >
                   {ex.displayName}
                 </button>
@@ -158,7 +158,7 @@ export function AddExerciseModal({
               <button
                 type="button"
                 onClick={() => void handleCreateExercise()}
-                className="min-h-[44px] w-full rounded-xl border border-dashed border-gray-400 bg-gray-50 font-medium text-gray-700 hover:border-indigo-500 hover:bg-indigo-50 hover:text-indigo-700"
+                className="min-h-[44px] w-full rounded-xl border border-dashed border-gray-400 bg-gray-50 font-medium text-gray-700 hover:border-indigo-500 hover:bg-indigo-100 hover:text-indigo-700"
               >
                 Create exercise &ldquo;{exerciseSearch.trim()}&rdquo;
               </button>
@@ -181,7 +181,7 @@ export function AddExerciseModal({
           <button
             type="button"
             onClick={handleAdd}
-            className="min-h-[44px] flex-1 rounded-xl bg-indigo-600 font-medium text-white hover:bg-indigo-500"
+            className="min-h-[44px] flex-1 rounded-xl bg-indigo-600 font-medium text-white hover:bg-indigo-700"
           >
             Add
           </button>

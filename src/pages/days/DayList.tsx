@@ -213,7 +213,7 @@ export function DayList() {
             setCreateError("");
             setCreateName("");
           }}
-          className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-xl bg-indigo-600 text-white hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+          className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
           aria-label="Add day"
           title="Add day"
         >
@@ -233,7 +233,7 @@ export function DayList() {
             <button
               type="button"
               onClick={() => setCreateOpen(true)}
-              className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500"
+              className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
             >
               Add day
             </button>
@@ -246,7 +246,7 @@ export function DayList() {
             return (
               <li
                 key={day.id}
-                className="flex items-center justify-between gap-3 rounded-xl bg-white p-4 shadow-sm transition-colors hover:bg-gray-50"
+                className="flex items-center justify-between gap-3 rounded-xl bg-white p-4 shadow-sm transition-colors hover:bg-gray-100"
               >
                 <Link
                   to={`/days/${day.id}`}
@@ -275,7 +275,7 @@ export function DayList() {
                       setEditId(day.id);
                       setEditName(day.displayName);
                     }}
-                    className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+                    className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-gray-500 hover:bg-gray-200 hover:text-gray-700"
                     aria-label={`Edit ${day.displayName}`}
                     title={`Edit ${day.displayName}`}
                   >
@@ -284,7 +284,7 @@ export function DayList() {
                   <button
                     type="button"
                     onClick={() => setDeleteId(day.id)}
-                    className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-red-600 hover:bg-red-50"
+                    className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-red-600 hover:bg-red-100"
                     aria-label={`Delete ${day.displayName}`}
                     title={`Delete ${day.displayName}`}
                   >
@@ -330,7 +330,7 @@ export function DayList() {
           <button
             type="button"
             onClick={() => void handleCreate()}
-            className="min-h-[44px] flex-1 rounded-xl bg-indigo-600 font-medium text-white hover:bg-indigo-500"
+            className="min-h-[44px] flex-1 rounded-xl bg-indigo-600 font-medium text-white hover:bg-indigo-700"
           >
             Create
           </button>
@@ -366,7 +366,7 @@ export function DayList() {
           <button
             type="button"
             onClick={() => void handleEdit()}
-            className="min-h-[44px] flex-1 rounded-xl bg-indigo-600 font-medium text-white hover:bg-indigo-500"
+            className="min-h-[44px] flex-1 rounded-xl bg-indigo-600 font-medium text-white hover:bg-indigo-700"
           >
             Save
           </button>

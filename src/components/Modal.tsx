@@ -32,7 +32,7 @@ export function Modal({
           <button
             type="button"
             onClick={onClose}
-            className="min-h-[44px] min-w-[44px] -m-2 flex shrink-0 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+            className="min-h-[44px] min-w-[44px] -m-2 flex shrink-0 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
             aria-label="Close"
           >
             <span className="text-2xl leading-none">×</span>

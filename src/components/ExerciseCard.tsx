@@ -1,7 +1,9 @@
+import { Link } from "react-router-dom";
 import { IconTrash } from "./Icons";
 
 export interface ExerciseCardProps {
   exerciseName: string;
+  exerciseId?: string;
   metadata?: React.ReactNode;
   onRemove: () => void;
   onAddSet: () => void;
@@ -10,19 +12,30 @@ export interface ExerciseCardProps {
 
 export function ExerciseCard({
   exerciseName,
+  exerciseId,
   metadata,
   onRemove,
   onAddSet,
   children,
 }: ExerciseCardProps) {
+  const nameElement = exerciseId ? (
+    <Link
+      to={`/exercises/${exerciseId}`}
+      className="font-medium text-gray-900 hover:text-indigo-700 hover:underline"
+    >
+      {exerciseName}
+    </Link>
+  ) : (
+    <p className="font-medium text-gray-900">{exerciseName}</p>
+  );
   return (
     <div className="rounded-xl bg-white p-4 shadow-sm">
       <div className="flex items-center justify-between">
-        <p className="font-medium text-gray-900">{exerciseName}</p>
+        {nameElement}
         <button
           type="button"
           onClick={onRemove}
-          className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-red-600 hover:bg-red-50"
+          className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-red-600 hover:bg-red-100"
           aria-label={`Remove ${exerciseName}`}
           title={`Remove ${exerciseName}`}
         >

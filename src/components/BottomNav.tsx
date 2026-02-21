@@ -32,7 +32,7 @@ export function BottomNav() {
                   `flex min-h-[44px] flex-1 flex-col items-center justify-center gap-0.5 text-xs transition-colors ${
                     isActive
                       ? "text-indigo-600"
-                      : "text-gray-500 hover:text-gray-700"
+                      : "text-gray-500 hover:text-gray-800"
                   }`
                 }
               >

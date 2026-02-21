@@ -30,8 +30,8 @@ export function SortToggleButton({
       title={ariaLabelFull}
       className={`min-h-[44px] rounded-xl px-3 text-sm font-medium transition-colors ${
         value === "asc"
-          ? "bg-indigo-600 text-white hover:bg-indigo-500"
-          : "border border-gray-300 bg-white text-gray-700 hover:bg-gray-100"
+          ? "bg-indigo-600 text-white hover:bg-indigo-700"
+          : "border border-gray-300 bg-white text-gray-700 hover:bg-gray-200"
       }`}
     >
       {label}

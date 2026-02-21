@@ -139,18 +139,18 @@ export function ExerciseDetail() {
       return aMs - bMs;
     });
     return values.map((s: WorkoutSet & { id: string }) => {
-        const date = s.performedAt?.toDate?.() ?? new Date(0);
-        return {
-          dateMs: date.getTime(),
-          dateLabel: date.toLocaleDateString(undefined, {
-            month: "short",
-            day: "numeric",
-          }),
-          weight: s.weight,
-          reps: s.reps,
-          label: `${s.reps}×${s.weight}`,
-        };
-      });
+      const date = s.performedAt?.toDate?.() ?? new Date(0);
+      return {
+        dateMs: date.getTime(),
+        dateLabel: date.toLocaleDateString(undefined, {
+          month: "short",
+          day: "numeric",
+        }),
+        weight: s.weight,
+        reps: s.reps,
+        label: `${s.reps}×${s.weight}`,
+      };
+    });
   }, [sets]);
 
   if (loading) {
@@ -185,7 +185,7 @@ export function ExerciseDetail() {
         <button
           type="button"
           onClick={() => navigate("/exercises")}
-          className="min-h-[44px] rounded-xl border border-gray-300 bg-white px-3 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          className="min-h-[44px] rounded-xl border border-gray-300 bg-white px-3 text-sm font-medium text-gray-700 hover:bg-gray-100"
         >
           Back to Exercises
         </button>
@@ -225,7 +225,7 @@ export function ExerciseDetail() {
                 key={s.id}
                 role="button"
                 tabIndex={0}
-                className="cursor-pointer px-4 py-3 transition-colors hover:bg-gray-50 active:bg-gray-100"
+                className="cursor-pointer px-4 py-3 transition-colors hover:bg-gray-100 active:bg-gray-200"
                 onClick={() => navigate(`/workouts/${s.workoutId}`)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") {

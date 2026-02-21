@@ -21,8 +21,8 @@ export function ConfirmDialog({
 }) {
   const confirmClass =
     variant === "danger"
-      ? "bg-red-600 hover:bg-red-500 focus:ring-red-500"
-      : "bg-indigo-600 hover:bg-indigo-500 focus:ring-indigo-500";
+      ? "bg-red-600 hover:bg-red-700 focus:ring-red-500"
+      : "bg-indigo-600 hover:bg-indigo-700 focus:ring-indigo-500";
 
   return (
     <Modal open={open} onClose={onCancel} title={title}>
@@ -31,7 +31,7 @@ export function ConfirmDialog({
         <button
           type="button"
           onClick={onCancel}
-          className="min-h-[44px] flex-1 rounded-xl border border-gray-300 bg-white px-4 font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+          className="min-h-[44px] flex-1 rounded-xl border border-gray-300 bg-white px-4 font-medium text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
         >
           {cancelLabel}
         </button>
