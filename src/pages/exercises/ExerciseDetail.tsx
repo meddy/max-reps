@@ -12,6 +12,8 @@ import {
 } from "../../lib/firestore";
 import type { Exercise, Workout, WorkoutSet } from "../../types";
 import { LoadingSpinner } from "../../components/LoadingSpinner";
+import { TopSetChart } from "../../components/TopSetChart";
+import type { TopSetChartPoint } from "../../components/TopSetChart";
 import { formatDate } from "../../lib/format";
 
 export function ExerciseDetail() {
@@ -118,6 +120,39 @@ export function ExerciseDetail() {
     });
   }, [sets, setNumberBySetId]);
 
+  const topSetsPerWorkout = useMemo((): TopSetChartPoint[] => {
+    const byWorkout = new Map<string, WorkoutSet & { id: string }>();
+    for (const s of sets) {
+      const existing = byWorkout.get(s.workoutId);
+      const isBetter =
+        !existing ||
+        s.weight > existing.weight ||
+        (s.weight === existing.weight && s.reps > existing.reps);
+      if (isBetter) {
+        byWorkout.set(s.workoutId, s);
+      }
+    }
+    const values = [...byWorkout.values()];
+    values.sort((a, b) => {
+      const aMs = a.performedAt?.toMillis?.() ?? 0;
+      const bMs = b.performedAt?.toMillis?.() ?? 0;
+      return aMs - bMs;
+    });
+    return values.map((s: WorkoutSet & { id: string }) => {
+        const date = s.performedAt?.toDate?.() ?? new Date(0);
+        return {
+          dateMs: date.getTime(),
+          dateLabel: date.toLocaleDateString(undefined, {
+            month: "short",
+            day: "numeric",
+          }),
+          weight: s.weight,
+          reps: s.reps,
+          label: `${s.reps}×${s.weight}`,
+        };
+      });
+  }, [sets]);
+
   if (loading) {
     return (
       <div className="flex justify-center py-8">
@@ -165,6 +200,15 @@ export function ExerciseDetail() {
           {prSet.note && (
             <p className="mt-1 text-sm text-indigo-700">{prSet.note}</p>
           )}
+        </div>
+      )}
+
+      {topSetsPerWorkout.length > 0 && (
+        <div className="rounded-xl bg-white p-4 shadow-sm">
+          <h3 className="mb-3 text-sm font-medium text-gray-500">
+            Top set per workout
+          </h3>
+          <TopSetChart data={topSetsPerWorkout} />
         </div>
       )}
 
