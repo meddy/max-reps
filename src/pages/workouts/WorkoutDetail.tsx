@@ -238,6 +238,10 @@ export function WorkoutDetail() {
     setSetsByExercise(byEx);
     nextOrderRef.current = list.length;
 
+    if (list.length > 0) {
+      setIsTemplateMode(false);
+    }
+
     if (list.length === 0 && workout?.dayId) {
       setTemplateModeLoading(true);
       const templatesRef = getCollectionRef("exerciseSetTemplates");
@@ -802,7 +806,7 @@ export function WorkoutDetail() {
           const last = lastPerformed[template.exerciseId];
           const lastFormatted =
             last && last.sets.length > 0
-              ? last.sets.map((s) => `${s.reps}×${s.weight}`).join(", ") +
+              ? last.sets.map((s) => `${s.weight}x${s.reps}`).join(", ") +
                 " lbs"
               : null;
           const metadata = !template.isAdHoc ? (
