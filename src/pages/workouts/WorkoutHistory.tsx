@@ -307,6 +307,11 @@ export function WorkoutHistory() {
                     w.totalLoad > 0 &&
                     ` - ${w.totalLoad.toLocaleString()} lbs`}
                 </p>
+                {w.note?.trim() && (
+                  <p className="mt-1 text-sm text-gray-500 line-clamp-2">
+                    {w.note.trim()}
+                  </p>
+                )}
               </Link>
             </li>
           ))}
