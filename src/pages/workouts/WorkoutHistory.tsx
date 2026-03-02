@@ -35,6 +35,7 @@ import { formatDate } from "../../lib/format";
 
 const PAGE_SIZE = 100;
 const SORT_STORAGE_KEY = "max-reps-workout-sort";
+const IS_IOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
 
 function getStoredSortOrder(): "asc" | "desc" {
   try {
@@ -44,6 +45,13 @@ function getStoredSortOrder(): "asc" | "desc" {
     /* ignore */
   }
   return "desc";
+}
+
+function getLocalDateString(date: Date = new Date()): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 export function WorkoutHistory() {
@@ -63,10 +71,7 @@ export function WorkoutHistory() {
     getStoredSortOrder()
   );
   const [addWorkoutOpen, setAddWorkoutOpen] = useState(false);
-  const [workoutDate, setWorkoutDate] = useState(() => {
-    const d = new Date();
-    return d.toISOString().slice(0, 10);
-  });
+  const [workoutDate, setWorkoutDate] = useState(() => getLocalDateString());
   const [daySearch, setDaySearch] = useState("");
   const [dayResults, setDayResults] = useState<Array<Day & { id: string }>>([]);
   const [templatesByDayId, setTemplatesByDayId] = useState<
@@ -218,7 +223,7 @@ export function WorkoutHistory() {
   }, [addWorkoutOpen, dayResults]);
 
   const openAddWorkoutModal = useCallback(() => {
-    setWorkoutDate(new Date().toISOString().slice(0, 10));
+    setWorkoutDate(getLocalDateString());
     setDaySearch("");
     setDayResults([]);
     setSelectedDay(null);
@@ -323,15 +328,20 @@ export function WorkoutHistory() {
         onClose={closeAddWorkoutModal}
         title="Add workout"
       >
-        <label className="mt-3 block text-sm text-gray-600">
-          Date
+        <div className="mt-3">
+          <span className="block text-sm text-gray-600">Date</span>
           <input
             type="date"
             value={workoutDate}
             onChange={(e) => setWorkoutDate(e.target.value)}
-            className="mt-1 min-h-[44px] w-full rounded-xl border border-gray-300 px-3 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            style={
+              IS_IOS
+                ? { width: "calc(100% - 1.5rem)", boxSizing: "border-box" }
+                : undefined
+            }
+            className={`mt-1 min-h-[44px] rounded-xl border border-gray-300 px-3 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500${IS_IOS ? "" : " w-full"}`}
           />
-        </label>
+        </div>
         <label className="mt-4 block text-sm text-gray-600">
           Day template
           <input

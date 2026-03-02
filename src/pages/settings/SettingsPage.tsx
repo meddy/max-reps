@@ -18,7 +18,7 @@ function downloadBlob(blob: Blob, filename: string) {
 }
 
 export function SettingsPage() {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const [loading, setLoading] = useState(false);
 
   const exportJson = async () => {
@@ -141,6 +141,18 @@ export function SettingsPage() {
             {loading ? "Exporting…" : "Export sets (CSV)"}
           </button>
         </div>
+      </section>
+
+      <section className="rounded-xl border border-gray-200 bg-white p-4">
+        <h3 className="text-sm font-medium text-gray-900">Account</h3>
+        <p className="mt-1 text-xs text-gray-500">Sign out of your account.</p>
+        <button
+          type="button"
+          onClick={() => void signOut()}
+          className="mt-3 min-h-[44px] w-fit rounded-xl border border-gray-300 bg-white px-4 font-medium text-gray-700 hover:bg-gray-100"
+        >
+          Sign out
+        </button>
       </section>
     </div>
   );
