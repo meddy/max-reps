@@ -809,39 +809,56 @@ export function WorkoutDetail() {
               ? last.sets.map((s) => `${s.weight}x${s.reps}`).join(", ") +
                 " lbs"
               : null;
+          const lastNotes =
+            last?.sets?.map((s) => s.note?.trim()).filter(Boolean) ?? [];
+          const notesText = lastNotes.length > 0 ? lastNotes.join(" • ") : null;
           const metadata = !template.isAdHoc ? (
-            <p className="text-sm text-gray-500">
-              <strong>Target:</strong>{" "}
-              <Link
-                to={`/days/${template.dayId}`}
-                className="text-indigo-600 hover:underline"
-              >
-                {template.repsLower}–{template.repsUpper} reps
-              </Link>
-              {lastFormatted && last.workoutId && (
-                <span className="ml-2">
-                  <strong>Last:</strong>{" "}
+            <div className="space-y-1">
+              <p className="text-sm text-gray-500">
+                <strong>Target:</strong>{" "}
+                <Link
+                  to={`/days/${template.dayId}`}
+                  className="text-indigo-600 hover:underline"
+                >
+                  {template.repsLower}–{template.repsUpper} reps
+                </Link>
+                {lastFormatted && last?.workoutId && (
+                  <span className="ml-2">
+                    <strong>Last:</strong>{" "}
+                    <Link
+                      to={`/workouts/${last.workoutId}`}
+                      className="text-indigo-600 hover:underline"
+                    >
+                      {lastFormatted}
+                    </Link>
+                  </span>
+                )}
+              </p>
+              {notesText && (
+                <p className="text-sm text-gray-500">
+                  <strong>Notes:</strong> {notesText}
+                </p>
+              )}
+            </div>
+          ) : (
+            lastFormatted &&
+            last?.workoutId && (
+              <div className="space-y-1">
+                <p className="text-sm text-gray-500">
+                  Last:{" "}
                   <Link
                     to={`/workouts/${last.workoutId}`}
                     className="text-indigo-600 hover:underline"
                   >
                     {lastFormatted}
                   </Link>
-                </span>
-              )}
-            </p>
-          ) : (
-            lastFormatted &&
-            last.workoutId && (
-              <p className="text-sm text-gray-500">
-                Last:{" "}
-                <Link
-                  to={`/workouts/${last.workoutId}`}
-                  className="text-indigo-600 hover:underline"
-                >
-                  {lastFormatted}
-                </Link>
-              </p>
+                </p>
+                {notesText && (
+                  <p className="text-sm text-gray-500">
+                    <strong>Notes:</strong> {notesText}
+                  </p>
+                )}
+              </div>
             )
           );
           return (

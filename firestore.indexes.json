@@ -25,6 +25,15 @@
       ]
     },
     {
+      "collectionGroup": "sets",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "exerciseId", "order": "ASCENDING" },
+        { "fieldPath": "weight", "order": "DESCENDING" },
+        { "fieldPath": "reps", "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "exerciseSetTemplates",
       "queryScope": "COLLECTION",
       "fields": [

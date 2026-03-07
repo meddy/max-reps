@@ -53,6 +53,7 @@ export function ExerciseDetail() {
       getCollectionRef("sets"),
       where("exerciseId", "==", id),
       orderBy("weight", "desc"),
+      orderBy("reps", "desc"),
       limit(1)
     );
     const [setsSnap, prSnap] = await Promise.all([
