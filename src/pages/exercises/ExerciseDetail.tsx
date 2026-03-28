@@ -5,7 +5,7 @@ import type { Exercise, WorkoutSet } from "../../types";
 import { LoadingSpinner } from "../../components/LoadingSpinner";
 import { TopSetChart } from "../../components/TopSetChart";
 import type { TopSetChartPoint } from "../../components/TopSetChart";
-import { formatDate } from "../../lib/format";
+import { formatDateShort } from "../../lib/format";
 
 export function ExerciseDetail() {
   const { id } = useParams<{ id: string }>();
@@ -106,7 +106,7 @@ export function ExerciseDetail() {
         }),
         weight: s.weight,
         reps: s.reps,
-        label: `${s.reps}×${s.weight}`,
+        label: `${s.weight}×${s.reps}`,
       };
     });
   }, [sets]);
@@ -153,7 +153,7 @@ export function ExerciseDetail() {
         <div className="rounded-xl bg-indigo-50 p-4">
           <p className="text-sm font-medium text-indigo-800">Personal record</p>
           <p className="text-lg font-semibold text-indigo-900">
-            {prSet.reps} × {prSet.weight} {prSet.unit}
+            {prSet.weight} × {prSet.reps} lbs
           </p>
           {prSet.note && (
             <p className="mt-1 text-sm text-indigo-700">{prSet.note}</p>
@@ -177,44 +177,81 @@ export function ExerciseDetail() {
         {sets.length === 0 ? (
           <p className="p-4 text-sm text-gray-500">No sets recorded yet.</p>
         ) : (
-          <ul className="divide-y divide-gray-100">
-            {sortedSets.map((s) => (
-              <li
-                key={s.id}
-                role="button"
-                tabIndex={0}
-                className="cursor-pointer px-4 py-3 transition-colors hover:bg-gray-100 active:bg-gray-200"
-                onClick={() => navigate(`/workouts/${s.workoutId}`)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    navigate(`/workouts/${s.workoutId}`);
-                  }
-                }}
-              >
-                <div className="flex justify-between gap-2">
-                  <div className="flex min-w-0 flex-1 items-baseline gap-2">
-                    <span className="font-medium text-gray-900">
-                      {s.reps} × {s.weight} {s.unit}
-                    </span>
-                    <span className="min-w-0 truncate text-sm text-gray-500">
-                      ·{" "}
-                      {[
-                        `Set ${setNumberBySetId.get(s.id) ?? 1}`,
-                        workoutNotesByWorkoutId[s.workoutId],
-                        s.note || undefined,
-                      ]
-                        .filter(Boolean)
-                        .join(" · ")}
-                    </span>
-                  </div>
-                  <span className="shrink-0 text-sm text-gray-500">
-                    {formatDate(s.performedAt)}
-                  </span>
-                </div>
-              </li>
-            ))}
-          </ul>
+          <div className="overflow-x-auto">
+            <table className="w-full table-fixed border-collapse text-sm">
+              <colgroup>
+                <col className="w-12" />
+                <col className="w-[6.5rem]" />
+                <col />
+                <col className="w-[7.5rem]" />
+              </colgroup>
+              <thead>
+                <tr className="border-b border-gray-100 text-xs font-medium text-gray-500">
+                  <th scope="col" className="px-4 py-2 text-left font-medium">
+                    Set #
+                  </th>
+                  <th scope="col" className="px-2 py-2 text-left font-medium">
+                    Wt (lbs) × Reps
+                  </th>
+                  <th
+                    scope="col"
+                    className="min-w-0 px-2 py-2 text-left font-medium"
+                  >
+                    Notes
+                  </th>
+                  <th
+                    scope="col"
+                    className="pl-4 pr-6 py-2 text-left font-medium"
+                  >
+                    Date
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {sortedSets.map((s) => {
+                  const notesText = [
+                    workoutNotesByWorkoutId[s.workoutId],
+                    s.note || undefined,
+                  ]
+                    .filter(Boolean)
+                    .join(" / ");
+                  return (
+                    <tr
+                      key={s.id}
+                      role="button"
+                      tabIndex={0}
+                      className="cursor-pointer transition-colors hover:bg-gray-100 focus-visible:bg-gray-100 focus-visible:outline-none active:bg-gray-200"
+                      onClick={() => navigate(`/workouts/${s.workoutId}`)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          navigate(`/workouts/${s.workoutId}`);
+                        }
+                      }}
+                    >
+                      <td className="px-4 py-3 text-left tabular-nums text-gray-900">
+                        {setNumberBySetId.get(s.id) ?? 1}
+                      </td>
+                      <td className="whitespace-nowrap px-2 py-3 text-left font-medium text-gray-900">
+                        {s.weight} × {s.reps}
+                      </td>
+                      <td className="max-w-0 min-w-0 px-2 py-3 text-left text-gray-500">
+                        <span
+                          className="block truncate"
+                          title={notesText || undefined}
+                        >
+                          {notesText}
+                        </span>
+                      </td>
+                      <td className="whitespace-nowrap pl-4 pr-6 py-3 text-left tabular-nums text-gray-500">
+                        {formatDateShort(s.performedAt)}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </div>

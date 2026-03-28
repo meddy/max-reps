@@ -38,7 +38,7 @@ export function TopSetChart({ data }: TopSetChartProps) {
           />
           <YAxis
             dataKey="weight"
-            domain={["auto", "auto"]}
+            domain={[0, "auto"]}
             tick={{ fontSize: 12, fill: "#6b7280" }}
             tickLine={false}
             width={32}
@@ -54,7 +54,7 @@ export function TopSetChart({ data }: TopSetChartProps) {
               return (
                 <div className="rounded-lg border border-gray-200 bg-white px-3 py-2 shadow-sm">
                   <p className="font-medium text-gray-900">
-                    {p.reps} × {p.weight} lbs
+                    {p.weight} × {p.reps} lbs
                   </p>
                   <p className="text-sm text-gray-500">{p.dateLabel}</p>
                 </div>

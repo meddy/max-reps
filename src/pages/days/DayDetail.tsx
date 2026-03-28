@@ -9,6 +9,29 @@ import { IconPencil, IconTrash } from "../../components/Icons";
 import { LoadingSpinner } from "../../components/LoadingSpinner";
 import { Modal } from "../../components/Modal";
 
+function parseTemplateFieldStrings(
+  numSetsStr: string,
+  repsLowerStr: string,
+  repsUpperStr: string
+): { numSets: number; repsLower: number; repsUpper: number } {
+  const rawSets = Number(numSetsStr.trim());
+  const numSets =
+    Number.isFinite(rawSets) && rawSets >= 1 ? Math.floor(rawSets) : 1;
+
+  const parseRep = (s: string): number => {
+    const n = Number(s.trim());
+    return Number.isFinite(n) && n >= 0 ? Math.floor(n) : 0;
+  };
+
+  let repsLower = parseRep(repsLowerStr);
+  let repsUpper = parseRep(repsUpperStr);
+  if (repsLower > repsUpper) {
+    [repsLower, repsUpper] = [repsUpper, repsLower];
+  }
+
+  return { numSets, repsLower, repsUpper };
+}
+
 export function DayDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -16,15 +39,15 @@ export function DayDetail() {
   const [templates, setTemplates] = useState<TemplateWithExerciseName[]>([]);
   const [loading, setLoading] = useState(true);
   const [addOpen, setAddOpen] = useState(false);
-  const [newNumSets, setNewNumSets] = useState(3);
-  const [newRepsLower, setNewRepsLower] = useState(8);
-  const [newRepsUpper, setNewRepsUpper] = useState(12);
+  const [newNumSets, setNewNumSets] = useState("3");
+  const [newRepsLower, setNewRepsLower] = useState("8");
+  const [newRepsUpper, setNewRepsUpper] = useState("12");
   const [editingTemplateId, setEditingTemplateId] = useState<string | null>(
     null
   );
-  const [editNumSets, setEditNumSets] = useState(0);
-  const [editRepsLower, setEditRepsLower] = useState(0);
-  const [editRepsUpper, setEditRepsUpper] = useState(0);
+  const [editNumSets, setEditNumSets] = useState("");
+  const [editRepsLower, setEditRepsLower] = useState("");
+  const [editRepsUpper, setEditRepsUpper] = useState("");
   const [deleteTemplateId, setDeleteTemplateId] = useState<string | null>(null);
 
   const loadDay = useCallback(async () => {
@@ -57,27 +80,37 @@ export function DayDetail() {
     if (!id) return;
     const maxOrder =
       templates.length > 0 ? Math.max(...templates.map((t) => t.order)) : -1;
+    const { numSets, repsLower, repsUpper } = parseTemplateFieldStrings(
+      newNumSets,
+      newRepsLower,
+      newRepsUpper
+    );
     await dataAccess.templates.create({
       dayId: id,
       exerciseId,
-      numSets: newNumSets,
-      repsLower: newRepsLower,
-      repsUpper: newRepsUpper,
+      numSets,
+      repsLower,
+      repsUpper,
       order: maxOrder + 1,
     });
     setAddOpen(false);
-    setNewNumSets(3);
-    setNewRepsLower(8);
-    setNewRepsUpper(12);
+    setNewNumSets("3");
+    setNewRepsLower("8");
+    setNewRepsUpper("12");
     void loadTemplates();
   };
 
   const handleSaveEdit = async () => {
     if (!editingTemplateId) return;
+    const { numSets, repsLower, repsUpper } = parseTemplateFieldStrings(
+      editNumSets,
+      editRepsLower,
+      editRepsUpper
+    );
     await dataAccess.templates.update(editingTemplateId, {
-      numSets: editNumSets,
-      repsLower: editRepsLower,
-      repsUpper: editRepsUpper,
+      numSets,
+      repsLower,
+      repsUpper,
     });
     setEditingTemplateId(null);
     void loadTemplates();
@@ -185,34 +218,23 @@ export function DayDetail() {
                         type="number"
                         min={1}
                         value={editNumSets}
-                        onChange={(e) =>
-                          setEditNumSets(Number(e.target.value) || 1)
-                        }
+                        onChange={(e) => setEditNumSets(e.target.value)}
                         className="w-14 rounded border border-gray-300 px-2 py-1 text-sm"
                       />
                       sets ×
                       <input
                         type="number"
                         min={0}
-                        max={editRepsUpper}
                         value={editRepsLower}
-                        onChange={(e) =>
-                          setEditRepsLower(
-                            Math.min(Number(e.target.value) || 0, editRepsUpper)
-                          )
-                        }
+                        onChange={(e) => setEditRepsLower(e.target.value)}
                         className="w-14 rounded border border-gray-300 px-2 py-1 text-sm"
                       />
                       –
                       <input
                         type="number"
-                        min={editRepsLower}
+                        min={0}
                         value={editRepsUpper}
-                        onChange={(e) =>
-                          setEditRepsUpper(
-                            Math.max(Number(e.target.value) || 0, editRepsLower)
-                          )
-                        }
+                        onChange={(e) => setEditRepsUpper(e.target.value)}
                         className="w-14 rounded border border-gray-300 px-2 py-1 text-sm"
                       />
                       reps
@@ -264,9 +286,9 @@ export function DayDetail() {
                       type="button"
                       onClick={() => {
                         setEditingTemplateId(t.id);
-                        setEditNumSets(t.numSets);
-                        setEditRepsLower(t.repsLower);
-                        setEditRepsUpper(t.repsUpper);
+                        setEditNumSets(String(t.numSets));
+                        setEditRepsLower(String(t.repsLower));
+                        setEditRepsUpper(String(t.repsUpper));
                       }}
                       className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-gray-500 hover:bg-gray-200"
                       aria-label="Edit template"
@@ -313,7 +335,7 @@ export function DayDetail() {
                   type="number"
                   min={1}
                   value={newNumSets}
-                  onChange={(e) => setNewNumSets(Number(e.target.value) || 1)}
+                  onChange={(e) => setNewNumSets(e.target.value)}
                   className="w-16 rounded border border-gray-300 px-2 py-1"
                 />
                 <label
@@ -327,26 +349,17 @@ export function DayDetail() {
                     id="add-reps-lower"
                     type="number"
                     min={0}
-                    max={newRepsUpper}
                     value={newRepsLower}
-                    onChange={(e) =>
-                      setNewRepsLower(
-                        Math.min(Number(e.target.value) || 0, newRepsUpper)
-                      )
-                    }
+                    onChange={(e) => setNewRepsLower(e.target.value)}
                     className="w-14 rounded border border-gray-300 px-2 py-1"
                   />
                   <span className="text-gray-500">–</span>
                   <input
                     id="add-reps-upper"
                     type="number"
-                    min={newRepsLower}
+                    min={0}
                     value={newRepsUpper}
-                    onChange={(e) =>
-                      setNewRepsUpper(
-                        Math.max(Number(e.target.value) || 0, newRepsLower)
-                      )
-                    }
+                    onChange={(e) => setNewRepsUpper(e.target.value)}
                     className="w-14 rounded border border-gray-300 px-2 py-1"
                   />
                 </div>

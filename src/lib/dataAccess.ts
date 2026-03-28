@@ -229,9 +229,7 @@ export interface DataAccess {
   };
   workouts: {
     get(id: string): Promise<(Workout & { id: string }) | null>;
-    getWithSets(
-      id: string
-    ): Promise<{
+    getWithSets(id: string): Promise<{
       workout: Workout & { id: string };
       sets: WorkoutSet[];
     } | null>;
