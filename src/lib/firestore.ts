@@ -1,9 +1,6 @@
 import {
   type CollectionReference,
-  type DocumentData,
   type DocumentReference,
-  type DocumentSnapshot,
-  type QueryConstraint,
   type Timestamp,
   collection,
   doc,
@@ -14,14 +11,12 @@ import {
   getDoc,
   query,
   limit,
-  startAfter,
   serverTimestamp,
   writeBatch,
   orderBy,
   where,
 } from "firebase/firestore";
 import { db } from "./firebase";
-import { endSaving, startSaving } from "./savingStore";
 import type { CollectionName } from "../types";
 
 export function getCollectionRef(name: CollectionName): CollectionReference {
@@ -44,22 +39,17 @@ export async function createDoc<T extends DataWithTimestamps>(
   collectionName: CollectionName,
   data: Omit<T, "id" | "createdAt" | "updatedAt">
 ): Promise<string> {
-  startSaving();
-  try {
-    const ref = collection(db, collectionName);
-    const withTimestamps =
-      collectionName === "sets"
-        ? { ...data, createdAt: serverTimestamp() }
-        : {
-            ...data,
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp(),
-          };
-    const docRef = await addDoc(ref, withTimestamps);
-    return docRef.id;
-  } finally {
-    endSaving();
-  }
+  const ref = collection(db, collectionName);
+  const withTimestamps =
+    collectionName === "sets"
+      ? { ...data, createdAt: serverTimestamp() }
+      : {
+          ...data,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        };
+  const docRef = await addDoc(ref, withTimestamps);
+  return docRef.id;
 }
 
 export async function updateDocById(
@@ -67,19 +57,14 @@ export async function updateDocById(
   id: string,
   data: Record<string, unknown>
 ): Promise<void> {
-  startSaving();
-  try {
-    const ref = doc(db, collectionName, id);
-    const payload =
-      collectionName === "sets"
-        ? data
-        : { ...data, updatedAt: serverTimestamp() };
-    // Firebase updateDoc expects FieldValue for some keys; we pass timestamps and primitives
-    // @ts-expect-error payload shape is valid at runtime
-    await updateDoc(ref, payload);
-  } finally {
-    endSaving();
-  }
+  const ref = doc(db, collectionName, id);
+  const payload =
+    collectionName === "sets"
+      ? data
+      : { ...data, updatedAt: serverTimestamp() };
+  // Firebase updateDoc expects FieldValue for some keys; we pass timestamps and primitives
+  // @ts-expect-error payload shape is valid at runtime
+  await updateDoc(ref, payload);
 }
 
 type Cascade = { collection: CollectionName; field: string };
@@ -88,13 +73,8 @@ export async function deleteDocById(
   collectionName: CollectionName,
   id: string
 ): Promise<void> {
-  startSaving();
-  try {
-    const ref = doc(db, collectionName, id);
-    await deleteDoc(ref);
-  } finally {
-    endSaving();
-  }
+  const ref = doc(db, collectionName, id);
+  await deleteDoc(ref);
 }
 
 export async function deleteDocAndRelated(
@@ -102,52 +82,20 @@ export async function deleteDocAndRelated(
   id: string,
   cascades: Cascade[]
 ): Promise<void> {
-  startSaving();
-  try {
-    const batch = writeBatch(db);
+  const batch = writeBatch(db);
 
-    for (const { collection: childName, field } of cascades) {
-      const childRef = collection(db, childName);
-      const q = query(childRef, where(field, "==", id));
-      const snapshot = await getDocs(q);
-      for (const d of snapshot.docs) {
-        batch.delete(d.ref);
-      }
+  for (const { collection: childName, field } of cascades) {
+    const childRef = collection(db, childName);
+    const q = query(childRef, where(field, "==", id));
+    const snapshot = await getDocs(q);
+    for (const d of snapshot.docs) {
+      batch.delete(d.ref);
     }
-
-    const docRef = doc(db, collectionName, id);
-    batch.delete(docRef);
-    await batch.commit();
-  } finally {
-    endSaving();
   }
-}
 
-export async function paginatedQuery<T extends DocumentData>(
-  collectionRef: CollectionReference<T>,
-  constraints: QueryConstraint[],
-  pageSize: number,
-  lastDoc: DocumentSnapshot | null
-): Promise<{
-  docs: Array<{ id: string; data: T }>;
-  lastDoc: DocumentSnapshot | null;
-  hasMore: boolean;
-}> {
-  const q = query(
-    collectionRef,
-    ...constraints,
-    limit(pageSize + 1),
-    ...(lastDoc ? [startAfter(lastDoc)] : [])
-  );
-  const snapshot = await getDocs(q);
-  const all = snapshot.docs;
-  const hasMore = all.length > pageSize;
-  const docs = (hasMore ? all.slice(0, pageSize) : all).map((d) => ({
-    id: d.id,
-    data: d.data() as T,
-  }));
-  const newLastDoc = docs.length > 0 ? snapshot.docs[docs.length - 1] : null;
-  return { docs, lastDoc: newLastDoc, hasMore };
+  const docRef = doc(db, collectionName, id);
+  batch.delete(docRef);
+  await batch.commit();
 }
 
 export { getDoc, getDocs, query, where, orderBy, limit, serverTimestamp };

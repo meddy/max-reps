@@ -1,19 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import {
-  getCollectionRef,
-  getDocRef,
-  createDoc,
-  updateDocById,
-  deleteDocAndRelated,
-  getDoc,
-  getDocs,
-  query,
-  where,
-  orderBy,
-  limit,
-} from "../../lib/firestore";
-import type { Day, Exercise, ExerciseSetTemplate } from "../../types";
+import { dataAccess } from "../../lib/dataAccess";
+import type { Day } from "../../types";
 import { EmptyState } from "../../components/EmptyState";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { IconPencil, IconPlus, IconTrash } from "../../components/Icons";
@@ -22,7 +10,6 @@ import { LoadingSpinner } from "../../components/LoadingSpinner";
 import { Modal } from "../../components/Modal";
 
 const PAGE_SIZE = 100;
-const TEMPLATES_LIMIT = 500;
 const SORT_STORAGE_KEY = "max-reps-day-sort";
 
 type DaySummaryItem = {
@@ -70,13 +57,10 @@ export function DayList() {
 
   const fetchDays = useCallback(async () => {
     setLoading(true);
-    const ref = getCollectionRef("days");
-    const q = query(ref, orderBy("nameLower", sortOrder), limit(PAGE_SIZE));
-    const snapshot = await getDocs(q);
-    const list = snapshot.docs.map((d) => ({
-      id: d.id,
-      ...d.data(),
-    })) as Array<Day & { id: string }>;
+    const list = await dataAccess.days.list({
+      sort: sortOrder,
+      limit: PAGE_SIZE,
+    });
     setDays(list);
     setLoading(false);
   }, [sortOrder]);
@@ -86,39 +70,16 @@ export function DayList() {
       setSummariesByDayId({});
       return;
     }
-    const dayIdSet = new Set(dayIds);
-    const ref = getCollectionRef("exerciseSetTemplates");
-    const q = query(ref, limit(TEMPLATES_LIMIT));
-    const snapshot = await getDocs(q);
-    const templates = snapshot.docs.map((d) => ({
-      id: d.id,
-      ...d.data(),
-    })) as Array<ExerciseSetTemplate & { id: string }>;
-    const forOurDays = templates
-      .filter((t) => dayIdSet.has(t.dayId))
-      .sort((a, b) =>
-        a.dayId !== b.dayId ? a.dayId.localeCompare(b.dayId) : a.order - b.order
-      );
-    const exerciseIds = [...new Set(forOurDays.map((t) => t.exerciseId))];
-    const nameMap: Record<string, string> = {};
-    await Promise.all(
-      exerciseIds.map(async (eid) => {
-        const snap = await getDoc(getDocRef("exercises", eid));
-        if (snap.exists()) {
-          nameMap[eid] = (snap.data() as Exercise).displayName;
-        }
-      })
-    );
+    const byDayMap =
+      await dataAccess.templates.listForDaysWithExerciseNames(dayIds);
     const byDay: Record<string, DaySummaryItem[]> = {};
-    for (const t of forOurDays) {
-      const list = byDay[t.dayId] ?? [];
-      list.push({
-        exerciseName: nameMap[t.exerciseId] ?? "—",
+    for (const [dayId, templates] of byDayMap) {
+      byDay[dayId] = templates.map((t) => ({
+        exerciseName: t.exerciseDisplayName,
         numSets: t.numSets,
         repsLower: t.repsLower,
         repsUpper: t.repsUpper,
-      });
-      byDay[t.dayId] = list;
+      }));
     }
     setSummariesByDayId(byDay);
   }, []);
@@ -138,19 +99,16 @@ export function DayList() {
       setCreateError("Name is required");
       return;
     }
-    const ref = getCollectionRef("days");
-    const existing = await getDocs(
-      query(ref, where("nameLower", "==", nameLower))
-    );
-    if (!existing.empty) {
+    const existing = await dataAccess.days.findByExactName(nameLower);
+    if (existing) {
       setCreateError("A day with this name already exists");
       return;
     }
     setCreateError("");
-    const id = await createDoc("days", {
+    const id = await dataAccess.days.create({
       nameLower,
       displayName,
-    } as unknown as Omit<Day, "id" | "createdAt" | "updatedAt">);
+    });
     setCreateOpen(false);
     setCreateName("");
     setDays((prev) => {
@@ -174,7 +132,7 @@ export function DayList() {
     if (!editId || !editName.trim()) return;
     const displayName = editName.trim();
     const nameLower = displayName.toLowerCase();
-    await updateDocById("days", editId, { nameLower, displayName });
+    await dataAccess.days.update(editId, { nameLower, displayName });
     setEditId(null);
     setEditName("");
     void fetchDays();
@@ -182,9 +140,7 @@ export function DayList() {
 
   const handleDelete = async () => {
     if (!deleteId) return;
-    await deleteDocAndRelated("days", deleteId, [
-      { collection: "exerciseSetTemplates", field: "dayId" },
-    ]);
+    await dataAccess.days.deleteWithTemplates(deleteId);
     setDeleteId(null);
     void fetchDays();
   };

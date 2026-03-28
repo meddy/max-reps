@@ -1,19 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import {
-  getDocRef,
-  getCollectionRef,
-  getDoc,
-  getDocs,
-  createDoc,
-  updateDocById,
-  deleteDocById,
-  query,
-  where,
-  orderBy,
-  limit,
-} from "../../lib/firestore";
-import type { Day, Exercise, ExerciseSetTemplate } from "../../types";
+import { dataAccess } from "../../lib/dataAccess";
+import type { Day, TemplateWithExerciseName } from "../../types";
+import { ExercisePicker } from "../../components/ExercisePicker";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { EmptyState } from "../../components/EmptyState";
 import { IconPencil, IconTrash } from "../../components/Icons";
@@ -24,21 +13,9 @@ export function DayDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [day, setDay] = useState<(Day & { id: string }) | null>(null);
-  const [templates, setTemplates] = useState<
-    Array<ExerciseSetTemplate & { id: string; exerciseName?: string }>
-  >([]);
+  const [templates, setTemplates] = useState<TemplateWithExerciseName[]>([]);
   const [loading, setLoading] = useState(true);
   const [addOpen, setAddOpen] = useState(false);
-  const [exerciseSearch, setExerciseSearch] = useState("");
-  const [exerciseResults, setExerciseResults] = useState<
-    Array<Exercise & { id: string }>
-  >([]);
-  const [selectedExerciseId, setSelectedExerciseId] = useState<string | null>(
-    null
-  );
-  const [selectedExerciseDisplayName, setSelectedExerciseDisplayName] =
-    useState<string | null>(null);
-  const [createExerciseError, setCreateExerciseError] = useState("");
   const [newNumSets, setNewNumSets] = useState(3);
   const [newRepsLower, setNewRepsLower] = useState(8);
   const [newRepsUpper, setNewRepsUpper] = useState(12);
@@ -52,49 +29,20 @@ export function DayDetail() {
 
   const loadDay = useCallback(async () => {
     if (!id) return;
-    const docSnap = await getDoc(getDocRef("days", id));
-    if (!docSnap.exists()) {
+    const d = await dataAccess.days.get(id);
+    if (!d) {
       setDay(null);
       setLoading(false);
       return;
     }
-    setDay({
-      id: docSnap.id,
-      ...docSnap.data(),
-    } as Day & { id: string });
+    setDay(d as Day & { id: string });
     setLoading(false);
   }, [id]);
 
   const loadTemplates = useCallback(async () => {
     if (!id) return;
-    const ref = getCollectionRef("exerciseSetTemplates");
-    const q = query(
-      ref,
-      where("dayId", "==", id),
-      orderBy("order"),
-      limit(100)
-    );
-    const snapshot = await getDocs(q);
-    const list = snapshot.docs.map((d) => ({
-      id: d.id,
-      ...d.data(),
-    })) as Array<ExerciseSetTemplate & { id: string }>;
-    const exerciseIds = [...new Set(list.map((t) => t.exerciseId))];
-    const exercisesSnap = await Promise.all(
-      exerciseIds.map((eid) => getDoc(getDocRef("exercises", eid)))
-    );
-    const nameMap: Record<string, string> = {};
-    exercisesSnap.forEach((s, i) => {
-      if (s.exists() && exerciseIds[i]) {
-        nameMap[exerciseIds[i]] = (s.data() as Exercise).displayName;
-      }
-    });
-    setTemplates(
-      list.map((t) => ({
-        ...t,
-        exerciseName: nameMap[t.exerciseId] ?? "—",
-      }))
-    );
+    const list = await dataAccess.templates.listForDayWithExerciseNames(id);
+    setTemplates(list);
   }, [id]);
 
   useEffect(() => {
@@ -105,75 +53,19 @@ export function DayDetail() {
     void loadTemplates();
   }, [loadTemplates]);
 
-  useEffect(() => {
-    if (!addOpen || !exerciseSearch.trim()) {
-      setExerciseResults([]);
-      return;
-    }
-    let ignore = false;
-    const term = exerciseSearch.trim().toLowerCase();
-    const ref = getCollectionRef("exercises");
-    const q = query(
-      ref,
-      where("nameLower", ">=", term),
-      where("nameLower", "<=", term + "\uf8ff"),
-      orderBy("nameLower"),
-      limit(20)
-    );
-    getDocs(q).then((snap) => {
-      if (ignore) return;
-      const list = snap.docs.map((d) => ({
-        id: d.id,
-        ...d.data(),
-      })) as Array<Exercise & { id: string }>;
-      setExerciseResults(list);
-    });
-    return () => {
-      ignore = true;
-    };
-  }, [addOpen, exerciseSearch]);
-
-  const handleCreateExercise = async () => {
-    const displayName = exerciseSearch.trim();
-    if (!displayName) return;
-    setCreateExerciseError("");
-    const nameLower = displayName.toLowerCase();
-    const ref = getCollectionRef("exercises");
-    const existing = await getDocs(
-      query(ref, where("nameLower", "==", nameLower))
-    );
-    if (!existing.empty) {
-      setCreateExerciseError("An exercise with this name already exists");
-      return;
-    }
-    const newId = await createDoc("exercises", {
-      nameLower,
-      displayName,
-    } as unknown as Omit<Exercise, "id" | "createdAt" | "updatedAt">);
-    setSelectedExerciseId(newId);
-    setSelectedExerciseDisplayName(displayName);
-    setExerciseSearch("");
-  };
-
-  const handleAddTemplate = async () => {
-    if (!id || !selectedExerciseId) return;
+  const handleAddTemplate = async (exerciseId: string) => {
+    if (!id) return;
     const maxOrder =
       templates.length > 0 ? Math.max(...templates.map((t) => t.order)) : -1;
-    await createDoc("exerciseSetTemplates", {
+    await dataAccess.templates.create({
       dayId: id,
-      exerciseId: selectedExerciseId,
+      exerciseId,
       numSets: newNumSets,
       repsLower: newRepsLower,
       repsUpper: newRepsUpper,
       order: maxOrder + 1,
-    } as unknown as Omit<
-      ExerciseSetTemplate,
-      "id" | "createdAt" | "updatedAt"
-    >);
+    });
     setAddOpen(false);
-    setSelectedExerciseId(null);
-    setSelectedExerciseDisplayName(null);
-    setExerciseSearch("");
     setNewNumSets(3);
     setNewRepsLower(8);
     setNewRepsUpper(12);
@@ -182,7 +74,7 @@ export function DayDetail() {
 
   const handleSaveEdit = async () => {
     if (!editingTemplateId) return;
-    await updateDocById("exerciseSetTemplates", editingTemplateId, {
+    await dataAccess.templates.update(editingTemplateId, {
       numSets: editNumSets,
       repsLower: editRepsLower,
       repsUpper: editRepsUpper,
@@ -193,7 +85,7 @@ export function DayDetail() {
 
   const handleDeleteTemplate = async () => {
     if (!deleteTemplateId) return;
-    await deleteDocById("exerciseSetTemplates", deleteTemplateId);
+    await dataAccess.templates.delete(deleteTemplateId);
     setDeleteTemplateId(null);
     void loadTemplates();
   };
@@ -204,8 +96,8 @@ export function DayDetail() {
     const a = templates[index];
     const b = templates[newOrder];
     await Promise.all([
-      updateDocById("exerciseSetTemplates", a.id, { order: newOrder }),
-      updateDocById("exerciseSetTemplates", b.id, { order: index }),
+      dataAccess.templates.update(a.id, { order: newOrder }),
+      dataAccess.templates.update(b.id, { order: index }),
     ]);
     void loadTemplates();
   };
@@ -251,13 +143,7 @@ export function DayDetail() {
       <div className="flex justify-end">
         <button
           type="button"
-          onClick={() => {
-            setAddOpen(true);
-            setSelectedExerciseId(null);
-            setSelectedExerciseDisplayName(null);
-            setExerciseSearch("");
-            setCreateExerciseError("");
-          }}
+          onClick={() => setAddOpen(true)}
           className="min-h-[44px] rounded-xl bg-indigo-600 px-4 text-sm font-medium text-white hover:bg-indigo-700"
         >
           Add exercise
@@ -290,7 +176,7 @@ export function DayDetail() {
                   to={`/exercises/${t.exerciseId}`}
                   className="font-medium text-gray-900 hover:text-indigo-700"
                 >
-                  {t.exerciseName}
+                  {t.exerciseDisplayName}
                 </Link>
                 <p className="text-sm text-gray-500">
                   {editingTemplateId === t.id ? (
@@ -407,150 +293,67 @@ export function DayDetail() {
 
       <Modal
         open={addOpen}
-        onClose={() => {
-          setAddOpen(false);
-          setSelectedExerciseId(null);
-          setSelectedExerciseDisplayName(null);
-          setExerciseSearch("");
-          setCreateExerciseError("");
-        }}
+        onClose={() => setAddOpen(false)}
         title="Add exercise to day"
       >
-        {selectedExerciseId ? (
-          <div className="mt-3 flex min-h-[44px] w-full items-center gap-2 rounded-xl border border-gray-300 bg-gray-50 px-4">
-            <span className="flex-1 truncate text-sm font-medium text-gray-900">
-              {selectedExerciseDisplayName ??
-                exerciseResults.find((e) => e.id === selectedExerciseId)
-                  ?.displayName ??
-                "—"}
-            </span>
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedExerciseId(null);
-                setSelectedExerciseDisplayName(null);
-                setExerciseSearch("");
-              }}
-              className="flex size-8 shrink-0 items-center justify-center rounded text-gray-500 hover:bg-gray-200 hover:text-gray-800"
-              aria-label="Clear selection"
-            >
-              <span className="text-sm">✕</span>
-            </button>
-          </div>
-        ) : (
-          <>
-            <input
-              type="text"
-              placeholder="Search exercises"
-              value={exerciseSearch}
-              onChange={(e) => {
-                setExerciseSearch(e.target.value);
-                setCreateExerciseError("");
-              }}
-              className="mt-3 min-h-[44px] w-full rounded-xl border border-gray-300 px-4 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-            />
-            <ul className="mt-2 max-h-40 overflow-auto">
-              {exerciseResults.map((ex) => (
-                <li key={ex.id}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedExerciseId(ex.id);
-                      setSelectedExerciseDisplayName(ex.displayName);
-                    }}
-                    className="min-h-[44px] w-full rounded-lg px-3 text-left text-sm text-gray-700 hover:bg-gray-100"
-                  >
-                    {ex.displayName}
-                  </button>
-                </li>
-              ))}
-            </ul>
-            {exerciseSearch.trim() !== "" && exerciseResults.length === 0 && (
-              <div className="mt-2 flex flex-col gap-2">
-                <button
-                  type="button"
-                  onClick={() => void handleCreateExercise()}
-                  className="min-h-[44px] w-full rounded-xl border border-dashed border-gray-400 bg-gray-50 font-medium text-gray-700 hover:border-indigo-500 hover:bg-indigo-100 hover:text-indigo-700"
+        <ExercisePicker
+          active={addOpen}
+          flow="staged"
+          stagedConfirmLabel="Add template"
+          onStagedCancel={() => setAddOpen(false)}
+          onCommit={(ex) => void handleAddTemplate(ex.id)}
+          renderStagedAccessory={() => (
+            <div className="mt-4 flex flex-col gap-2">
+              <div className="grid grid-cols-[minmax(5rem,auto)_1fr] items-center gap-x-3 gap-y-2">
+                <label className="text-sm text-gray-600" htmlFor="add-num-sets">
+                  Sets:
+                </label>
+                <input
+                  id="add-num-sets"
+                  type="number"
+                  min={1}
+                  value={newNumSets}
+                  onChange={(e) => setNewNumSets(Number(e.target.value) || 1)}
+                  className="w-16 rounded border border-gray-300 px-2 py-1"
+                />
+                <label
+                  className="text-sm text-gray-600"
+                  htmlFor="add-reps-lower"
                 >
-                  Create exercise &ldquo;{exerciseSearch.trim()}&rdquo;
-                </button>
-                {createExerciseError && (
-                  <p className="text-sm text-red-600">{createExerciseError}</p>
-                )}
-              </div>
-            )}
-          </>
-        )}
-        {selectedExerciseId && (
-          <div className="mt-4 flex flex-col gap-2">
-            <div className="grid grid-cols-[minmax(5rem,auto)_1fr] items-center gap-x-3 gap-y-2">
-              <label className="text-sm text-gray-600" htmlFor="add-num-sets">
-                Sets:
-              </label>
-              <input
-                id="add-num-sets"
-                type="number"
-                min={1}
-                value={newNumSets}
-                onChange={(e) => setNewNumSets(Number(e.target.value) || 1)}
-                className="w-16 rounded border border-gray-300 px-2 py-1"
-              />
-              <label className="text-sm text-gray-600" htmlFor="add-reps-lower">
-                Rep range:
-              </label>
-              <div className="flex items-center gap-1">
-                <input
-                  id="add-reps-lower"
-                  type="number"
-                  min={0}
-                  max={newRepsUpper}
-                  value={newRepsLower}
-                  onChange={(e) =>
-                    setNewRepsLower(
-                      Math.min(Number(e.target.value) || 0, newRepsUpper)
-                    )
-                  }
-                  className="w-14 rounded border border-gray-300 px-2 py-1"
-                />
-                <span className="text-gray-500">–</span>
-                <input
-                  id="add-reps-upper"
-                  type="number"
-                  min={newRepsLower}
-                  value={newRepsUpper}
-                  onChange={(e) =>
-                    setNewRepsUpper(
-                      Math.max(Number(e.target.value) || 0, newRepsLower)
-                    )
-                  }
-                  className="w-14 rounded border border-gray-300 px-2 py-1"
-                />
+                  Rep range:
+                </label>
+                <div className="flex items-center gap-1">
+                  <input
+                    id="add-reps-lower"
+                    type="number"
+                    min={0}
+                    max={newRepsUpper}
+                    value={newRepsLower}
+                    onChange={(e) =>
+                      setNewRepsLower(
+                        Math.min(Number(e.target.value) || 0, newRepsUpper)
+                      )
+                    }
+                    className="w-14 rounded border border-gray-300 px-2 py-1"
+                  />
+                  <span className="text-gray-500">–</span>
+                  <input
+                    id="add-reps-upper"
+                    type="number"
+                    min={newRepsLower}
+                    value={newRepsUpper}
+                    onChange={(e) =>
+                      setNewRepsUpper(
+                        Math.max(Number(e.target.value) || 0, newRepsLower)
+                      )
+                    }
+                    className="w-14 rounded border border-gray-300 px-2 py-1"
+                  />
+                </div>
               </div>
             </div>
-            <div className="mt-2 flex gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setAddOpen(false);
-                  setSelectedExerciseId(null);
-                  setSelectedExerciseDisplayName(null);
-                  setExerciseSearch("");
-                  setCreateExerciseError("");
-                }}
-                className="min-h-[44px] flex-1 rounded-xl border border-gray-300 bg-white font-medium text-gray-700"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => void handleAddTemplate()}
-                className="min-h-[44px] flex-1 rounded-xl bg-indigo-600 font-medium text-white hover:bg-indigo-700"
-              >
-                Add
-              </button>
-            </div>
-          </div>
-        )}
+          )}
+        />
       </Modal>
 
       <ConfirmDialog

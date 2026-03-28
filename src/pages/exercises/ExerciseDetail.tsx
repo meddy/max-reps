@@ -1,16 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import {
-  getDocRef,
-  getCollectionRef,
-  getDoc,
-  getDocs,
-  query,
-  where,
-  orderBy,
-  limit,
-} from "../../lib/firestore";
-import type { Exercise, Workout, WorkoutSet } from "../../types";
+import { dataAccess } from "../../lib/dataAccess";
+import type { Exercise, WorkoutSet } from "../../types";
 import { LoadingSpinner } from "../../components/LoadingSpinner";
 import { TopSetChart } from "../../components/TopSetChart";
 import type { TopSetChartPoint } from "../../components/TopSetChart";
@@ -33,59 +24,25 @@ export function ExerciseDetail() {
 
   const load = useCallback(async () => {
     if (!id) return;
-    const docSnap = await getDoc(getDocRef("exercises", id));
-    if (!docSnap.exists()) {
+    const ex = await dataAccess.exercises.get(id);
+    if (!ex) {
       setExercise(null);
       setLoading(false);
       return;
     }
-    setExercise({ id: docSnap.id, ...docSnap.data() } as Exercise & {
-      id: string;
-    });
+    setExercise(ex as Exercise & { id: string });
 
-    const setsRef = query(
-      getCollectionRef("sets"),
-      where("exerciseId", "==", id),
-      orderBy("performedAt", "desc"),
-      limit(100)
-    );
-    const prRef = query(
-      getCollectionRef("sets"),
-      where("exerciseId", "==", id),
-      orderBy("weight", "desc"),
-      orderBy("reps", "desc"),
-      limit(1)
-    );
-    const [setsSnap, prSnap] = await Promise.all([
-      getDocs(setsRef),
-      getDocs(prRef),
+    const [setsList, pr] = await Promise.all([
+      dataAccess.sets.listForExercise(id, { limit: 100 }),
+      dataAccess.sets.prForExercise(id),
     ]);
-    const setsList = setsSnap.docs.map((d) => ({
-      id: d.id,
-      ...d.data(),
-    })) as Array<WorkoutSet & { id: string }>;
     setSets(setsList);
+    setPrSet(pr);
 
     const workoutIds = [...new Set(setsList.map((s) => s.workoutId))];
-    const workoutSnaps = await Promise.all(
-      workoutIds.map((wid) => getDoc(getDocRef("workouts", wid)))
-    );
-    const notes: Record<string, string> = {};
-    for (let i = 0; i < workoutIds.length; i++) {
-      const snap = workoutSnaps[i];
-      if (snap?.exists()) {
-        const note = (snap.data() as Workout).note;
-        if (note) notes[workoutIds[i]] = note;
-      }
-    }
+    const notes = await dataAccess.workouts.getNotesByWorkoutIds(workoutIds);
     setWorkoutNotesByWorkoutId(notes);
 
-    if (!prSnap.empty) {
-      const d = prSnap.docs[0];
-      setPrSet({ id: d.id, ...d.data() } as WorkoutSet & { id: string });
-    } else {
-      setPrSet(null);
-    }
     setLoading(false);
   }, [id]);
 

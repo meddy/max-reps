@@ -1,16 +1,6 @@
 import { useCallback, useEffect, useState, useTransition } from "react";
 import { Link } from "react-router-dom";
-import {
-  getCollectionRef,
-  createDoc,
-  updateDocById,
-  deleteDocById,
-  getDocs,
-  query,
-  where,
-  orderBy,
-  limit,
-} from "../../lib/firestore";
+import { dataAccess } from "../../lib/dataAccess";
 import type { Exercise } from "../../types";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { EmptyState } from "../../components/EmptyState";
@@ -49,21 +39,11 @@ export function ExerciseList() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const fetchExercises = useCallback(async () => {
-    const ref = getCollectionRef("exercises");
-    const q = search.trim()
-      ? query(
-          ref,
-          where("nameLower", ">=", search.trim().toLowerCase()),
-          where("nameLower", "<=", search.trim().toLowerCase() + "\uf8ff"),
-          orderBy("nameLower", sortOrder),
-          limit(PAGE_SIZE)
-        )
-      : query(ref, orderBy("nameLower", sortOrder), limit(PAGE_SIZE));
-    const snapshot = await getDocs(q);
-    const list = snapshot.docs.map((d) => ({
-      id: d.id,
-      ...d.data(),
-    })) as Array<Exercise & { id: string }>;
+    const list = await dataAccess.exercises.list({
+      sort: sortOrder,
+      search: search.trim() || undefined,
+      limit: PAGE_SIZE,
+    });
     setExercises(list);
   }, [search, sortOrder]);
 
@@ -89,19 +69,16 @@ export function ExerciseList() {
       setCreateError("Name is required");
       return;
     }
-    const ref = getCollectionRef("exercises");
-    const existing = await getDocs(
-      query(ref, where("nameLower", "==", nameLower))
-    );
-    if (!existing.empty) {
+    const existing = await dataAccess.exercises.findByExactName(nameLower);
+    if (existing) {
       setCreateError("An exercise with this name already exists");
       return;
     }
     setCreateError("");
-    const id = await createDoc("exercises", {
+    const id = await dataAccess.exercises.create({
       nameLower,
       displayName,
-    } as unknown as Omit<Exercise, "id" | "createdAt" | "updatedAt">);
+    });
     setCreateOpen(false);
     setCreateName("");
     setExercises((prev) => {
@@ -121,14 +98,11 @@ export function ExerciseList() {
     if (!editId || !editName.trim()) return;
     const displayName = editName.trim();
     const nameLower = displayName.toLowerCase();
-    const ref = getCollectionRef("exercises");
-    const existing = await getDocs(
-      query(ref, where("nameLower", "==", nameLower))
-    );
-    if (existing.docs.some((d) => d.id !== editId)) {
+    const existing = await dataAccess.exercises.findByExactName(nameLower);
+    if (existing && existing.id !== editId) {
       return;
     }
-    await updateDocById("exercises", editId, { nameLower, displayName });
+    await dataAccess.exercises.update(editId, { nameLower, displayName });
     setEditId(null);
     setEditName("");
     startTransition(() => void fetchExercises());
@@ -136,7 +110,7 @@ export function ExerciseList() {
 
   const handleDelete = async () => {
     if (!deleteId) return;
-    await deleteDocById("exercises", deleteId);
+    await dataAccess.exercises.delete(deleteId);
     setDeleteId(null);
     startTransition(() => void fetchExercises());
   };

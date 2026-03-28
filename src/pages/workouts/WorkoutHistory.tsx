@@ -1,31 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import {
-  collection,
-  doc,
-  setDoc,
-  Timestamp,
-  serverTimestamp,
-} from "firebase/firestore";
-import {
-  getCollectionRef,
-  getDocRef,
-  getDoc,
-  getDocs,
-  query,
-  where,
-  orderBy,
-  limit,
-} from "../../lib/firestore";
-import { db } from "../../lib/firebase";
-import type { Day, Exercise, ExerciseSetTemplate, Workout } from "../../types";
-
-type DaySummaryItem = {
-  exerciseName: string;
-  numSets: number;
-  repsLower: number;
-  repsUpper: number;
-};
+import { Timestamp } from "firebase/firestore";
+import { dataAccess } from "../../lib/dataAccess";
+import type { Day, WorkoutListItem } from "../../types";
 import { EmptyState } from "../../components/EmptyState";
 import { IconPlus } from "../../components/Icons";
 import { LoadingSpinner } from "../../components/LoadingSpinner";
@@ -36,6 +13,13 @@ import { formatDate } from "../../lib/format";
 const PAGE_SIZE = 100;
 const SORT_STORAGE_KEY = "max-reps-workout-sort";
 const IS_IOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+
+type DaySummaryItem = {
+  exerciseName: string;
+  numSets: number;
+  repsLower: number;
+  repsUpper: number;
+};
 
 function getStoredSortOrder(): "asc" | "desc" {
   try {
@@ -56,16 +40,7 @@ function getLocalDateString(date: Date = new Date()): string {
 
 export function WorkoutHistory() {
   const navigate = useNavigate();
-  const [workouts, setWorkouts] = useState<
-    Array<
-      Workout & {
-        id: string;
-        setCount?: number;
-        exerciseCount?: number;
-        totalLoad?: number;
-      }
-    >
-  >([]);
+  const [workouts, setWorkouts] = useState<WorkoutListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">(() =>
     getStoredSortOrder()
@@ -85,33 +60,10 @@ export function WorkoutHistory() {
 
   const fetchWorkouts = useCallback(async () => {
     setLoading(true);
-    const ref = getCollectionRef("workouts");
-    const q = query(ref, orderBy("date", sortOrder), limit(PAGE_SIZE));
-    const snapshot = await getDocs(q);
-    const list = snapshot.docs.map((d) => ({
-      id: d.id,
-      ...d.data(),
-    })) as Array<Workout & { id: string }>;
-    const withCounts = await Promise.all(
-      list.map(async (w) => {
-        const setsSnap = await getDocs(
-          query(getCollectionRef("sets"), where("workoutId", "==", w.id))
-        );
-        const exerciseIds = new Set<string>();
-        let totalLoad = 0;
-        setsSnap.docs.forEach((d) => {
-          const data = d.data();
-          exerciseIds.add(data.exerciseId);
-          totalLoad += (data.reps ?? 0) * (data.weight ?? 0);
-        });
-        return {
-          ...w,
-          setCount: setsSnap.size,
-          exerciseCount: exerciseIds.size,
-          totalLoad,
-        };
-      })
-    );
+    const withCounts = await dataAccess.workouts.listWithStats({
+      sort: sortOrder,
+      limit: PAGE_SIZE,
+    });
     setWorkouts(withCounts);
     setLoading(false);
   }, [sortOrder]);
@@ -136,20 +88,8 @@ export function WorkoutHistory() {
     }
     let ignore = false;
     const term = daySearch.trim().toLowerCase();
-    const ref = getCollectionRef("days");
-    const q = query(
-      ref,
-      where("nameLower", ">=", term),
-      where("nameLower", "<=", term + "\uf8ff"),
-      orderBy("nameLower"),
-      limit(20)
-    );
-    getDocs(q).then((snap) => {
+    void dataAccess.days.searchByNamePrefix(term, 20).then((list) => {
       if (ignore) return;
-      const list = snap.docs.map((d) => ({
-        id: d.id,
-        ...d.data(),
-      })) as Array<Day & { id: string }>;
       setDayResults(list);
     });
     return () => {
@@ -167,50 +107,19 @@ export function WorkoutHistory() {
     setTemplatesByDayId({});
     setTemplatesLoading(true);
     const dayIds = dayResults.map((d) => d.id);
-    const dayIdSet = new Set(dayIds);
-    const templatesRef = getCollectionRef("exerciseSetTemplates");
-    const q = query(templatesRef, where("dayId", "in", dayIds), limit(500));
-    getDocs(q)
-      .then((snap) => {
+    void dataAccess.templates
+      .listForDaysWithExerciseNames(dayIds)
+      .then((byDayMap) => {
         if (ignore) return;
-        const templates = snap.docs.map((d) => ({
-          id: d.id,
-          ...d.data(),
-        })) as Array<ExerciseSetTemplate & { id: string }>;
-        const forOurDays = templates
-          .filter((t) => dayIdSet.has(t.dayId))
-          .sort((a, b) =>
-            a.dayId !== b.dayId
-              ? a.dayId.localeCompare(b.dayId)
-              : a.order - b.order
-          );
-        const exerciseIds = [...new Set(forOurDays.map((t) => t.exerciseId))];
-        return Promise.all(
-          exerciseIds.map(async (eid) => {
-            const docSnap = await getDoc(getDocRef("exercises", eid));
-            return [
-              eid,
-              docSnap.exists() ? (docSnap.data() as Exercise).displayName : "—",
-            ] as const;
-          })
-        ).then((pairs) => {
-          const nameMap = Object.fromEntries(pairs);
-          const byDay: Record<string, DaySummaryItem[]> = {};
-          for (const t of forOurDays) {
-            const list = byDay[t.dayId] ?? [];
-            list.push({
-              exerciseName: nameMap[t.exerciseId] ?? "—",
-              numSets: t.numSets,
-              repsLower: t.repsLower,
-              repsUpper: t.repsUpper,
-            });
-            byDay[t.dayId] = list;
-          }
-          return byDay;
-        });
-      })
-      .then((byDay) => {
-        if (ignore || byDay == null) return;
+        const byDay: Record<string, DaySummaryItem[]> = {};
+        for (const [dayId, templates] of byDayMap) {
+          byDay[dayId] = templates.map((t) => ({
+            exerciseName: t.exerciseDisplayName,
+            numSets: t.numSets,
+            repsLower: t.repsLower,
+            repsUpper: t.repsUpper,
+          }));
+        }
         setTemplatesByDayId(byDay);
         setTemplatesLoading(false);
       })
@@ -241,15 +150,11 @@ export function WorkoutHistory() {
     if (!selectedDay || !workoutDate) return;
     setCreating(true);
     const date = new Date(workoutDate + "T12:00:00");
-    const workoutRef = doc(collection(db, "workouts"));
-    const id = workoutRef.id;
-    await setDoc(workoutRef, {
+    const id = await dataAccess.workouts.create({
       date: Timestamp.fromDate(date),
       dayId: selectedDay.id,
       dayNameSnapshot: selectedDay.displayName,
       note: "",
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
     });
     setCreating(false);
     closeAddWorkoutModal();

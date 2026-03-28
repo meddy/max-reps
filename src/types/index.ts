@@ -58,3 +58,16 @@ export type CollectionName =
   | "exerciseSetTemplates"
   | "workouts"
   | "sets";
+
+/** Template row with resolved exercise display name (read model). */
+export interface TemplateWithExerciseName extends ExerciseSetTemplate {
+  exerciseDisplayName: string;
+}
+
+/** Workout list row with aggregated set stats. */
+export type WorkoutListItem = Workout & {
+  id: string;
+  setCount: number;
+  exerciseCount: number;
+  totalLoad: number;
+};
