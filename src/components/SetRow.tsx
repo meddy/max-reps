@@ -46,17 +46,23 @@ export function SetRow({
     setRepsStr(numberToInputString(reps));
   }, [reps]);
 
+  const handleWeightChange = (raw: string) => {
+    setWeightStr(raw);
+    onWeightChange(parseNumberInput(raw));
+  };
+
+  const handleRepsChange = (raw: string) => {
+    setRepsStr(raw);
+    onRepsChange(parseNumberInput(raw));
+  };
+
   const handleWeightBlur = () => {
-    const n = parseNumberInput(weightStr);
-    onWeightChange(n);
-    setWeightStr(numberToInputString(n));
+    setWeightStr(numberToInputString(parseNumberInput(weightStr)));
     onBlur?.();
   };
 
   const handleRepsBlur = () => {
-    const n = parseNumberInput(repsStr);
-    onRepsChange(n);
-    setRepsStr(numberToInputString(n));
+    setRepsStr(numberToInputString(parseNumberInput(repsStr)));
     onBlur?.();
   };
 
@@ -69,7 +75,7 @@ export function SetRow({
           step={0.5}
           placeholder="Weight"
           value={weightStr}
-          onChange={(e) => setWeightStr(e.target.value)}
+          onChange={(e) => handleWeightChange(e.target.value)}
           onBlur={handleWeightBlur}
           className="min-w-0 flex-1 rounded-lg border border-gray-300 px-2 py-1.5 text-sm sm:w-24 sm:min-w-[6rem] sm:flex-none"
         />
@@ -79,7 +85,7 @@ export function SetRow({
           min={0}
           placeholder="Reps"
           value={repsStr}
-          onChange={(e) => setRepsStr(e.target.value)}
+          onChange={(e) => handleRepsChange(e.target.value)}
           onBlur={handleRepsBlur}
           className="min-w-0 flex-1 rounded-lg border border-gray-300 px-2 py-1.5 text-sm sm:w-20 sm:min-w-[5rem] sm:flex-none"
         />

@@ -112,14 +112,10 @@ export function useWorkoutEditor(
     cloneGroups(initialGroups)
   );
   const groupsRef = useRef(groups);
-  useEffect(() => {
-    groupsRef.current = groups;
-  }, [groups]);
+  groupsRef.current = groups;
 
   const workoutRef = useRef(workout);
-  useEffect(() => {
-    workoutRef.current = workout;
-  }, [workout]);
+  workoutRef.current = workout;
 
   const nextOrderRef = useRef(workoutNextOrderSeed(initialGroups));
   const nextSetOrderRef = useRef(0);
