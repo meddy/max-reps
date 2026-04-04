@@ -17,7 +17,7 @@ import { auth } from "../lib/firebase";
 
 const ALLOWED_UID = import.meta.env.VITE_ALLOWED_UID as string | undefined;
 
-type AuthContextValue = {
+export type AuthContextValue = {
   user: User | null;
   loading: boolean;
   error: string | null;
@@ -79,6 +79,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     clearError,
   };
 
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+
+/** Supplies a static auth context for tests. Do not use in production UI. */
+export function AuthTestProvider({
+  children,
+  value,
+}: {
+  children: ReactNode;
+  value: AuthContextValue;
+}) {
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
