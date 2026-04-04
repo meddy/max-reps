@@ -13,7 +13,7 @@ import {
 } from "firebase/firestore";
 import { db } from "./firebase";
 import type { CollectionName } from "../types";
-import { removeDocumentAndRelated as removeDocumentAndRelatedImpl } from "./firestoreWrites";
+import { removeDocumentAndRelated as removeDocumentAndRelatedImpl } from "./firestorePersistence";
 
 export function getCollectionRef(name: CollectionName): CollectionReference {
   return collection(db, name);

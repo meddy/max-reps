@@ -8,7 +8,11 @@ import {
   where,
 } from "firebase/firestore";
 import type { WorkoutSet } from "../../types";
-import { addDocument, patchDocument, removeDocument } from "../firestoreWrites";
+import {
+  addDocument,
+  patchDocument,
+  removeDocument,
+} from "../firestorePersistence";
 import { mapWorkoutSetFromDoc } from "../firestoreModelMappers";
 import type { DataAccessDeps } from "./types";
 import { withSaving } from "./withSaving";

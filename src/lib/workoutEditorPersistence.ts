@@ -1,6 +1,8 @@
 import type { DataAccess } from "./dataAccess";
 import type { WorkoutSet } from "../types";
 
+type NewWorkoutSetDocument = Omit<WorkoutSet, "id" | "createdAt">;
+
 export type EditorRowId = string;
 
 export interface EditorSetRow {
@@ -37,7 +39,7 @@ export function createWorkoutEditorPersistence(
 ): WorkoutEditorPersistence {
   return {
     saveSet(input) {
-      return access.sets.create({
+      const doc: NewWorkoutSetDocument = {
         workoutId: input.workoutId,
         exerciseId: input.exerciseId,
         exerciseNameSnapshot: input.exerciseNameSnapshot,
@@ -47,7 +49,8 @@ export function createWorkoutEditorPersistence(
         note: input.row.note,
         performedAt: input.performedAt,
         order: input.order,
-      } as Omit<WorkoutSet, "id" | "createdAt">);
+      };
+      return access.sets.create(doc);
     },
     updateSet(id, patch) {
       return access.sets.update(id, patch);

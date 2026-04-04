@@ -14,6 +14,7 @@ import {
   GoogleAuthProvider,
 } from "firebase/auth";
 import { auth } from "../lib/firebase";
+import { evaluateUidAccess } from "../lib/authPolicy";
 
 const ALLOWED_UID = import.meta.env.VITE_ALLOWED_UID as string | undefined;
 
@@ -52,18 +53,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-      if (!firebaseUser) {
+      const result = evaluateUidAccess(firebaseUser, ALLOWED_UID);
+      if (result.outcome === "signed_out") {
         setUser(null);
         setLoading(false);
         return;
       }
-      if (ALLOWED_UID && firebaseUser.uid !== ALLOWED_UID) {
-        setError("Access denied");
+      if (result.outcome === "denied") {
+        setError(result.errorMessage);
         void firebaseSignOut(auth);
         setUser(null);
       } else {
         setError(null);
-        setUser(firebaseUser);
+        setUser(result.user);
       }
       setLoading(false);
     });

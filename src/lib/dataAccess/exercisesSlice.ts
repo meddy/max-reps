@@ -10,7 +10,11 @@ import {
   where,
 } from "firebase/firestore";
 import type { Exercise } from "../../types";
-import { addDocument, patchDocument, removeDocument } from "../firestoreWrites";
+import {
+  addDocument,
+  patchDocument,
+  removeDocument,
+} from "../firestorePersistence";
 import { mapExerciseFromDoc } from "../firestoreModelMappers";
 import { DEFAULT_PAGE } from "./constants";
 import type { DataAccessDeps } from "./types";

@@ -14,7 +14,7 @@ import {
   addDocument,
   patchDocument,
   removeDocumentAndRelated,
-} from "../firestoreWrites";
+} from "../firestorePersistence";
 import { mapDayFromDoc } from "../firestoreModelMappers";
 import { DEFAULT_PAGE } from "./constants";
 import type { DataAccessDeps } from "./types";

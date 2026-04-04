@@ -1,4 +1,5 @@
 import { vi } from "vitest";
+import type { DataAccess } from "../lib/dataAccess/types";
 
 /** Shared fakes; `setup.ts` merges this into the real `../lib/dataAccess` module as `dataAccess`. */
 const exercises = {
@@ -72,7 +73,7 @@ export const mockDataAccess = {
   sets,
   resolveExerciseNames: vi.fn(),
   exportForBackup,
-};
+} satisfies DataAccess;
 
 export function resetDataAccessMocks() {
   mockDataAccess.exercises.get.mockResolvedValue(null);

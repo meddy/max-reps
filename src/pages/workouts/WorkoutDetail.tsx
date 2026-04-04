@@ -9,7 +9,7 @@ import { IconTrash } from "../../components/Icons";
 import { ExerciseCard } from "../../components/ExerciseCard";
 import { SetRow } from "../../components/SetRow";
 import { AddExerciseModal } from "../../components/AddExerciseModal";
-import { formatDate, formatDateTime } from "../../lib/format";
+import { formatDate, toDatetimeLocalValue } from "../../lib/format";
 import {
   editorGroupsFromDayTemplates,
   editorGroupsFromWorkoutSets,
@@ -79,7 +79,7 @@ export function WorkoutDetail() {
       return;
     }
     setWorkout(w);
-    setDateInput(formatDateTime(w.date));
+    setDateInput(toDatetimeLocalValue(w.date));
     setLoading(false);
   }, [dataAccess, workoutId]);
 

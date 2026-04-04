@@ -21,6 +21,6 @@ export function formatDateShort(d: Date): string {
 }
 
 /** Value for `<input type="datetime-local" />` (UTC ISO slice matches prior Timestamp behavior). */
-export function formatDateTime(d: Date): string {
+export function toDatetimeLocalValue(d: Date): string {
   return asDate(d).toISOString().slice(0, 16);
 }

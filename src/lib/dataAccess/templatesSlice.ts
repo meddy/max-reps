@@ -1,5 +1,9 @@
 import type { Firestore } from "firebase/firestore";
-import { addDocument, patchDocument, removeDocument } from "../firestoreWrites";
+import {
+  addDocument,
+  patchDocument,
+  removeDocument,
+} from "../firestorePersistence";
 import type { ExerciseSetTemplate } from "../../types";
 import type { DataAccessDeps } from "./types";
 import { templatesWithNamesForDayIds } from "./templateQueries";

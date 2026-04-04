@@ -127,3 +127,13 @@ export interface DataAccess {
     ): Promise<Array<{ id: string; data: Record<string, unknown> }>>;
   };
 }
+
+export type CatalogDataPort = Pick<DataAccess, "exercises" | "days">;
+export type TemplateDataPort = Pick<
+  DataAccess,
+  "templates" | "resolveExerciseNames"
+>;
+export type WorkoutDataPort = Pick<
+  DataAccess,
+  "workouts" | "sets" | "exportForBackup"
+>;

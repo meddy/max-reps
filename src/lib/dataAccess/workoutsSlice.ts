@@ -14,7 +14,7 @@ import {
   addDocument,
   patchDocument,
   removeDocumentAndRelated,
-} from "../firestoreWrites";
+} from "../firestorePersistence";
 import {
   mapWorkoutFromDoc,
   mapWorkoutSetFromDoc,

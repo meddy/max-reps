@@ -1,8 +1,7 @@
 import type { Firestore } from "firebase/firestore";
 import {
   collection,
-  doc,
-  getDoc,
+  documentId,
   getDocs,
   limit,
   query,
@@ -22,15 +21,17 @@ export async function resolveExerciseNamesImpl(
 ): Promise<Map<string, string>> {
   const unique = [...new Set(exerciseIds)];
   const map = new Map<string, string>();
-  await Promise.all(
-    unique.map(async (eid) => {
-      const snap = await getDoc(doc(firestore, "exercises", eid));
-      if (snap.exists()) {
-        const name = (snap.data() as { displayName?: string }).displayName;
-        if (name) map.set(eid, name);
-      }
-    })
-  );
+  if (unique.length === 0) return map;
+  const exercisesRef = collection(firestore, "exercises");
+  for (let i = 0; i < unique.length; i += FIRESTORE_IN_MAX) {
+    const chunk = unique.slice(i, i + FIRESTORE_IN_MAX);
+    const q = query(exercisesRef, where(documentId(), "in", chunk));
+    const snap = await getDocs(q);
+    for (const d of snap.docs) {
+      const name = (d.data() as { displayName?: string }).displayName;
+      if (name) map.set(d.id, name);
+    }
+  }
   return map;
 }
 
