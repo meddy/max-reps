@@ -9,6 +9,7 @@ const authValue = {
   user: { uid: "u1" } as import("firebase/auth").User,
   loading: false,
   error: null,
+  allowedUid: undefined,
   signIn: async () => {},
   signOut: async () => {},
   clearError: () => {},

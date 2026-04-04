@@ -7,14 +7,9 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import type { TopSetChartPoint } from "../types";
 
-export interface TopSetChartPoint {
-  dateMs: number;
-  dateLabel: string;
-  weight: number;
-  reps: number;
-  label: string;
-}
+export type { TopSetChartPoint };
 
 interface TopSetChartProps {
   data: TopSetChartPoint[];

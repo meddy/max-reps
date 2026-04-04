@@ -12,20 +12,25 @@ import { mockDataAccess } from "./mockDataAccess";
 export type RenderWithProvidersOptions = Omit<RenderOptions, "wrapper"> & {
   route?: string;
   authValue?: AuthContextValue;
+  /** When set, uses this instance instead of the global `mockDataAccess`. */
+  dataAccess?: DataAccess;
 };
 
 export function renderWithProviders(
   ui: ReactElement,
-  { route = "/", authValue, ...renderOptions }: RenderWithProvidersOptions = {}
+  {
+    route = "/",
+    authValue,
+    dataAccess = mockDataAccess,
+    ...renderOptions
+  }: RenderWithProvidersOptions = {}
 ) {
   function Wrapper({ children }: { children: ReactNode }) {
     const inner = (
       <MemoryRouter initialEntries={[route]}>{children}</MemoryRouter>
     );
     const withData = (
-      <DataAccessProvider value={mockDataAccess as unknown as DataAccess}>
-        {inner}
-      </DataAccessProvider>
+      <DataAccessProvider value={dataAccess}>{inner}</DataAccessProvider>
     );
     if (authValue !== undefined) {
       return <AuthTestProvider value={authValue}>{withData}</AuthTestProvider>;

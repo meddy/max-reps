@@ -69,3 +69,12 @@ export type WorkoutListItem = Workout & {
   exerciseCount: number;
   totalLoad: number;
 };
+
+/** Point for exercise top-set-per-workout chart (read model). */
+export interface TopSetChartPoint {
+  dateMs: number;
+  dateLabel: string;
+  weight: number;
+  reps: number;
+  label: string;
+}

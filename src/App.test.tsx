@@ -16,6 +16,7 @@ vi.mock("./contexts/AuthContext", async (importOriginal) => {
             user: auth.nextUser as import("firebase/auth").User | null,
             loading: false,
             error: null,
+            allowedUid: undefined,
             signIn: async () => {},
             signOut: async () => {},
             clearError: () => {},

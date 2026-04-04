@@ -11,13 +11,13 @@ import type { User } from "firebase/auth";
 import { auth } from "../lib/firebase";
 import { createFirebaseAuthClientPort } from "../lib/auth/firebaseAuthAdapter";
 import { AuthSessionController } from "../lib/auth/authSessionController";
-
-const ALLOWED_UID = import.meta.env.VITE_ALLOWED_UID as string | undefined;
+import { getAllowedUid } from "../lib/appConfig";
 
 export type AuthContextValue = {
   user: User | null;
   loading: boolean;
   error: string | null;
+  allowedUid: string | undefined;
   signIn: () => Promise<void>;
   signOut: () => Promise<void>;
   clearError: () => void;
@@ -26,9 +26,10 @@ export type AuthContextValue = {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const allowedUid = getAllowedUid();
   const [controller] = useState(
     () =>
-      new AuthSessionController(createFirebaseAuthClientPort(auth), ALLOWED_UID)
+      new AuthSessionController(createFirebaseAuthClientPort(auth), allowedUid)
   );
 
   useEffect(() => {
@@ -49,6 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     user: state.user,
     loading: state.loading,
     error: state.error,
+    allowedUid,
     signIn,
     signOut,
     clearError,

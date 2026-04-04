@@ -1,131 +1,171 @@
 import { vi } from "vitest";
 import type { DataAccess } from "../lib/dataAccess/types";
 
-/** Shared fakes; `setup.ts` merges this into the real `../lib/dataAccess` module as `dataAccess`. */
-const exercises = {
-  get: vi.fn(),
-  searchByNamePrefix: vi.fn(),
-  findByExactName: vi.fn(),
-  create: vi.fn(),
-  update: vi.fn(),
-  delete: vi.fn(),
-  list: vi.fn(),
-};
+function buildMockDataAccess() {
+  const exercises = {
+    get: vi.fn(),
+    searchByNamePrefix: vi.fn(),
+    findByExactName: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
+    list: vi.fn(),
+  };
 
-const days = {
-  get: vi.fn(),
-  searchByNamePrefix: vi.fn(),
-  findByExactName: vi.fn(),
-  create: vi.fn(),
-  update: vi.fn(),
-  deleteWithTemplates: vi.fn(),
-  list: vi.fn(),
-};
+  const days = {
+    get: vi.fn(),
+    searchByNamePrefix: vi.fn(),
+    findByExactName: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    deleteWithTemplates: vi.fn(),
+    list: vi.fn(),
+  };
 
-const templates = {
-  listForDayWithExerciseNames: vi.fn(),
-  listForDaysWithExerciseNames: vi.fn(),
-  create: vi.fn(),
-  update: vi.fn(),
-  delete: vi.fn(),
-};
+  const templates = {
+    listForDayWithExerciseNames: vi.fn(),
+    listForDaysWithExerciseNames: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
+  };
 
-const workouts = {
-  get: vi.fn(),
-  getWithSets: vi.fn(),
-  create: vi.fn(),
-  update: vi.fn(),
-  deleteWithSets: vi.fn(),
-  getNotesByWorkoutIds: vi.fn(),
-  listWithStats: vi.fn(),
-};
+  const workouts = {
+    get: vi.fn(),
+    getWithSets: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    deleteWithSets: vi.fn(),
+    getNotesByWorkoutIds: vi.fn(),
+    listWithStats: vi.fn(),
+  };
 
-const sets = {
-  listForWorkout: vi.fn(),
-  lastPerformedGroupForExercise: vi.fn(),
-  listForExercise: vi.fn(),
-  prForExercise: vi.fn(),
-  create: vi.fn(),
-  update: vi.fn(),
-  delete: vi.fn(),
-};
+  const sets = {
+    listForWorkout: vi.fn(),
+    lastPerformedGroupForExercise: vi.fn(),
+    listForExercise: vi.fn(),
+    prForExercise: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
+  };
 
-const exportForBackup = {
-  allCollectionsRaw: vi.fn(async () => ({
-    exercises: [] as Array<{ id: string } & Record<string, unknown>>,
-    days: [] as Array<{ id: string } & Record<string, unknown>>,
-    exerciseSetTemplates: [] as Array<{ id: string } & Record<string, unknown>>,
-    workouts: [] as Array<{ id: string } & Record<string, unknown>>,
-    sets: [] as Array<{ id: string } & Record<string, unknown>>,
-  })),
-  setsDocumentsForCsv: vi.fn(
-    async (): Promise<
-      Array<{ id: string; data: Record<string, unknown> }>
-    > => []
-  ),
-};
+  const exportForBackup = {
+    allCollectionsRaw: vi.fn(async () => ({
+      exercises: [] as Array<{ id: string } & Record<string, unknown>>,
+      days: [] as Array<{ id: string } & Record<string, unknown>>,
+      exerciseSetTemplates: [] as Array<
+        { id: string } & Record<string, unknown>
+      >,
+      workouts: [] as Array<{ id: string } & Record<string, unknown>>,
+      sets: [] as Array<{ id: string } & Record<string, unknown>>,
+    })),
+    setsDocumentsForCsv: vi.fn(
+      async (): Promise<
+        Array<{ id: string; data: Record<string, unknown> }>
+      > => []
+    ),
+  };
 
-export const mockDataAccess = {
-  exercises,
-  days,
-  templates,
-  workouts,
-  sets,
-  resolveExerciseNames: vi.fn(),
-  exportForBackup,
-} satisfies DataAccess;
+  return {
+    exercises,
+    days,
+    templates,
+    workouts,
+    sets,
+    resolveExerciseNames: vi.fn(),
+    exportForBackup,
+  } satisfies DataAccess;
+}
 
-export function resetDataAccessMocks() {
-  mockDataAccess.exercises.get.mockResolvedValue(null);
-  mockDataAccess.exercises.searchByNamePrefix.mockResolvedValue([]);
-  mockDataAccess.exercises.findByExactName.mockResolvedValue(null);
-  mockDataAccess.exercises.create.mockResolvedValue("ex-new");
-  mockDataAccess.exercises.update.mockResolvedValue(undefined);
-  mockDataAccess.exercises.delete.mockResolvedValue(undefined);
-  mockDataAccess.exercises.list.mockResolvedValue([]);
+type BuiltMockDataAccess = ReturnType<typeof buildMockDataAccess>;
 
-  mockDataAccess.days.get.mockResolvedValue(null);
-  mockDataAccess.days.searchByNamePrefix.mockResolvedValue([]);
-  mockDataAccess.days.findByExactName.mockResolvedValue(null);
-  mockDataAccess.days.create.mockResolvedValue("day-new");
-  mockDataAccess.days.update.mockResolvedValue(undefined);
-  mockDataAccess.days.deleteWithTemplates.mockResolvedValue(undefined);
-  mockDataAccess.days.list.mockResolvedValue([]);
+function seedDefaultResolvedValues(da: BuiltMockDataAccess): void {
+  da.exercises.get.mockResolvedValue(null);
+  da.exercises.searchByNamePrefix.mockResolvedValue([]);
+  da.exercises.findByExactName.mockResolvedValue(null);
+  da.exercises.create.mockResolvedValue("ex-new");
+  da.exercises.update.mockResolvedValue(undefined);
+  da.exercises.delete.mockResolvedValue(undefined);
+  da.exercises.list.mockResolvedValue([]);
 
-  mockDataAccess.templates.listForDayWithExerciseNames.mockResolvedValue([]);
-  mockDataAccess.templates.listForDaysWithExerciseNames.mockResolvedValue(
-    new Map()
-  );
-  mockDataAccess.templates.create.mockResolvedValue("tpl-new");
-  mockDataAccess.templates.update.mockResolvedValue(undefined);
-  mockDataAccess.templates.delete.mockResolvedValue(undefined);
+  da.days.get.mockResolvedValue(null);
+  da.days.searchByNamePrefix.mockResolvedValue([]);
+  da.days.findByExactName.mockResolvedValue(null);
+  da.days.create.mockResolvedValue("day-new");
+  da.days.update.mockResolvedValue(undefined);
+  da.days.deleteWithTemplates.mockResolvedValue(undefined);
+  da.days.list.mockResolvedValue([]);
 
-  mockDataAccess.workouts.get.mockResolvedValue(null);
-  mockDataAccess.workouts.getWithSets.mockResolvedValue(null);
-  mockDataAccess.workouts.create.mockResolvedValue("w-new");
-  mockDataAccess.workouts.update.mockResolvedValue(undefined);
-  mockDataAccess.workouts.deleteWithSets.mockResolvedValue(undefined);
-  mockDataAccess.workouts.getNotesByWorkoutIds.mockResolvedValue({});
-  mockDataAccess.workouts.listWithStats.mockResolvedValue([]);
+  da.templates.listForDayWithExerciseNames.mockResolvedValue([]);
+  da.templates.listForDaysWithExerciseNames.mockResolvedValue(new Map());
+  da.templates.create.mockResolvedValue("tpl-new");
+  da.templates.update.mockResolvedValue(undefined);
+  da.templates.delete.mockResolvedValue(undefined);
 
-  mockDataAccess.sets.listForWorkout.mockResolvedValue([]);
-  mockDataAccess.sets.lastPerformedGroupForExercise.mockResolvedValue({
+  da.workouts.get.mockResolvedValue(null);
+  da.workouts.getWithSets.mockResolvedValue(null);
+  da.workouts.create.mockResolvedValue("w-new");
+  da.workouts.update.mockResolvedValue(undefined);
+  da.workouts.deleteWithSets.mockResolvedValue(undefined);
+  da.workouts.getNotesByWorkoutIds.mockResolvedValue({});
+  da.workouts.listWithStats.mockResolvedValue([]);
+
+  da.sets.listForWorkout.mockResolvedValue([]);
+  da.sets.lastPerformedGroupForExercise.mockResolvedValue({
     sets: [],
   });
-  mockDataAccess.sets.listForExercise.mockResolvedValue([]);
-  mockDataAccess.sets.prForExercise.mockResolvedValue(null);
-  mockDataAccess.sets.create.mockResolvedValue("set-new");
-  mockDataAccess.sets.update.mockResolvedValue(undefined);
-  mockDataAccess.sets.delete.mockResolvedValue(undefined);
+  da.sets.listForExercise.mockResolvedValue([]);
+  da.sets.prForExercise.mockResolvedValue(null);
+  da.sets.create.mockResolvedValue("set-new");
+  da.sets.update.mockResolvedValue(undefined);
+  da.sets.delete.mockResolvedValue(undefined);
 
-  mockDataAccess.resolveExerciseNames.mockResolvedValue(new Map());
+  da.resolveExerciseNames.mockResolvedValue(new Map());
 
-  mockDataAccess.exportForBackup.allCollectionsRaw.mockResolvedValue({
+  da.exportForBackup.allCollectionsRaw.mockResolvedValue({
     exercises: [],
     days: [],
     exerciseSetTemplates: [],
     workouts: [],
     sets: [],
   });
-  mockDataAccess.exportForBackup.setsDocumentsForCsv.mockResolvedValue([]);
+  da.exportForBackup.setsDocumentsForCsv.mockResolvedValue([]);
+}
+
+/** Shared fakes; `setup.ts` merges this into the real `../lib/dataAccess` module as `dataAccess`. */
+export const mockDataAccess = buildMockDataAccess();
+
+export function resetDataAccessMocks(): void {
+  seedDefaultResolvedValues(mockDataAccess);
+}
+
+/**
+ * Isolated `DataAccess` test double with the same default resolutions as
+ * `mockDataAccess`. Use when a suite must not share spy state with the global mock.
+ */
+export function createTestDataAccess(
+  overrides: Partial<DataAccess> = {}
+): BuiltMockDataAccess {
+  const da = buildMockDataAccess();
+  seedDefaultResolvedValues(da);
+  if (overrides.exercises) {
+    Object.assign(da.exercises, overrides.exercises);
+  }
+  if (overrides.days) {
+    Object.assign(da.days, overrides.days);
+  }
+  if (overrides.templates) {
+    Object.assign(da.templates, overrides.templates);
+  }
+  if (overrides.workouts) {
+    Object.assign(da.workouts, overrides.workouts);
+  }
+  if (overrides.sets) {
+    Object.assign(da.sets, overrides.sets);
+  }
+  if (overrides.exportForBackup) {
+    Object.assign(da.exportForBackup, overrides.exportForBackup);
+  }
+  return da;
 }

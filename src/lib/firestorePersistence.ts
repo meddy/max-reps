@@ -1,3 +1,8 @@
+/**
+ * Firebase SDK write helpers (timestamps, serialization, cascaded deletes).
+ * Call only from {@link createFirebaseFirestoreDataPort}; do not import from
+ * slices, pages, or other app modules — keep mutations behind FirestoreDataPort.
+ */
 import type { Firestore, Timestamp } from "firebase/firestore";
 import {
   addDoc,

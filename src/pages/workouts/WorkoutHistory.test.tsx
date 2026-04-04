@@ -1,22 +1,27 @@
 import { screen, waitFor } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { mockDataAccess } from "../../test/mockDataAccess";
+import { createTestDataAccess } from "../../test/mockDataAccess";
 import { renderWithProviders } from "../../test/renderWithProviders";
 import { WorkoutHistory } from "./WorkoutHistory";
 
+const authValue = {
+  user: { uid: "u1" } as import("firebase/auth").User,
+  loading: false,
+  error: null,
+  allowedUid: undefined,
+  signIn: async () => {},
+  signOut: async () => {},
+  clearError: () => {},
+};
+
 describe("WorkoutHistory", () => {
   it("shows empty state when there are no workouts", async () => {
-    mockDataAccess.workouts.listWithStats.mockResolvedValue([]);
+    const dataAccess = createTestDataAccess();
+    dataAccess.workouts.listWithStats.mockResolvedValue([]);
     renderWithProviders(<WorkoutHistory />, {
       route: "/workouts",
-      authValue: {
-        user: { uid: "u1" } as import("firebase/auth").User,
-        loading: false,
-        error: null,
-        signIn: async () => {},
-        signOut: async () => {},
-        clearError: () => {},
-      },
+      authValue,
+      dataAccess,
     });
     await waitFor(() => {
       expect(screen.getByText("No workouts yet")).toBeInTheDocument();
@@ -26,7 +31,8 @@ describe("WorkoutHistory", () => {
   it("renders workout rows from data access", async () => {
     const ts = new Date("2024-01-10T12:00:00");
     const base = new Date("2024-01-01T12:00:00");
-    mockDataAccess.workouts.listWithStats.mockResolvedValue([
+    const dataAccess = createTestDataAccess();
+    dataAccess.workouts.listWithStats.mockResolvedValue([
       {
         id: "w1",
         date: ts,
@@ -42,14 +48,8 @@ describe("WorkoutHistory", () => {
     ]);
     renderWithProviders(<WorkoutHistory />, {
       route: "/workouts",
-      authValue: {
-        user: { uid: "u1" } as import("firebase/auth").User,
-        loading: false,
-        error: null,
-        signIn: async () => {},
-        signOut: async () => {},
-        clearError: () => {},
-      },
+      authValue,
+      dataAccess,
     });
     await waitFor(() => {
       expect(screen.getByText(/Push Day/)).toBeInTheDocument();

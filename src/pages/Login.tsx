@@ -3,10 +3,8 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useEffect } from "react";
 import { IconGoogle } from "../components/Icons";
 
-const ALLOWED_UID = import.meta.env.VITE_ALLOWED_UID as string | undefined;
-
 export function Login() {
-  const { user, loading, error, signIn, clearError } = useAuth();
+  const { user, loading, error, signIn, clearError, allowedUid } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const from =
@@ -46,7 +44,7 @@ export function Login() {
           </p>
         )}
 
-        {!ALLOWED_UID && (
+        {!allowedUid && (
           <p className="mt-3 text-center text-xs text-amber-600">
             Set VITE_ALLOWED_UID in .env and deploy Firestore rules with your
             UID to restrict access.

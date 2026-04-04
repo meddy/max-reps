@@ -2,7 +2,7 @@ import type { DataAccess } from "../../lib/dataAccess/types";
 import {
   editorGroupsFromDayTemplates,
   editorGroupsFromWorkoutSets,
-} from "../../lib/workoutEditor/useWorkoutEditor";
+} from "../../lib/workoutEditor/editorSeedBuilders";
 import type { EditorExerciseGroup } from "../../lib/workoutEditor/model";
 import type { Workout } from "../../types";
 import {

@@ -1,5 +1,4 @@
-import type { TopSetChartPoint } from "../components/TopSetChart";
-import type { WorkoutSet } from "../types";
+import type { TopSetChartPoint, WorkoutSet } from "../types";
 
 type SetWithId = WorkoutSet & { id: string };
 
