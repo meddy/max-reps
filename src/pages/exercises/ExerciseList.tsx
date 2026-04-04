@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, useTransition } from "react";
 import { Link } from "react-router-dom";
-import { dataAccess } from "../../lib/dataAccess";
+import { useDataAccess } from "../../contexts/DataAccessContext";
 import type { Exercise } from "../../types";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { EmptyState } from "../../components/EmptyState";
@@ -23,6 +23,7 @@ function getStoredSortOrder(): "asc" | "desc" {
 }
 
 export function ExerciseList() {
+  const dataAccess = useDataAccess();
   const [exercises, setExercises] = useState<Array<Exercise & { id: string }>>(
     []
   );
@@ -45,7 +46,7 @@ export function ExerciseList() {
       limit: PAGE_SIZE,
     });
     setExercises(list);
-  }, [search, sortOrder]);
+  }, [dataAccess, search, sortOrder]);
 
   useEffect(() => {
     startTransition(() => {
@@ -81,13 +82,16 @@ export function ExerciseList() {
     });
     setCreateOpen(false);
     setCreateName("");
+    const now = new Date();
     setExercises((prev) => {
       const next = [
         ...prev,
-        { id, nameLower, displayName } as Exercise & {
-          id: string;
-          createdAt: unknown;
-          updatedAt: unknown;
+        {
+          id,
+          nameLower,
+          displayName,
+          createdAt: now,
+          updatedAt: now,
         },
       ];
       return [...next].sort((a, b) => a.nameLower.localeCompare(b.nameLower));

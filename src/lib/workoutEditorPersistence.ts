@@ -1,5 +1,4 @@
-import type { Timestamp } from "firebase/firestore";
-import { dataAccess } from "./dataAccess";
+import type { DataAccess } from "./dataAccess";
 import type { WorkoutSet } from "../types";
 
 export type EditorRowId = string;
@@ -24,7 +23,7 @@ export interface WorkoutEditorPersistence {
     exerciseNameSnapshot: string;
     row: PersistableSetFields;
     order: number;
-    performedAt: Timestamp;
+    performedAt: Date;
   }): Promise<string>;
   updateSet(
     id: string,
@@ -33,10 +32,12 @@ export interface WorkoutEditorPersistence {
   deleteSet(id: string): Promise<void>;
 }
 
-export function createDefaultWorkoutEditorPersistence(): WorkoutEditorPersistence {
+export function createWorkoutEditorPersistence(
+  access: DataAccess
+): WorkoutEditorPersistence {
   return {
     saveSet(input) {
-      return dataAccess.sets.create({
+      return access.sets.create({
         workoutId: input.workoutId,
         exerciseId: input.exerciseId,
         exerciseNameSnapshot: input.exerciseNameSnapshot,
@@ -49,10 +50,10 @@ export function createDefaultWorkoutEditorPersistence(): WorkoutEditorPersistenc
       } as Omit<WorkoutSet, "id" | "createdAt">);
     },
     updateSet(id, patch) {
-      return dataAccess.sets.update(id, patch);
+      return access.sets.update(id, patch);
     },
     deleteSet(id) {
-      return dataAccess.sets.delete(id);
+      return access.sets.delete(id);
     },
   };
 }

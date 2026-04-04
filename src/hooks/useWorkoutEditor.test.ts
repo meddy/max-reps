@@ -1,5 +1,4 @@
 import { act, renderHook } from "@testing-library/react";
-import { Timestamp } from "firebase/firestore";
 import { describe, expect, it, vi } from "vitest";
 import type { Workout } from "../types";
 import {
@@ -7,7 +6,7 @@ import {
   useWorkoutEditor,
 } from "./useWorkoutEditor";
 
-const ts = Timestamp.fromDate(new Date("2024-06-01T12:00:00"));
+const ts = new Date("2024-06-01T12:00:00");
 
 const fakeWorkout: Workout = {
   id: "w1",

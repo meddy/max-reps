@@ -1,5 +1,6 @@
 import { vi } from "vitest";
 
+/** Shared fakes; `setup.ts` merges this into the real `../lib/dataAccess` module as `dataAccess`. */
 const exercises = {
   get: vi.fn(),
   searchByNamePrefix: vi.fn(),
@@ -48,6 +49,21 @@ const sets = {
   delete: vi.fn(),
 };
 
+const exportForBackup = {
+  allCollectionsRaw: vi.fn(async () => ({
+    exercises: [] as Array<{ id: string } & Record<string, unknown>>,
+    days: [] as Array<{ id: string } & Record<string, unknown>>,
+    exerciseSetTemplates: [] as Array<{ id: string } & Record<string, unknown>>,
+    workouts: [] as Array<{ id: string } & Record<string, unknown>>,
+    sets: [] as Array<{ id: string } & Record<string, unknown>>,
+  })),
+  setsDocumentsForCsv: vi.fn(
+    async (): Promise<
+      Array<{ id: string; data: Record<string, unknown> }>
+    > => []
+  ),
+};
+
 export const mockDataAccess = {
   exercises,
   days,
@@ -55,11 +71,8 @@ export const mockDataAccess = {
   workouts,
   sets,
   resolveExerciseNames: vi.fn(),
+  exportForBackup,
 };
-
-vi.mock("../lib/dataAccess", () => ({
-  dataAccess: mockDataAccess,
-}));
 
 export function resetDataAccessMocks() {
   mockDataAccess.exercises.get.mockResolvedValue(null);
@@ -105,4 +118,13 @@ export function resetDataAccessMocks() {
   mockDataAccess.sets.delete.mockResolvedValue(undefined);
 
   mockDataAccess.resolveExerciseNames.mockResolvedValue(new Map());
+
+  mockDataAccess.exportForBackup.allCollectionsRaw.mockResolvedValue({
+    exercises: [],
+    days: [],
+    exerciseSetTemplates: [],
+    workouts: [],
+    sets: [],
+  });
+  mockDataAccess.exportForBackup.setsDocumentsForCsv.mockResolvedValue([]);
 }

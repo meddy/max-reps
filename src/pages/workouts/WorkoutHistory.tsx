@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Timestamp } from "firebase/firestore";
-import { dataAccess } from "../../lib/dataAccess";
+import { useDataAccess } from "../../contexts/DataAccessContext";
 import type { Day, WorkoutListItem } from "../../types";
 import { EmptyState } from "../../components/EmptyState";
 import { IconPlus } from "../../components/Icons";
@@ -39,6 +38,7 @@ function getLocalDateString(date: Date = new Date()): string {
 }
 
 export function WorkoutHistory() {
+  const dataAccess = useDataAccess();
   const navigate = useNavigate();
   const [workouts, setWorkouts] = useState<WorkoutListItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -66,7 +66,7 @@ export function WorkoutHistory() {
     });
     setWorkouts(withCounts);
     setLoading(false);
-  }, [sortOrder]);
+  }, [dataAccess, sortOrder]);
 
   useEffect(() => {
     void fetchWorkouts();
@@ -151,7 +151,7 @@ export function WorkoutHistory() {
     setCreating(true);
     const date = new Date(workoutDate + "T12:00:00");
     const id = await dataAccess.workouts.create({
-      date: Timestamp.fromDate(date),
+      date,
       dayId: selectedDay.id,
       dayNameSnapshot: selectedDay.displayName,
       note: "",
@@ -159,7 +159,7 @@ export function WorkoutHistory() {
     setCreating(false);
     closeAddWorkoutModal();
     navigate(`/workouts/${id}`);
-  }, [selectedDay, workoutDate, navigate, closeAddWorkoutModal]);
+  }, [dataAccess, selectedDay, workoutDate, navigate, closeAddWorkoutModal]);
 
   return (
     <div className="flex flex-col gap-3">

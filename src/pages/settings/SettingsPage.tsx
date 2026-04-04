@@ -1,12 +1,6 @@
 import { useState } from "react";
-import {
-  getCollectionRef,
-  getDocs,
-  query,
-  orderBy,
-  limit,
-} from "../../lib/firestore";
 import { useAuth } from "../../contexts/AuthContext";
+import { useDataAccess } from "../../contexts/DataAccessContext";
 
 function downloadBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
@@ -19,30 +13,13 @@ function downloadBlob(blob: Blob, filename: string) {
 
 export function SettingsPage() {
   const { user, signOut } = useAuth();
+  const dataAccess = useDataAccess();
   const [loading, setLoading] = useState(false);
 
   const exportJson = async () => {
     setLoading(true);
     try {
-      const collections = [
-        "exercises",
-        "days",
-        "exerciseSetTemplates",
-        "workouts",
-        "sets",
-      ] as const;
-      const results = await Promise.all(
-        collections.map(async (name) => {
-          const ref = getCollectionRef(name);
-          const q = query(ref, limit(10000));
-          const snap = await getDocs(q);
-          return [
-            name,
-            snap.docs.map((d) => ({ id: d.id, ...d.data() })),
-          ] as const;
-        })
-      );
-      const data = Object.fromEntries(results) as Record<string, unknown[]>;
+      const data = await dataAccess.exportForBackup.allCollectionsRaw();
       const blob = new Blob([JSON.stringify(data, null, 2)], {
         type: "application/json",
       });
@@ -58,13 +35,10 @@ export function SettingsPage() {
   const exportSetsCsv = async () => {
     setLoading(true);
     try {
-      const ref = getCollectionRef("sets");
-      const q = query(ref, orderBy("performedAt", "desc"), limit(10000));
-      const snap = await getDocs(q);
-      const rows = snap.docs.map((d) => {
-        const x = d.data() as Record<string, unknown>;
+      const docs = await dataAccess.exportForBackup.setsDocumentsForCsv(10000);
+      const rows = docs.map(({ id, data: x }) => {
         return [
-          d.id,
+          id,
           x.workoutId,
           x.exerciseId,
           x.exerciseNameSnapshot,

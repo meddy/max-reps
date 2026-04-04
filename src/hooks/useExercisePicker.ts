@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
-import { dataAccess } from "../lib/dataAccess";
+import { useDataAccess } from "../contexts/DataAccessContext";
 import type { Exercise } from "../types";
 
 export function useExercisePicker(options: { active: boolean }) {
+  const dataAccess = useDataAccess();
   const [search, setSearch] = useState("");
   const [results, setResults] = useState<Array<Exercise & { id: string }>>([]);
   const [selected, setSelected] = useState<{
@@ -34,7 +35,7 @@ export function useExercisePicker(options: { active: boolean }) {
     return () => {
       ignore = true;
     };
-  }, [options.active, search]);
+  }, [dataAccess, options.active, search]);
 
   const selectExercise = useCallback((ex: Exercise & { id: string }) => {
     setSelected({ id: ex.id, displayName: ex.displayName });
@@ -61,7 +62,7 @@ export function useExercisePicker(options: { active: boolean }) {
     });
     setSelected({ id: newId, displayName });
     setSearch("");
-  }, [search]);
+  }, [dataAccess, search]);
 
   const reset = useCallback(() => {
     setSearch("");

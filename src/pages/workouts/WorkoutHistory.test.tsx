@@ -1,5 +1,4 @@
 import { screen, waitFor } from "@testing-library/react";
-import { Timestamp } from "firebase/firestore";
 import { describe, expect, it } from "vitest";
 import { mockDataAccess } from "../../test/mockDataAccess";
 import { renderWithProviders } from "../../test/renderWithProviders";
@@ -25,8 +24,8 @@ describe("WorkoutHistory", () => {
   });
 
   it("renders workout rows from data access", async () => {
-    const ts = Timestamp.fromDate(new Date("2024-01-10T12:00:00"));
-    const base = Timestamp.fromDate(new Date("2024-01-01T12:00:00"));
+    const ts = new Date("2024-01-10T12:00:00");
+    const base = new Date("2024-01-01T12:00:00");
     mockDataAccess.workouts.listWithStats.mockResolvedValue([
       {
         id: "w1",

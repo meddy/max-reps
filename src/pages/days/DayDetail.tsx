@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { dataAccess } from "../../lib/dataAccess";
+import { useDataAccess } from "../../contexts/DataAccessContext";
 import type { Day, TemplateWithExerciseName } from "../../types";
 import { ExercisePicker } from "../../components/ExercisePicker";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
@@ -33,6 +33,7 @@ function parseTemplateFieldStrings(
 }
 
 export function DayDetail() {
+  const dataAccess = useDataAccess();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [day, setDay] = useState<(Day & { id: string }) | null>(null);
@@ -60,13 +61,13 @@ export function DayDetail() {
     }
     setDay(d as Day & { id: string });
     setLoading(false);
-  }, [id]);
+  }, [dataAccess, id]);
 
   const loadTemplates = useCallback(async () => {
     if (!id) return;
     const list = await dataAccess.templates.listForDayWithExerciseNames(id);
     setTemplates(list);
-  }, [id]);
+  }, [dataAccess, id]);
 
   useEffect(() => {
     void loadDay();

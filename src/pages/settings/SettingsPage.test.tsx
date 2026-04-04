@@ -3,14 +3,6 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "../../test/renderWithProviders";
 
-vi.mock("../../lib/firestore", () => ({
-  getCollectionRef: vi.fn(() => ({})),
-  query: vi.fn(),
-  orderBy: vi.fn(),
-  limit: vi.fn(),
-  getDocs: vi.fn(async () => ({ docs: [] })),
-}));
-
 import { SettingsPage } from "./SettingsPage";
 
 const authValue = {

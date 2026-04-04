@@ -1,5 +1,4 @@
 import { screen, waitFor } from "@testing-library/react";
-import { Timestamp } from "firebase/firestore";
 import { Route, Routes } from "react-router-dom";
 import { describe, expect, it } from "vitest";
 import { mockDataAccess } from "../../test/mockDataAccess";
@@ -33,8 +32,8 @@ describe("WorkoutDetail", () => {
   });
 
   it("shows workout header when loaded with sets", async () => {
-    const ts = Timestamp.fromDate(new Date("2024-02-01T12:00:00"));
-    const base = Timestamp.fromDate(new Date("2024-01-01T12:00:00"));
+    const ts = new Date("2024-02-01T12:00:00");
+    const base = new Date("2024-01-01T12:00:00");
     mockDataAccess.workouts.get.mockResolvedValue({
       id: "w1",
       date: ts,

@@ -1,25 +1,30 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { dataAccess } from "../../lib/dataAccess";
+import { useDataAccess } from "../../contexts/DataAccessContext";
 import type { Exercise, WorkoutSet } from "../../types";
 import { LoadingSpinner } from "../../components/LoadingSpinner";
 import { TopSetChart } from "../../components/TopSetChart";
-import type { TopSetChartPoint } from "../../components/TopSetChart";
 import { formatDateShort } from "../../lib/format";
+import {
+  buildSetNumberBySetId,
+  buildSortedSetsForHistory,
+  buildTopSetsPerWorkoutChartSeries,
+} from "../../lib/exerciseDetailViewModel";
+
+type SetWithId = WorkoutSet & { id: string };
 
 export function ExerciseDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const dataAccess = useDataAccess();
   const [exercise, setExercise] = useState<(Exercise & { id: string }) | null>(
     null
   );
-  const [sets, setSets] = useState<Array<WorkoutSet & { id: string }>>([]);
+  const [sets, setSets] = useState<SetWithId[]>([]);
   const [workoutNotesByWorkoutId, setWorkoutNotesByWorkoutId] = useState<
     Record<string, string>
   >({});
-  const [prSet, setPrSet] = useState<(WorkoutSet & { id: string }) | null>(
-    null
-  );
+  const [prSet, setPrSet] = useState<SetWithId | null>(null);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
@@ -44,72 +49,23 @@ export function ExerciseDetail() {
     setWorkoutNotesByWorkoutId(notes);
 
     setLoading(false);
-  }, [id]);
+  }, [dataAccess, id]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
-  const setNumberBySetId = useMemo(() => {
-    const byWorkout = new Map<string, Array<WorkoutSet & { id: string }>>();
-    for (const s of sets) {
-      const list = byWorkout.get(s.workoutId) ?? [];
-      list.push(s);
-      byWorkout.set(s.workoutId, list);
-    }
-    const result = new Map<string, number>();
-    for (const workoutSets of byWorkout.values()) {
-      const sorted = [...workoutSets].sort(
-        (a, b) => (a.order ?? 0) - (b.order ?? 0)
-      );
-      sorted.forEach((s, i) => result.set(s.id, i + 1));
-    }
-    return result;
-  }, [sets]);
+  const setNumberBySetId = useMemo(() => buildSetNumberBySetId(sets), [sets]);
 
-  const sortedSets = useMemo(() => {
-    return [...sets].sort((a, b) => {
-      const aTime = a.performedAt?.toMillis?.() ?? 0;
-      const bTime = b.performedAt?.toMillis?.() ?? 0;
-      if (bTime !== aTime) return bTime - aTime;
-      const aNum = setNumberBySetId.get(a.id) ?? 0;
-      const bNum = setNumberBySetId.get(b.id) ?? 0;
-      return aNum - bNum;
-    });
-  }, [sets, setNumberBySetId]);
+  const sortedSets = useMemo(
+    () => buildSortedSetsForHistory(sets, setNumberBySetId),
+    [sets, setNumberBySetId]
+  );
 
-  const topSetsPerWorkout = useMemo((): TopSetChartPoint[] => {
-    const byWorkout = new Map<string, WorkoutSet & { id: string }>();
-    for (const s of sets) {
-      const existing = byWorkout.get(s.workoutId);
-      const isBetter =
-        !existing ||
-        s.weight > existing.weight ||
-        (s.weight === existing.weight && s.reps > existing.reps);
-      if (isBetter) {
-        byWorkout.set(s.workoutId, s);
-      }
-    }
-    const values = [...byWorkout.values()];
-    values.sort((a, b) => {
-      const aMs = a.performedAt?.toMillis?.() ?? 0;
-      const bMs = b.performedAt?.toMillis?.() ?? 0;
-      return aMs - bMs;
-    });
-    return values.map((s: WorkoutSet & { id: string }) => {
-      const date = s.performedAt?.toDate?.() ?? new Date(0);
-      return {
-        dateMs: date.getTime(),
-        dateLabel: date.toLocaleDateString(undefined, {
-          month: "short",
-          day: "numeric",
-        }),
-        weight: s.weight,
-        reps: s.reps,
-        label: `${s.weight}×${s.reps}`,
-      };
-    });
-  }, [sets]);
+  const topSetsPerWorkout = useMemo(
+    () => buildTopSetsPerWorkoutChartSeries(sets),
+    [sets]
+  );
 
   if (loading) {
     return (

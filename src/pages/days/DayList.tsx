@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { dataAccess } from "../../lib/dataAccess";
+import { useDataAccess } from "../../contexts/DataAccessContext";
 import type { Day } from "../../types";
 import { EmptyState } from "../../components/EmptyState";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
@@ -40,6 +40,7 @@ function getStoredSortOrder(): "asc" | "desc" {
 }
 
 export function DayList() {
+  const dataAccess = useDataAccess();
   const [days, setDays] = useState<Array<Day & { id: string }>>([]);
   const [summariesByDayId, setSummariesByDayId] = useState<
     Record<string, DaySummaryItem[]>

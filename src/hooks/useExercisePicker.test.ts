@@ -1,10 +1,19 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { Timestamp } from "firebase/firestore";
+import { createElement, type ReactNode } from "react";
 import { describe, expect, it } from "vitest";
+import { DataAccessProvider } from "../contexts/DataAccessContext";
+import type { DataAccess } from "../lib/dataAccess";
 import { mockDataAccess } from "../test/mockDataAccess";
 import { useExercisePicker } from "./useExercisePicker";
 
-const ts = Timestamp.fromDate(new Date("2024-01-01T12:00:00"));
+const ts = new Date("2024-01-01T12:00:00");
+
+function wrapper({ children }: { children: ReactNode }) {
+  return createElement(DataAccessProvider, {
+    value: mockDataAccess as unknown as DataAccess,
+    children,
+  });
+}
 
 describe("useExercisePicker", () => {
   it("loads search results when active and search is non-empty", async () => {
@@ -18,7 +27,9 @@ describe("useExercisePicker", () => {
       },
     ]);
 
-    const { result } = renderHook(() => useExercisePicker({ active: true }));
+    const { result } = renderHook(() => useExercisePicker({ active: true }), {
+      wrapper,
+    });
 
     act(() => {
       result.current.setSearch("sq");
@@ -39,7 +50,9 @@ describe("useExercisePicker", () => {
       updatedAt: ts,
     });
 
-    const { result } = renderHook(() => useExercisePicker({ active: true }));
+    const { result } = renderHook(() => useExercisePicker({ active: true }), {
+      wrapper,
+    });
 
     act(() => {
       result.current.setSearch("Bench");

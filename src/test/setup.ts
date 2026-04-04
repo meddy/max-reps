@@ -3,8 +3,16 @@ import { cleanup } from "@testing-library/react";
 import React from "react";
 import { afterEach, beforeEach, vi } from "vitest";
 import { authState } from "./authState";
-import { resetDataAccessMocks } from "./mockDataAccess";
+import { mockDataAccess, resetDataAccessMocks } from "./mockDataAccess";
 import "./mockFirebaseAuth";
+
+vi.mock("../lib/dataAccess", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../lib/dataAccess")>();
+  return {
+    ...actual,
+    dataAccess: mockDataAccess,
+  };
+});
 
 vi.mock("recharts", () => {
   const Passthrough = ({

@@ -1,10 +1,10 @@
-import type { Timestamp } from "firebase/firestore";
+function asDate(d: Date): Date {
+  return d instanceof Date && !Number.isNaN(d.getTime()) ? d : new Date(0);
+}
 
-export function formatDate(
-  ts: Timestamp,
-  options?: { weekday?: boolean }
-): string {
-  return ts.toDate().toLocaleDateString(undefined, {
+export function formatDate(d: Date, options?: { weekday?: boolean }): string {
+  const x = asDate(d);
+  return x.toLocaleDateString(undefined, {
     ...(options?.weekday && { weekday: "short" }),
     month: "short",
     day: "numeric",
@@ -12,14 +12,15 @@ export function formatDate(
   });
 }
 
-export function formatDateShort(ts: Timestamp): string {
-  const d = ts.toDate();
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  const yy = String(d.getFullYear()).slice(-2);
+export function formatDateShort(d: Date): string {
+  const x = asDate(d);
+  const mm = String(x.getMonth() + 1).padStart(2, "0");
+  const dd = String(x.getDate()).padStart(2, "0");
+  const yy = String(x.getFullYear()).slice(-2);
   return `${mm}/${dd}/${yy}`;
 }
 
-export function formatDateTime(ts: Timestamp): string {
-  return ts.toDate().toISOString().slice(0, 16);
+/** Value for `<input type="datetime-local" />` (UTC ISO slice matches prior Timestamp behavior). */
+export function formatDateTime(d: Date): string {
+  return asDate(d).toISOString().slice(0, 16);
 }

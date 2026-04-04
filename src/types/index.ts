@@ -1,19 +1,17 @@
-import type { Timestamp } from "firebase/firestore";
-
 export interface Exercise {
   id: string;
   nameLower: string;
   displayName: string;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface Day {
   id: string;
   nameLower: string;
   displayName: string;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface ExerciseSetTemplate {
@@ -24,18 +22,18 @@ export interface ExerciseSetTemplate {
   repsLower: number;
   repsUpper: number;
   order: number;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface Workout {
   id: string;
-  date: Timestamp;
+  date: Date;
   dayId: string;
   dayNameSnapshot: string;
   note?: string;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface WorkoutSet {
@@ -47,9 +45,9 @@ export interface WorkoutSet {
   weight: number;
   unit: string;
   note: string;
-  performedAt: Timestamp;
+  performedAt: Date;
   order: number;
-  createdAt: Timestamp;
+  createdAt: Date;
 }
 
 export type CollectionName =

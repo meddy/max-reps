@@ -85,7 +85,6 @@ export interface UseWorkoutEditorResult {
   removeSet(rowId: EditorRowId): Promise<void>;
   flushAll(): Promise<void>;
   isDirty: boolean;
-  isSaving: boolean;
   updateLastPerformed(
     exerciseId: string,
     value: NonNullable<EditorExerciseGroup["lastPerformed"]>
@@ -126,13 +125,6 @@ export function useWorkoutEditor(
   const templateDebounceTimers = useRef<
     Record<string, ReturnType<typeof setTimeout>>
   >({});
-
-  const savingCountRef = useRef(0);
-  const [isSaving, setIsSaving] = useState(false);
-  const bumpSaving = useCallback((delta: number) => {
-    savingCountRef.current += delta;
-    setIsSaving(savingCountRef.current > 0);
-  }, []);
 
   const [dirtyKeys, setDirtyKeys] = useState<Set<string>>(new Set());
   const markDirty = useCallback((rowId: string) => {
@@ -187,47 +179,37 @@ export function useWorkoutEditor(
       if (!w) return;
 
       if (row.persistedSetId) {
-        bumpSaving(1);
-        try {
-          await persistence.updateSet(row.persistedSetId, {
-            reps: row.reps,
-            weight: row.weight,
-            note: row.note,
-          });
-        } finally {
-          bumpSaving(-1);
-        }
+        await persistence.updateSet(row.persistedSetId, {
+          reps: row.reps,
+          weight: row.weight,
+          note: row.note,
+        });
         clearDirty(rowId);
         return;
       }
       if (row.reps <= 0) return;
 
       const order = nextOrderRef.current++;
-      bumpSaving(1);
-      try {
-        const newId = await persistence.saveSet({
-          workoutId,
-          exerciseId: group.exerciseId,
-          exerciseNameSnapshot: group.exerciseName,
-          row: persistableFields(row),
-          order,
-          performedAt: w.date,
-        });
-        setGroups((prev) => {
-          const next = cloneGroups(prev);
-          const L = findRowLocation(next, rowId);
-          if (!L) return prev;
-          const r = next[L.groupIndex].rows[L.rowIndex];
-          r.persistedSetId = newId;
-          r.id = newId;
-          return next;
-        });
-      } finally {
-        bumpSaving(-1);
-      }
+      const newId = await persistence.saveSet({
+        workoutId,
+        exerciseId: group.exerciseId,
+        exerciseNameSnapshot: group.exerciseName,
+        row: persistableFields(row),
+        order,
+        performedAt: w.date,
+      });
+      setGroups((prev) => {
+        const next = cloneGroups(prev);
+        const L = findRowLocation(next, rowId);
+        if (!L) return prev;
+        const r = next[L.groupIndex].rows[L.rowIndex];
+        r.persistedSetId = newId;
+        r.id = newId;
+        return next;
+      });
       clearDirty(rowId);
     },
-    [bumpSaving, clearDirty, persistence, workoutId]
+    [clearDirty, persistence, workoutId]
   );
 
   const schedulePersistWorkout = useCallback(
@@ -271,52 +253,42 @@ export function useWorkoutEditor(
       if (rowSnapshot.reps <= 0) return;
       try {
         if (rowSnapshot.persistedSetId) {
-          bumpSaving(1);
-          try {
-            await persistence.updateSet(rowSnapshot.persistedSetId, {
-              reps: rowSnapshot.reps,
-              weight: rowSnapshot.weight,
-              note: rowSnapshot.note ?? "",
-            });
-          } finally {
-            bumpSaving(-1);
-          }
+          await persistence.updateSet(rowSnapshot.persistedSetId, {
+            reps: rowSnapshot.reps,
+            weight: rowSnapshot.weight,
+            note: rowSnapshot.note ?? "",
+          });
         } else {
           const order = nextSetOrderRef.current++;
-          bumpSaving(1);
-          try {
-            const newId = await persistence.saveSet({
-              workoutId,
-              exerciseId,
-              exerciseNameSnapshot: exerciseName,
-              row: persistableFields(rowSnapshot),
-              order,
-              performedAt: w.date,
-            });
-            setGroups((prev) => {
-              const next = cloneGroups(prev);
-              const gi = next.findIndex((x) => x.groupKey === groupKey);
-              if (gi === -1) return prev;
-              const rows = [...next[gi].rows];
-              if (!rows[rowIndex] || rows[rowIndex].id !== rowSnapshot.id)
-                return prev;
-              rows[rowIndex] = {
-                ...rows[rowIndex],
-                persistedSetId: newId,
-              };
-              next[gi] = { ...next[gi], rows };
-              return next;
-            });
-          } finally {
-            bumpSaving(-1);
-          }
+          const newId = await persistence.saveSet({
+            workoutId,
+            exerciseId,
+            exerciseNameSnapshot: exerciseName,
+            row: persistableFields(rowSnapshot),
+            order,
+            performedAt: w.date,
+          });
+          setGroups((prev) => {
+            const next = cloneGroups(prev);
+            const gi = next.findIndex((x) => x.groupKey === groupKey);
+            if (gi === -1) return prev;
+            const rows = [...next[gi].rows];
+            if (!rows[rowIndex] || rows[rowIndex].id !== rowSnapshot.id)
+              return prev;
+            rows[rowIndex] = {
+              ...rows[rowIndex],
+              persistedSetId: newId,
+            };
+            next[gi] = { ...next[gi], rows };
+            return next;
+          });
         }
       } catch {
         // match WorkoutDetail: ignore template save errors
       }
       clearDirty(rowSnapshot.id);
     },
-    [bumpSaving, clearDirty, persistence, workoutId]
+    [clearDirty, persistence, workoutId]
   );
 
   const templateSaveSetRef = useRef(templatePersistRow);
@@ -484,15 +456,10 @@ export function useWorkoutEditor(
       const persistedIds = g.rows
         .map((r) => r.persistedSetId)
         .filter((id): id is string => id != null);
-      bumpSaving(persistedIds.length);
-      try {
-        await Promise.all(persistedIds.map((id) => persistence.deleteSet(id)));
-      } finally {
-        bumpSaving(-persistedIds.length);
-      }
+      await Promise.all(persistedIds.map((id) => persistence.deleteSet(id)));
       setGroups((prev) => prev.filter((x) => x.groupKey !== groupKey));
     },
-    [bumpSaving, persistence]
+    [persistence]
   );
 
   const addSet = useCallback((groupKey: string) => {
@@ -531,12 +498,7 @@ export function useWorkoutEditor(
         delete persistDebounceTimers.current[`persist-${rowId}`];
       }
       if (row.persistedSetId) {
-        bumpSaving(1);
-        try {
-          await persistence.deleteSet(row.persistedSetId);
-        } finally {
-          bumpSaving(-1);
-        }
+        await persistence.deleteSet(row.persistedSetId);
       }
       setGroups((prev) => {
         const next = cloneGroups(prev);
@@ -548,7 +510,7 @@ export function useWorkoutEditor(
       });
       clearDirty(rowId);
     },
-    [bumpSaving, clearDirty, persistence]
+    [clearDirty, persistence]
   );
 
   const flushAll = useCallback(async () => {
@@ -597,7 +559,6 @@ export function useWorkoutEditor(
       removeSet,
       flushAll,
       isDirty,
-      isSaving,
       updateLastPerformed,
     }),
     [
@@ -611,7 +572,6 @@ export function useWorkoutEditor(
       removeSet,
       flushAll,
       isDirty,
-      isSaving,
       updateLastPerformed,
     ]
   );

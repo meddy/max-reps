@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { Timestamp } from "firebase/firestore";
-import { dataAccess } from "../../lib/dataAccess";
-import { createDefaultWorkoutEditorPersistence } from "../../lib/workoutEditorPersistence";
+import { useDataAccess } from "../../contexts/DataAccessContext";
+import { createWorkoutEditorPersistence } from "../../lib/workoutEditorPersistence";
 import type { Workout, WorkoutSet } from "../../types";
 import { LoadingSpinner } from "../../components/LoadingSpinner";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
@@ -22,6 +21,7 @@ import {
 type SetWithId = WorkoutSet & { id: string };
 
 export function WorkoutDetail() {
+  const dataAccess = useDataAccess();
   const { id: workoutId } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [workout, setWorkout] = useState<(Workout & { id: string }) | null>(
@@ -51,8 +51,8 @@ export function WorkoutDetail() {
     useState<string | null>(null);
 
   const persistence = useMemo(
-    () => createDefaultWorkoutEditorPersistence(),
-    []
+    () => createWorkoutEditorPersistence(dataAccess),
+    [dataAccess]
   );
 
   const editor = useWorkoutEditor({
@@ -81,7 +81,7 @@ export function WorkoutDetail() {
     setWorkout(w);
     setDateInput(formatDateTime(w.date));
     setLoading(false);
-  }, [workoutId]);
+  }, [dataAccess, workoutId]);
 
   const loadSets = useCallback(async () => {
     if (!workoutId) return;
@@ -146,7 +146,7 @@ export function WorkoutDetail() {
       groups: [],
     });
     setIsTemplateMode(false);
-  }, [workoutId, workout?.dayId]);
+  }, [dataAccess, workoutId, workout?.dayId]);
 
   useEffect(() => {
     void loadWorkout();
@@ -158,18 +158,17 @@ export function WorkoutDetail() {
 
   const saveDate = async () => {
     if (!workout || !dateInput) return;
-    const date = new Date(dateInput);
-    const newTimestamp = Timestamp.fromDate(date);
-    await dataAccess.workouts.update(workout.id, { date: newTimestamp });
+    const newDate = new Date(dateInput);
+    await dataAccess.workouts.update(workout.id, { date: newDate });
 
     const workoutSets = await dataAccess.sets.listForWorkout(workout.id);
     await Promise.all(
       workoutSets.map((s) =>
-        dataAccess.sets.update(s.id, { performedAt: newTimestamp })
+        dataAccess.sets.update(s.id, { performedAt: newDate })
       )
     );
 
-    setWorkout((prev) => (prev ? { ...prev, date: newTimestamp } : null));
+    setWorkout((prev) => (prev ? { ...prev, date: newDate } : null));
     setEditingDate(false);
   };
 
@@ -232,7 +231,7 @@ export function WorkoutDetail() {
       }
       setAddExerciseOpen(false);
     },
-    [editor, workout, workoutId]
+    [dataAccess, editor, workout, workoutId]
   );
 
   const handleDeleteWorkout = async () => {
