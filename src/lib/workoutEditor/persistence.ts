@@ -1,5 +1,5 @@
-import type { DataAccess } from "./dataAccess";
-import type { WorkoutSet } from "../types";
+import type { DataAccess } from "../dataAccess";
+import type { WorkoutSet } from "../../types";
 
 type NewWorkoutSetDocument = Omit<WorkoutSet, "id" | "createdAt">;
 

@@ -1,4 +1,3 @@
-import type { Firestore } from "firebase/firestore";
 import type {
   CollectionName,
   Day,
@@ -9,9 +8,10 @@ import type {
   WorkoutListItem,
   WorkoutSet,
 } from "../../types";
+import type { FirestoreDataPort } from "../firestoreDataPort/types";
 
 export interface DataAccessDeps {
-  db: Firestore;
+  firestore: FirestoreDataPort;
   saving: { start: () => void; end: () => void };
 }
 

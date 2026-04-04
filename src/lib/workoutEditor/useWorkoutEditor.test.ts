@@ -1,6 +1,6 @@
 import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import type { Workout } from "../types";
+import type { Workout } from "../../types";
 import {
   editorGroupsFromWorkoutSets,
   useWorkoutEditor,

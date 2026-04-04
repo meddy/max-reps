@@ -1,4 +1,5 @@
 import { db } from "../firebase";
+import { createFirebaseFirestoreDataPort } from "../firestoreDataPort/firebaseAdapter";
 import { endSaving, startSaving } from "../savingStore";
 import { buildCatalogDataPort } from "./ports/catalogPort";
 import { buildTemplateDataPort } from "./ports/templatePort";
@@ -22,6 +23,6 @@ export function createDataAccess(deps: DataAccessDeps): DataAccess {
 }
 
 export const dataAccess: DataAccess = createDataAccess({
-  db,
+  firestore: createFirebaseFirestoreDataPort(db),
   saving: { start: startSaving, end: endSaving },
 });

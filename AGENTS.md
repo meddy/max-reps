@@ -13,8 +13,8 @@ A mobile-first workout tracking single-page app built with React, TypeScript, Vi
 
 - All source code lives in `src/`.
 - Shared types in `src/types/index.ts`.
-- Firebase initialization in `src/lib/firebase.ts`, Firestore helpers in `src/lib/firestore.ts`.
-- Page components in `src/pages/`, shared components in `src/components/`, hooks in `src/hooks/`, context providers in `src/contexts/`.
+- Firebase initialization in `src/lib/firebase.ts`. Firestore access for the app goes through `FirestoreDataPort` in `src/lib/firestoreDataPort/` (Firebase adapter + optional in-memory fake for tests); document writes and cascades use `src/lib/firestorePersistence.ts`. `createDataAccess` in `src/lib/dataAccess/` composes slices on top of the port.
+- Page components in `src/pages/`, shared components in `src/components/`, hooks in `src/hooks/` (feature hooks may live under `src/lib/<feature>/`), context providers in `src/contexts/`.
 - Environment variables prefixed with `VITE_` (Vite convention) and stored in `.env` (gitignored). A `.env.example` template is committed.
 
 ## Quality Gates

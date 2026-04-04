@@ -1,16 +1,11 @@
-import type { Firestore } from "firebase/firestore";
-import {
-  addDocument,
-  patchDocument,
-  removeDocument,
-} from "../firestorePersistence";
 import type { ExerciseSetTemplate } from "../../types";
+import type { FirestoreDataPort } from "../firestoreDataPort/types";
 import type { DataAccessDeps } from "./types";
 import { templatesWithNamesForDayIds } from "./templateQueries";
 import { withSaving } from "./withSaving";
 
 export function buildTemplatesSlice(
-  firestore: Firestore,
+  firestore: FirestoreDataPort,
   saving: DataAccessDeps["saving"]
 ) {
   return {
@@ -27,8 +22,7 @@ export function buildTemplatesSlice(
       input: Omit<ExerciseSetTemplate, "id" | "createdAt" | "updatedAt">
     ): Promise<string> {
       return withSaving(saving, () =>
-        addDocument(
-          firestore,
+        firestore.addDocument(
           "exerciseSetTemplates",
           input as Record<string, unknown>
         )
@@ -42,13 +36,13 @@ export function buildTemplatesSlice(
       >
     ): Promise<void> {
       return withSaving(saving, () =>
-        patchDocument(firestore, "exerciseSetTemplates", id, patch)
+        firestore.patchDocument("exerciseSetTemplates", id, patch)
       );
     },
 
     async delete(id: string): Promise<void> {
       return withSaving(saving, () =>
-        removeDocument(firestore, "exerciseSetTemplates", id)
+        firestore.removeDocument("exerciseSetTemplates", id)
       );
     },
   };

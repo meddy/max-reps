@@ -1,46 +1,15 @@
-import type { Workout } from "../../types";
-import type { EditorRowId, EditorSetRow } from "../workoutEditorPersistence";
+import type { EditorRowId, EditorSetRow } from "./persistence";
 import {
   cloneGroups,
   findRowLocation,
   persistableFields,
   type EditorExerciseGroup,
-  type WorkoutEditorPersistence,
+  type WorkoutRowApi,
   type WorkoutSessionSnapshot,
+  type WorkoutSessionStore,
+  type WorkoutSessionStoreConfig,
   workoutNextOrderSeed,
 } from "./model";
-
-export type WorkoutSessionStoreConfig = {
-  variant: "workout" | "template";
-  workoutId: string;
-  persistence: WorkoutEditorPersistence;
-  debounceMs: number;
-  getWorkout: () => Workout | null;
-};
-
-export type WorkoutRowApi = {
-  row: EditorSetRow;
-  setField(field: "reps" | "weight" | "note", value: number | string): void;
-  flush(): Promise<void>;
-};
-
-export type WorkoutSessionStore = {
-  subscribe: (listener: () => void) => () => void;
-  getSnapshot: () => WorkoutSessionSnapshot;
-  dispose: () => void;
-  applyReset: (initialGroups: EditorExerciseGroup[]) => void;
-  getRowApi: (rowId: EditorRowId) => WorkoutRowApi;
-  addExercise: (exerciseId: string, name: string) => void;
-  appendTemplateGroup: (group: EditorExerciseGroup) => void;
-  removeExercise: (groupKey: string) => Promise<void>;
-  addSet: (groupKey: string) => void;
-  removeSet: (rowId: EditorRowId) => Promise<void>;
-  flushAll: () => Promise<void>;
-  updateLastPerformed: (
-    exerciseId: string,
-    value: NonNullable<EditorExerciseGroup["lastPerformed"]>
-  ) => void;
-};
 
 function makeSnapshot(
   groups: EditorExerciseGroup[],

@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useDataAccess } from "../../contexts/DataAccessContext";
-import { createWorkoutEditorPersistence } from "../../lib/workoutEditorPersistence";
-import type { Workout, WorkoutSet } from "../../types";
+import { createWorkoutEditorPersistence } from "../../lib/workoutEditor/persistence";
 import { LoadingSpinner } from "../../components/LoadingSpinner";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { IconTrash } from "../../components/Icons";
@@ -11,23 +10,24 @@ import { SetRow } from "../../components/SetRow";
 import { AddExerciseModal } from "../../components/AddExerciseModal";
 import { formatDate, toDatetimeLocalValue } from "../../lib/format";
 import {
-  editorGroupsFromDayTemplates,
-  editorGroupsFromWorkoutSets,
   useWorkoutEditor,
   type EditorExerciseGroup,
-  type TemplateWithName,
-} from "../../hooks/useWorkoutEditor";
-
-type SetWithId = WorkoutSet & { id: string };
+} from "../../lib/workoutEditor/useWorkoutEditor";
+import { useWorkoutDetailModel } from "./useWorkoutDetailModel";
 
 export function WorkoutDetail() {
   const dataAccess = useDataAccess();
   const { id: workoutId } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [workout, setWorkout] = useState<(Workout & { id: string }) | null>(
-    null
-  );
-  const [loading, setLoading] = useState(true);
+  const {
+    workout,
+    setWorkout,
+    loading,
+    isTemplateMode,
+    templateModeLoading,
+    editorSeed,
+  } = useWorkoutDetailModel(workoutId, dataAccess);
+
   const [editingDate, setEditingDate] = useState(false);
   const [dateInput, setDateInput] = useState("");
   const [deleteSetRowId, setDeleteSetRowId] = useState<string | null>(null);
@@ -37,18 +37,14 @@ export function WorkoutDetail() {
   const [deleteWorkoutConfirm, setDeleteWorkoutConfirm] = useState(false);
   const [addExerciseOpen, setAddExerciseOpen] = useState(false);
 
-  const [isTemplateMode, setIsTemplateMode] = useState(false);
-  const [templateModeLoading, setTemplateModeLoading] = useState(false);
-  const [editorSeed, setEditorSeed] = useState<{
-    resetKey: string;
-    groups: EditorExerciseGroup[];
-    variant: "workout" | "template";
-  } | null>(null);
-
   const [pendingDeleteTemplateSetRowId, setPendingDeleteTemplateSetRowId] =
     useState<string | null>(null);
   const [removeExerciseTemplateGroupKey, setRemoveExerciseTemplateGroupKey] =
     useState<string | null>(null);
+
+  useEffect(() => {
+    if (workout) setDateInput(toDatetimeLocalValue(workout.date));
+  }, [workout?.id, workout?.date]);
 
   const persistence = useMemo(
     () => createWorkoutEditorPersistence(dataAccess),
@@ -63,98 +59,6 @@ export function WorkoutDetail() {
     resetKey: editorSeed?.resetKey ?? "__loading",
     persistence,
   });
-
-  useEffect(() => {
-    setEditorSeed(null);
-    setWorkout(null);
-    setLoading(true);
-  }, [workoutId]);
-
-  const loadWorkout = useCallback(async () => {
-    if (!workoutId) return;
-    const w = await dataAccess.workouts.get(workoutId);
-    if (!w) {
-      setWorkout(null);
-      setLoading(false);
-      return;
-    }
-    setWorkout(w);
-    setDateInput(toDatetimeLocalValue(w.date));
-    setLoading(false);
-  }, [dataAccess, workoutId]);
-
-  const loadSets = useCallback(async () => {
-    if (!workoutId) return;
-    const list = (await dataAccess.sets.listForWorkout(
-      workoutId
-    )) as SetWithId[];
-
-    if (list.length > 0) {
-      setEditorSeed({
-        resetKey: `${workoutId}-workout`,
-        variant: "workout",
-        groups: editorGroupsFromWorkoutSets(list),
-      });
-      setIsTemplateMode(false);
-      return;
-    }
-
-    if (workout?.dayId) {
-      setTemplateModeLoading(true);
-      const resolved = await dataAccess.templates.listForDayWithExerciseNames(
-        workout.dayId
-      );
-      const withNames: TemplateWithName[] = resolved.map((t) => ({
-        ...t,
-        exerciseName: t.exerciseDisplayName,
-      }));
-
-      const lastResults = await Promise.all(
-        withNames.map(async (t) => {
-          const result = await dataAccess.sets.lastPerformedGroupForExercise(
-            t.exerciseId,
-            workoutId
-          );
-          return [t.exerciseId, result] as const;
-        })
-      );
-      const last: Record<
-        string,
-        {
-          sets: Array<{ reps: number; weight: number; note?: string }>;
-          workoutId: string;
-        }
-      > = {};
-      for (const [eid, result] of lastResults) {
-        if (result.sets.length > 0 && result.workoutId)
-          last[eid] = { sets: result.sets, workoutId: result.workoutId };
-      }
-
-      setEditorSeed({
-        resetKey: `${workoutId}-template`,
-        variant: "template",
-        groups: editorGroupsFromDayTemplates(withNames, last),
-      });
-      setIsTemplateMode(true);
-      setTemplateModeLoading(false);
-      return;
-    }
-
-    setEditorSeed({
-      resetKey: `${workoutId}-workout-empty`,
-      variant: "workout",
-      groups: [],
-    });
-    setIsTemplateMode(false);
-  }, [dataAccess, workoutId, workout?.dayId]);
-
-  useEffect(() => {
-    void loadWorkout();
-  }, [loadWorkout]);
-
-  useEffect(() => {
-    if (workout) void loadSets();
-  }, [workout?.id, loadSets]);
 
   const saveDate = async () => {
     if (!workout || !dateInput) return;

@@ -1,6 +1,5 @@
-import type { Firestore } from "firebase/firestore";
-import { collection, getDocs, limit, orderBy, query } from "firebase/firestore";
 import type { CollectionName } from "../../types";
+import type { FirestoreDataPort } from "../firestoreDataPort/types";
 
 const COLLECTIONS = [
   "exercises",
@@ -10,21 +9,19 @@ const COLLECTIONS = [
   "sets",
 ] as const satisfies readonly CollectionName[];
 
-export function buildExportForBackup(firestore: Firestore) {
+export function buildExportForBackup(firestore: FirestoreDataPort) {
   return {
     async allCollectionsRaw(): Promise<
       Record<CollectionName, Array<{ id: string } & Record<string, unknown>>>
     > {
       const results = await Promise.all(
         COLLECTIONS.map(async (name) => {
-          const ref = collection(firestore, name);
-          const q = query(ref, limit(10000));
-          const snap = await getDocs(q);
+          const rows = await firestore.queryCollectionDocuments(name, 10000);
           return [
             name,
-            snap.docs.map((d) => ({
+            rows.map((d) => ({
               id: d.id,
-              ...d.data(),
+              ...d.data,
             })),
           ] as const;
         })
@@ -38,12 +35,10 @@ export function buildExportForBackup(firestore: Firestore) {
     async setsDocumentsForCsv(
       limitCount: number
     ): Promise<Array<{ id: string; data: Record<string, unknown> }>> {
-      const ref = collection(firestore, "sets");
-      const q = query(ref, orderBy("performedAt", "desc"), limit(limitCount));
-      const snap = await getDocs(q);
-      return snap.docs.map((d) => ({
+      const rows = await firestore.querySetsDocumentsForCsv(limitCount);
+      return rows.map((d) => ({
         id: d.id,
-        data: d.data() as Record<string, unknown>,
+        data: d.data,
       }));
     },
   };

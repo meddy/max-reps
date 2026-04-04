@@ -3,9 +3,9 @@ import { buildExercisesSlice } from "../exercisesSlice";
 import type { CatalogDataPort, DataAccessDeps } from "../types";
 
 export function buildCatalogDataPort(deps: DataAccessDeps): CatalogDataPort {
-  const { db, saving } = deps;
+  const { firestore, saving } = deps;
   return {
-    exercises: buildExercisesSlice(db, saving),
-    days: buildDaysSlice(db, saving),
+    exercises: buildExercisesSlice(firestore, saving),
+    days: buildDaysSlice(firestore, saving),
   };
 }

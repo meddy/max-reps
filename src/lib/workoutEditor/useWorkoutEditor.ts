@@ -1,10 +1,10 @@
 import { useLayoutEffect, useMemo, useRef, useSyncExternalStore } from "react";
-import { createWorkoutSessionStore } from "../lib/workoutSession/createWorkoutSessionStore";
+import { createWorkoutSessionStore } from "./createWorkoutSessionStore";
 import {
   DEFAULT_DEBOUNCE_MS,
   type UseWorkoutEditorOptions,
   type UseWorkoutEditorResult,
-} from "../lib/workoutSession/model";
+} from "./model";
 
 export type {
   EditorExerciseGroup,
@@ -13,13 +13,13 @@ export type {
   UseWorkoutEditorOptions,
   UseWorkoutEditorResult,
   WorkoutEditorPersistence,
-} from "../lib/workoutSession/model";
+} from "./model";
 
 export {
   editorGroupsFromDayTemplates,
   editorGroupsFromWorkoutSets,
   type TemplateWithName,
-} from "../lib/workoutSession/editorSeedBuilders";
+} from "./editorSeedBuilders";
 
 export { DEFAULT_DEBOUNCE_MS };
 
@@ -72,6 +72,7 @@ export function useWorkoutEditor(
     () => ({
       variant: state.variant,
       groups: state.groups,
+      isDirty: state.isDirty,
       getRowApi: store.getRowApi.bind(store),
       addExercise: store.addExercise.bind(store),
       appendTemplateGroup: store.appendTemplateGroup.bind(store),
@@ -80,7 +81,6 @@ export function useWorkoutEditor(
       removeSet: store.removeSet.bind(store),
       flushAll: store.flushAll.bind(store),
       updateLastPerformed: store.updateLastPerformed.bind(store),
-      isDirty: state.isDirty,
     }),
     [state, store]
   );

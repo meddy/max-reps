@@ -1,61 +1,35 @@
-import type { Firestore } from "firebase/firestore";
-import {
-  collection,
-  documentId,
-  getDocs,
-  limit,
-  query,
-  where,
-} from "firebase/firestore";
 import type {
   ExerciseSetTemplate,
   TemplateWithExerciseName,
 } from "../../types";
+import type { FirestoreDataPort } from "../firestoreDataPort/types";
 import { mapTemplateFromDoc } from "../firestoreModelMappers";
 
-const FIRESTORE_IN_MAX = 10;
-
 export async function resolveExerciseNamesImpl(
-  firestore: Firestore,
+  firestore: FirestoreDataPort,
   exerciseIds: string[]
 ): Promise<Map<string, string>> {
   const unique = [...new Set(exerciseIds)];
   const map = new Map<string, string>();
   if (unique.length === 0) return map;
-  const exercisesRef = collection(firestore, "exercises");
-  for (let i = 0; i < unique.length; i += FIRESTORE_IN_MAX) {
-    const chunk = unique.slice(i, i + FIRESTORE_IN_MAX);
-    const q = query(exercisesRef, where(documentId(), "in", chunk));
-    const snap = await getDocs(q);
-    for (const d of snap.docs) {
-      const name = (d.data() as { displayName?: string }).displayName;
-      if (name) map.set(d.id, name);
-    }
+  const docs = await firestore.queryExercisesWhereDocumentIdIn(unique);
+  for (const d of docs) {
+    const name = d.data.displayName as string | undefined;
+    if (name) map.set(d.id, name);
   }
   return map;
 }
 
 export async function templatesWithNamesForDayIds(
-  firestore: Firestore,
+  firestore: FirestoreDataPort,
   dayIds: string[]
 ): Promise<Map<string, TemplateWithExerciseName[]>> {
   if (dayIds.length === 0) return new Map();
   const dayIdSet = new Set(dayIds);
-  const templatesRef = collection(firestore, "exerciseSetTemplates");
-  const chunks: string[][] = [];
-  for (let i = 0; i < dayIds.length; i += FIRESTORE_IN_MAX) {
-    chunks.push(dayIds.slice(i, i + FIRESTORE_IN_MAX));
-  }
-  const tList: Array<ExerciseSetTemplate & { id: string }> = [];
-  for (const chunk of chunks) {
-    const tq = query(templatesRef, where("dayId", "in", chunk), limit(500));
-    const tSnap = await getDocs(tq);
-    tList.push(
-      ...tSnap.docs.map((d) =>
-        mapTemplateFromDoc(d.id, d.data() as Record<string, unknown>)
-      )
-    );
-  }
+  const rawList = await firestore.queryTemplatesWhereDayIdIn(dayIds);
+  const tList: Array<ExerciseSetTemplate & { id: string }> = rawList.map((d) =>
+    mapTemplateFromDoc(d.id, d.data)
+  );
   const forOurDays = tList
     .filter((t) => dayIdSet.has(t.dayId))
     .sort((a, b) =>

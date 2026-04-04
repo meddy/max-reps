@@ -4,7 +4,7 @@ import type {
   EditorSetRow,
   PersistableSetFields,
   WorkoutEditorPersistence,
-} from "../workoutEditorPersistence";
+} from "./persistence";
 
 export type { EditorRowId, EditorSetRow, WorkoutEditorPersistence };
 
@@ -39,34 +39,56 @@ export interface UseWorkoutEditorOptions {
   debounceMs?: number;
 }
 
-export interface UseWorkoutEditorResult {
-  variant: "workout" | "template";
-  groups: EditorExerciseGroup[];
-  getRowApi(rowId: EditorRowId): {
-    row: EditorSetRow;
-    setField(field: "reps" | "weight" | "note", value: number | string): void;
-    flush(): Promise<void>;
-  };
-  addExercise(exerciseId: string, name: string): void;
-  /** Template mode: append a synthetic template group (e.g. ad-hoc exercise). */
-  appendTemplateGroup(group: EditorExerciseGroup): void;
-  removeExercise(groupKey: string): Promise<void>;
-  addSet(groupKey: string): void;
-  /** Deletes Firestore doc when `persistedSetId` is set; always removes the row locally. */
-  removeSet(rowId: EditorRowId): Promise<void>;
-  flushAll(): Promise<void>;
-  isDirty: boolean;
-  updateLastPerformed(
-    exerciseId: string,
-    value: NonNullable<EditorExerciseGroup["lastPerformed"]>
-  ): void;
-}
-
 export type WorkoutSessionSnapshot = {
   groups: EditorExerciseGroup[];
   isDirty: boolean;
   variant: "workout" | "template";
 };
+
+export type WorkoutRowApi = {
+  row: EditorSetRow;
+  setField(field: "reps" | "weight" | "note", value: number | string): void;
+  flush(): Promise<void>;
+};
+
+export type WorkoutSessionStore = {
+  subscribe: (listener: () => void) => () => void;
+  getSnapshot: () => WorkoutSessionSnapshot;
+  dispose: () => void;
+  applyReset: (initialGroups: EditorExerciseGroup[]) => void;
+  getRowApi: (rowId: EditorRowId) => WorkoutRowApi;
+  addExercise: (exerciseId: string, name: string) => void;
+  appendTemplateGroup: (group: EditorExerciseGroup) => void;
+  removeExercise: (groupKey: string) => Promise<void>;
+  addSet: (groupKey: string) => void;
+  removeSet: (rowId: EditorRowId) => Promise<void>;
+  flushAll: () => Promise<void>;
+  updateLastPerformed: (
+    exerciseId: string,
+    value: NonNullable<EditorExerciseGroup["lastPerformed"]>
+  ) => void;
+};
+
+export type WorkoutSessionStoreConfig = {
+  variant: "workout" | "template";
+  workoutId: string;
+  persistence: WorkoutEditorPersistence;
+  debounceMs: number;
+  getWorkout: () => Workout | null;
+};
+
+export type UseWorkoutEditorResult = WorkoutSessionSnapshot &
+  Pick<
+    WorkoutSessionStore,
+    | "getRowApi"
+    | "addExercise"
+    | "appendTemplateGroup"
+    | "removeExercise"
+    | "addSet"
+    | "removeSet"
+    | "flushAll"
+    | "updateLastPerformed"
+  >;
 
 export function cloneGroups(
   groups: EditorExerciseGroup[]

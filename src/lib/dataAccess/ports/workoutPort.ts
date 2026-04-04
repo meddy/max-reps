@@ -4,10 +4,10 @@ import { buildWorkoutsSlice } from "../workoutsSlice";
 import type { DataAccessDeps, WorkoutDataPort } from "../types";
 
 export function buildWorkoutDataPort(deps: DataAccessDeps): WorkoutDataPort {
-  const { db, saving } = deps;
+  const { firestore, saving } = deps;
   return {
-    workouts: buildWorkoutsSlice(db, saving),
-    sets: buildSetsSlice(db, saving),
-    exportForBackup: buildExportForBackup(db),
+    workouts: buildWorkoutsSlice(firestore, saving),
+    sets: buildSetsSlice(firestore, saving),
+    exportForBackup: buildExportForBackup(firestore),
   };
 }

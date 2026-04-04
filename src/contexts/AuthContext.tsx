@@ -4,17 +4,13 @@ import {
   useContext,
   useEffect,
   useState,
+  useSyncExternalStore,
   type ReactNode,
 } from "react";
-import {
-  type User,
-  onAuthStateChanged,
-  signInWithPopup,
-  signOut as firebaseSignOut,
-  GoogleAuthProvider,
-} from "firebase/auth";
+import type { User } from "firebase/auth";
 import { auth } from "../lib/firebase";
-import { evaluateUidAccess } from "../lib/authPolicy";
+import { createFirebaseAuthClientPort } from "../lib/auth/firebaseAuthAdapter";
+import { AuthSessionController } from "../lib/auth/authSessionController";
 
 const ALLOWED_UID = import.meta.env.VITE_ALLOWED_UID as string | undefined;
 
@@ -30,52 +26,29 @@ export type AuthContextValue = {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const clearError = useCallback(() => setError(null), []);
-
-  const signIn = useCallback(async () => {
-    setError(null);
-    const googleProvider = new GoogleAuthProvider();
-    try {
-      await signInWithPopup(auth, googleProvider);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Sign-in failed");
-    }
-  }, []);
-
-  const signOut = useCallback(async () => {
-    setError(null);
-    await firebaseSignOut(auth);
-  }, []);
+  const [controller] = useState(
+    () =>
+      new AuthSessionController(createFirebaseAuthClientPort(auth), ALLOWED_UID)
+  );
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-      const result = evaluateUidAccess(firebaseUser, ALLOWED_UID);
-      if (result.outcome === "signed_out") {
-        setUser(null);
-        setLoading(false);
-        return;
-      }
-      if (result.outcome === "denied") {
-        setError(result.errorMessage);
-        void firebaseSignOut(auth);
-        setUser(null);
-      } else {
-        setError(null);
-        setUser(result.user);
-      }
-      setLoading(false);
-    });
-    return () => unsubscribe();
-  }, []);
+    return controller.attachAuthListener();
+  }, [controller]);
+
+  const state = useSyncExternalStore(
+    (onStoreChange) => controller.subscribe(onStoreChange),
+    () => controller.getSnapshot(),
+    () => ({ user: null, loading: true, error: null })
+  );
+
+  const signIn = useCallback(() => controller.signIn(), [controller]);
+  const signOut = useCallback(() => controller.signOut(), [controller]);
+  const clearError = useCallback(() => controller.clearError(), [controller]);
 
   const value: AuthContextValue = {
-    user,
-    loading,
-    error,
+    user: state.user,
+    loading: state.loading,
+    error: state.error,
     signIn,
     signOut,
     clearError,

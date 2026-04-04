@@ -1,20 +1,5 @@
-import type { Firestore } from "firebase/firestore";
-import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  limit,
-  orderBy,
-  query,
-  where,
-} from "firebase/firestore";
 import type { Workout, WorkoutListItem, WorkoutSet } from "../../types";
-import {
-  addDocument,
-  patchDocument,
-  removeDocumentAndRelated,
-} from "../firestorePersistence";
+import type { FirestoreDataPort } from "../firestoreDataPort/types";
 import {
   mapWorkoutFromDoc,
   mapWorkoutSetFromDoc,
@@ -24,36 +9,25 @@ import type { DataAccessDeps } from "./types";
 import { withSaving } from "./withSaving";
 
 export function buildWorkoutsSlice(
-  firestore: Firestore,
+  firestore: FirestoreDataPort,
   saving: DataAccessDeps["saving"]
 ) {
   return {
     async get(id: string): Promise<(Workout & { id: string }) | null> {
-      const snap = await getDoc(doc(firestore, "workouts", id));
-      if (!snap.exists()) return null;
-      return mapWorkoutFromDoc(snap.id, snap.data() as Record<string, unknown>);
+      const raw = await firestore.getDocument("workouts", id);
+      if (!raw) return null;
+      return mapWorkoutFromDoc(raw.id, raw.data);
     },
 
     async getWithSets(id: string): Promise<{
       workout: Workout & { id: string };
       sets: WorkoutSet[];
     } | null> {
-      const snap = await getDoc(doc(firestore, "workouts", id));
-      if (!snap.exists()) return null;
-      const workout = mapWorkoutFromDoc(
-        snap.id,
-        snap.data() as Record<string, unknown>
-      );
-      const sq = query(
-        collection(firestore, "sets"),
-        where("workoutId", "==", id),
-        orderBy("order"),
-        limit(500)
-      );
-      const snapshot = await getDocs(sq);
-      const sets = snapshot.docs.map((d) =>
-        mapWorkoutSetFromDoc(d.id, d.data() as Record<string, unknown>)
-      );
+      const raw = await firestore.getDocument("workouts", id);
+      if (!raw) return null;
+      const workout = mapWorkoutFromDoc(raw.id, raw.data);
+      const setRows = await firestore.querySetsForWorkoutOrdered(id);
+      const sets = setRows.map((d) => mapWorkoutSetFromDoc(d.id, d.data));
       return { workout, sets };
     },
 
@@ -64,7 +38,7 @@ export function buildWorkoutsSlice(
       note?: string;
     }): Promise<string> {
       return withSaving(saving, () =>
-        addDocument(firestore, "workouts", {
+        firestore.addDocument("workouts", {
           ...input,
           note: input.note ?? "",
         } as Record<string, unknown>)
@@ -78,8 +52,7 @@ export function buildWorkoutsSlice(
       >
     ): Promise<void> {
       return withSaving(saving, () =>
-        patchDocument(
-          firestore,
+        firestore.patchDocument(
           "workouts",
           id,
           patch as Record<string, unknown>
@@ -89,7 +62,7 @@ export function buildWorkoutsSlice(
 
     async deleteWithSets(id: string): Promise<void> {
       return withSaving(saving, () =>
-        removeDocumentAndRelated(firestore, "workouts", id, [
+        firestore.removeDocumentAndRelated("workouts", id, [
           { collection: "sets", field: "workoutId" },
         ])
       );
@@ -99,9 +72,9 @@ export function buildWorkoutsSlice(
       const notes: Record<string, string> = {};
       await Promise.all(
         ids.map(async (wid) => {
-          const snap = await getDoc(doc(firestore, "workouts", wid));
-          if (snap.exists()) {
-            const note = (snap.data() as Workout).note;
+          const raw = await firestore.getDocument("workouts", wid);
+          if (raw) {
+            const note = raw.data.note as string | undefined;
             if (note) notes[wid] = note;
           }
         })
@@ -114,28 +87,25 @@ export function buildWorkoutsSlice(
       limit?: number;
     }): Promise<WorkoutListItem[]> {
       const lim = opts.limit ?? DEFAULT_PAGE;
-      const ref = collection(firestore, "workouts");
-      const q = query(ref, orderBy("date", opts.sort), limit(lim));
-      const snapshot = await getDocs(q);
-      const list = snapshot.docs.map((d) =>
-        mapWorkoutFromDoc(d.id, d.data() as Record<string, unknown>)
-      );
+      const workoutRows = await firestore.queryWorkoutsByDate({
+        sort: opts.sort,
+        limit: lim,
+      });
+      const list = workoutRows.map((d) => mapWorkoutFromDoc(d.id, d.data));
       const withCounts = await Promise.all(
         list.map(async (w) => {
-          const setsSnap = await getDocs(
-            query(collection(firestore, "sets"), where("workoutId", "==", w.id))
-          );
+          const setRows = await firestore.querySetsByWorkoutId(w.id);
           const exerciseIds = new Set<string>();
           let totalLoad = 0;
-          setsSnap.docs.forEach((d) => {
-            const data = d.data();
+          for (const d of setRows) {
+            const data = d.data;
             exerciseIds.add(data.exerciseId as string);
             totalLoad +=
               ((data.reps as number) ?? 0) * ((data.weight as number) ?? 0);
-          });
+          }
           return {
             ...w,
-            setCount: setsSnap.size,
+            setCount: setRows.length,
             exerciseCount: exerciseIds.size,
             totalLoad,
           } as WorkoutListItem;
