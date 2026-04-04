@@ -4,6 +4,7 @@ import {
   mapWorkoutFromDoc,
   mapWorkoutSetFromDoc,
 } from "../firestoreModelMappers";
+import { cascadesForWorkoutDelete } from "./cascadePolicy";
 import { DEFAULT_PAGE } from "./constants";
 import type { DataAccessDeps } from "./types";
 import { withSaving } from "./withSaving";
@@ -62,9 +63,11 @@ export function buildWorkoutsSlice(
 
     async deleteWithSets(id: string): Promise<void> {
       return withSaving(saving, () =>
-        firestore.removeDocumentAndRelated("workouts", id, [
-          { collection: "sets", field: "workoutId" },
-        ])
+        firestore.removeDocumentAndRelated(
+          "workouts",
+          id,
+          cascadesForWorkoutDelete
+        )
       );
     },
 

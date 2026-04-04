@@ -13,6 +13,7 @@ import {
   useWorkoutEditor,
   type EditorExerciseGroup,
 } from "../../lib/workoutEditor/useWorkoutEditor";
+import { syncWorkoutDateAndSetsPerformedAt } from "./workoutDetailFlow";
 import { useWorkoutDetailModel } from "./useWorkoutDetailModel";
 
 export function WorkoutDetail() {
@@ -63,14 +64,10 @@ export function WorkoutDetail() {
   const saveDate = async () => {
     if (!workout || !dateInput) return;
     const newDate = new Date(dateInput);
-    await dataAccess.workouts.update(workout.id, { date: newDate });
-
-    const workoutSets = await dataAccess.sets.listForWorkout(workout.id);
-    await Promise.all(
-      workoutSets.map((s) =>
-        dataAccess.sets.update(s.id, { performedAt: newDate })
-      )
-    );
+    await syncWorkoutDateAndSetsPerformedAt(dataAccess, {
+      workoutId: workout.id,
+      date: newDate,
+    });
 
     setWorkout((prev) => (prev ? { ...prev, date: newDate } : null));
     setEditingDate(false);

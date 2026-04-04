@@ -1,6 +1,7 @@
 import type { Day } from "../../types";
 import type { FirestoreDataPort } from "../firestoreDataPort/types";
 import { mapDayFromDoc } from "../firestoreModelMappers";
+import { cascadesForDayDelete } from "./cascadePolicy";
 import { DEFAULT_PAGE } from "./constants";
 import type { DataAccessDeps } from "./types";
 import { withSaving } from "./withSaving";
@@ -52,9 +53,7 @@ export function buildDaysSlice(
 
     async deleteWithTemplates(id: string): Promise<void> {
       return withSaving(saving, () =>
-        firestore.removeDocumentAndRelated("days", id, [
-          { collection: "exerciseSetTemplates", field: "dayId" },
-        ])
+        firestore.removeDocumentAndRelated("days", id, cascadesForDayDelete)
       );
     },
 

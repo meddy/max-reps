@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { FirestoreDataPort } from "../firestoreDataPort/types";
-import { resolveExerciseNamesImpl } from "./templateQueries";
+import {
+  resolveExerciseNamesImpl,
+  templatesWithNamesForDayIds,
+} from "./templateQueries";
 
 function stubPort(partial: Partial<FirestoreDataPort>): FirestoreDataPort {
   const reject = () => Promise.reject(new Error("stub"));
@@ -70,5 +73,54 @@ describe("resolveExerciseNamesImpl", () => {
     const map = await resolveExerciseNamesImpl(port, ["a", "b"]);
     expect(map.has("a")).toBe(true);
     expect(map.has("b")).toBe(false);
+  });
+});
+
+describe("templatesWithNamesForDayIds", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns empty map for empty day id list without querying", async () => {
+    const queryTemplatesWhereDayIdIn = vi.fn();
+    const port = stubPort({ queryTemplatesWhereDayIdIn });
+
+    const map = await templatesWithNamesForDayIds(port, []);
+
+    expect(map.size).toBe(0);
+    expect(queryTemplatesWhereDayIdIn).not.toHaveBeenCalled();
+  });
+
+  it("loads templates for a single day and resolves exercise names", async () => {
+    const queryTemplatesWhereDayIdIn = vi.fn().mockResolvedValue([
+      {
+        id: "t1",
+        data: {
+          dayId: "d1",
+          exerciseId: "e1",
+          numSets: 3,
+          repsLower: 8,
+          repsUpper: 12,
+          order: 0,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      },
+    ]);
+    const queryExercisesWhereDocumentIdIn = vi
+      .fn()
+      .mockResolvedValue([{ id: "e1", data: { displayName: "Squat" } }]);
+    const port = stubPort({
+      queryTemplatesWhereDayIdIn,
+      queryExercisesWhereDocumentIdIn,
+    });
+
+    const map = await templatesWithNamesForDayIds(port, ["d1"]);
+
+    expect(queryTemplatesWhereDayIdIn).toHaveBeenCalledWith(["d1"]);
+    expect(queryExercisesWhereDocumentIdIn).toHaveBeenCalledWith(["e1"]);
+    const rows = map.get("d1");
+    expect(rows).toHaveLength(1);
+    expect(rows?.[0]?.exerciseDisplayName).toBe("Squat");
   });
 });
