@@ -1,5 +1,5 @@
 import type { Day } from "../../types";
-import type { FirestoreDataPort } from "../firestoreDataPort/types";
+import type { DaysSliceFirestorePort } from "../firestoreDataPort/types";
 import { mapDayFromDoc } from "../firestoreModelMappers";
 import { DEFAULT_PAGE } from "./constants";
 import { removeWithCascade } from "./removeWithCascade";
@@ -7,7 +7,7 @@ import type { DataAccessDeps } from "./types";
 import { withSaving } from "./withSaving";
 
 export function buildDaysSlice(
-  firestore: FirestoreDataPort,
+  firestore: DaysSliceFirestorePort,
   saving: DataAccessDeps["saving"]
 ) {
   return {

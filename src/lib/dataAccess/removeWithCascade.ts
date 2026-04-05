@@ -1,10 +1,5 @@
 import type { CollectionName } from "../../types";
-import type { FirestoreDataPort } from "../firestoreDataPort/types";
-
-export type CascadeDeleteFirestorePort = Pick<
-  FirestoreDataPort,
-  "removeDocumentAndRelated"
->;
+import type { CascadeDeleteFirestorePort } from "../firestoreDataPort/types";
 import {
   cascadesForDayDelete,
   cascadesForWorkoutDelete,

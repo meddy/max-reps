@@ -1,12 +1,12 @@
 import type { Exercise } from "../../types";
-import type { FirestoreDataPort } from "../firestoreDataPort/types";
+import type { ExercisesSliceFirestorePort } from "../firestoreDataPort/types";
 import { mapExerciseFromDoc } from "../firestoreModelMappers";
 import { DEFAULT_PAGE } from "./constants";
 import type { DataAccessDeps } from "./types";
 import { withSaving } from "./withSaving";
 
 export function buildExercisesSlice(
-  firestore: FirestoreDataPort,
+  firestore: ExercisesSliceFirestorePort,
   saving: DataAccessDeps["saving"]
 ) {
   return {

@@ -5,11 +5,8 @@ export type RawDoc = { id: string; data: Record<string, unknown> };
 
 export type CascadeSpec = { collection: CollectionName; field: string };
 
-/**
- * Full facade for Firestore access used by data-access slices and backup export.
- * Production: {@link createFirebaseFirestoreDataPort}; tests: in-memory fake.
- */
-export interface FirestoreDataPort {
+/** Generic document CRUD, cascaded deletes, and workout date sync. */
+export interface FirestoreCorePort {
   getDocument(
     collectionName: CollectionName,
     id: string
@@ -42,7 +39,9 @@ export interface FirestoreDataPort {
     workoutId: string,
     date: Date
   ): Promise<void>;
+}
 
+export interface FirestoreExerciseQueryPort {
   queryExercisesByNamePrefix(term: string, max: number): Promise<RawDoc[]>;
 
   queryExerciseByNameLowerEqual(nameLower: string): Promise<RawDoc | null>;
@@ -53,6 +52,11 @@ export interface FirestoreDataPort {
     limit: number;
   }): Promise<RawDoc[]>;
 
+  /** Chunks `documentId() in` queries (max 10 per Firestore constraint). */
+  queryExercisesWhereDocumentIdIn(ids: string[]): Promise<RawDoc[]>;
+}
+
+export interface FirestoreDayQueryPort {
   queryDaysByNamePrefix(term: string, max: number): Promise<RawDoc[]>;
 
   queryDayByNameLowerEqual(nameLower: string): Promise<RawDoc | null>;
@@ -61,7 +65,9 @@ export interface FirestoreDataPort {
     sort: "asc" | "desc";
     limit: number;
   }): Promise<RawDoc[]>;
+}
 
+export interface FirestoreWorkoutSetQueryPort {
   querySetsForWorkoutOrdered(workoutId: string): Promise<RawDoc[]>;
 
   queryWorkoutsByDate(opts: {
@@ -77,10 +83,9 @@ export interface FirestoreDataPort {
   ): Promise<RawDoc[]>;
 
   querySetsPrForExercise(exerciseId: string): Promise<RawDoc | null>;
+}
 
-  /** Chunks `documentId() in` queries (max 10 per Firestore constraint). */
-  queryExercisesWhereDocumentIdIn(ids: string[]): Promise<RawDoc[]>;
-
+export interface FirestoreBulkQueryPort {
   /** Chunks `dayId in` queries (max 10 per Firestore constraint). */
   queryTemplatesWhereDayIdIn(dayIds: string[]): Promise<RawDoc[]>;
 
@@ -91,3 +96,56 @@ export interface FirestoreDataPort {
 
   querySetsDocumentsForCsv(limitCount: number): Promise<RawDoc[]>;
 }
+
+/**
+ * Full facade for Firestore access used by data-access slices and backup export.
+ * Production: {@link createFirebaseFirestoreDataPort}; tests: in-memory fake.
+ */
+export type FirestoreDataPort = FirestoreCorePort &
+  FirestoreExerciseQueryPort &
+  FirestoreDayQueryPort &
+  FirestoreWorkoutSetQueryPort &
+  FirestoreBulkQueryPort;
+
+/** Cascade deletes for days/workouts; see {@link removeWithCascade}. */
+export type CascadeDeleteFirestorePort = Pick<
+  FirestoreCorePort,
+  "removeDocumentAndRelated"
+>;
+
+export type ExercisesSliceFirestorePort = FirestoreCorePort &
+  FirestoreExerciseQueryPort;
+
+export type DaysSliceFirestorePort = FirestoreCorePort & FirestoreDayQueryPort;
+
+export type TemplatesSliceFirestorePort = FirestoreCorePort &
+  Pick<FirestoreExerciseQueryPort, "queryExercisesWhereDocumentIdIn"> &
+  Pick<FirestoreBulkQueryPort, "queryTemplatesWhereDayIdIn">;
+
+export type WorkoutsSliceFirestorePort = FirestoreCorePort &
+  FirestoreWorkoutSetQueryPort;
+
+export type SetsSliceFirestorePort = Pick<
+  FirestoreCorePort,
+  "addDocument" | "patchDocument" | "removeDocument"
+> &
+  Pick<
+    FirestoreWorkoutSetQueryPort,
+    | "querySetsForWorkoutOrdered"
+    | "querySetsByExercisePerformedAtDesc"
+    | "querySetsPrForExercise"
+  >;
+
+export type ExportForBackupFirestorePort = Pick<
+  FirestoreBulkQueryPort,
+  "queryCollectionDocuments" | "querySetsDocumentsForCsv"
+>;
+
+export type ResolveExerciseNamesFirestorePort = Pick<
+  FirestoreExerciseQueryPort,
+  "queryExercisesWhereDocumentIdIn"
+>;
+
+export type TemplatesWithNamesFirestorePort =
+  ResolveExerciseNamesFirestorePort &
+    Pick<FirestoreBulkQueryPort, "queryTemplatesWhereDayIdIn">;

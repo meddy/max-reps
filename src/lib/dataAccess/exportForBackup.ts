@@ -1,5 +1,5 @@
 import type { CollectionName } from "../../types";
-import type { FirestoreDataPort } from "../firestoreDataPort/types";
+import type { ExportForBackupFirestorePort } from "../firestoreDataPort/types";
 
 const COLLECTIONS = [
   "exercises",
@@ -9,7 +9,7 @@ const COLLECTIONS = [
   "sets",
 ] as const satisfies readonly CollectionName[];
 
-export function buildExportForBackup(firestore: FirestoreDataPort) {
+export function buildExportForBackup(firestore: ExportForBackupFirestorePort) {
   return {
     async allCollectionsRaw(): Promise<
       Record<CollectionName, Array<{ id: string } & Record<string, unknown>>>

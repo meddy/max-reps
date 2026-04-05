@@ -1,11 +1,11 @@
 import type { ExerciseSetTemplate } from "../../types";
-import type { FirestoreDataPort } from "../firestoreDataPort/types";
+import type { TemplatesSliceFirestorePort } from "../firestoreDataPort/types";
 import type { DataAccessDeps } from "./types";
 import { templatesWithNamesForDayIds } from "./templateQueries";
 import { withSaving } from "./withSaving";
 
 export function buildTemplatesSlice(
-  firestore: FirestoreDataPort,
+  firestore: TemplatesSliceFirestorePort,
   saving: DataAccessDeps["saving"]
 ) {
   const catalog = {

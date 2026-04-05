@@ -1,18 +1,5 @@
 import type { Workout, WorkoutListItem, WorkoutSet } from "../../types";
-import type { FirestoreDataPort } from "../firestoreDataPort/types";
-
-/** Firestore operations used by {@link buildWorkoutsSlice} only. */
-export type WorkoutsSliceFirestorePort = Pick<
-  FirestoreDataPort,
-  | "getDocument"
-  | "patchDocument"
-  | "addDocument"
-  | "querySetsForWorkoutOrdered"
-  | "querySetsByWorkoutId"
-  | "queryWorkoutsByDate"
-  | "syncWorkoutDateAndSetsPerformedAt"
-  | "removeDocumentAndRelated"
->;
+import type { WorkoutsSliceFirestorePort } from "../firestoreDataPort/types";
 import {
   mapWorkoutFromDoc,
   mapWorkoutSetFromDoc,

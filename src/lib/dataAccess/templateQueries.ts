@@ -2,11 +2,14 @@ import type {
   ExerciseSetTemplate,
   TemplateWithExerciseName,
 } from "../../types";
-import type { FirestoreDataPort } from "../firestoreDataPort/types";
+import type {
+  ResolveExerciseNamesFirestorePort,
+  TemplatesWithNamesFirestorePort,
+} from "../firestoreDataPort/types";
 import { mapTemplateFromDoc } from "../firestoreModelMappers";
 
 export async function resolveExerciseNamesImpl(
-  firestore: FirestoreDataPort,
+  firestore: ResolveExerciseNamesFirestorePort,
   exerciseIds: string[]
 ): Promise<Map<string, string>> {
   const unique = [...new Set(exerciseIds)];
@@ -21,7 +24,7 @@ export async function resolveExerciseNamesImpl(
 }
 
 export async function templatesWithNamesForDayIds(
-  firestore: FirestoreDataPort,
+  firestore: TemplatesWithNamesFirestorePort,
   dayIds: string[]
 ): Promise<Map<string, TemplateWithExerciseName[]>> {
   if (dayIds.length === 0) return new Map();
