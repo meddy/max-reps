@@ -1,5 +1,10 @@
 import type { CollectionName } from "../../types";
 import type { FirestoreDataPort } from "../firestoreDataPort/types";
+
+export type CascadeDeleteFirestorePort = Pick<
+  FirestoreDataPort,
+  "removeDocumentAndRelated"
+>;
 import {
   cascadesForDayDelete,
   cascadesForWorkoutDelete,
@@ -19,7 +24,7 @@ const CASCADES = {
 
 /** Single entry for parent deletes that cascade to child collections. */
 export function removeWithCascade(
-  port: FirestoreDataPort,
+  port: CascadeDeleteFirestorePort,
   key: CascadeDeleteKey,
   id: string
 ): Promise<void> {

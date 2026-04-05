@@ -25,7 +25,6 @@ export interface WorkoutEditorPersistence {
     exerciseNameSnapshot: string;
     row: PersistableSetFields;
     order: number;
-    performedAt: Date;
   }): Promise<string>;
   updateSet(
     id: string,
@@ -34,11 +33,13 @@ export interface WorkoutEditorPersistence {
   deleteSet(id: string): Promise<void>;
 }
 
-export function createWorkoutEditorPersistence(
-  access: Pick<DataAccess, "sets">
-): WorkoutEditorPersistence {
+export function createWorkoutEditorPersistence(access: {
+  sets: Pick<DataAccess, "sets">["sets"];
+  getPerformedAt: () => Date;
+}): WorkoutEditorPersistence {
   return {
     saveSet(input) {
+      const performedAt = access.getPerformedAt();
       const doc: NewWorkoutSetDocument = {
         workoutId: input.workoutId,
         exerciseId: input.exerciseId,
@@ -47,7 +48,7 @@ export function createWorkoutEditorPersistence(
         weight: input.row.weight,
         unit: "lbs",
         note: input.row.note,
-        performedAt: input.performedAt,
+        performedAt,
         order: input.order,
       };
       return access.sets.create(doc);

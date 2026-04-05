@@ -110,7 +110,6 @@ export function createWorkoutSessionStore(
       exerciseNameSnapshot: group.exerciseName,
       row: persistableFields(row),
       order,
-      performedAt: w.date,
     });
     setGroupsFromUpdater((prev) => {
       const next = cloneGroups(prev);
@@ -171,7 +170,6 @@ export function createWorkoutSessionStore(
           exerciseNameSnapshot: exerciseName,
           row: persistableFields(rowSnapshot),
           order,
-          performedAt: w.date,
         });
         setGroupsFromUpdater((prev) => {
           const next = cloneGroups(prev);

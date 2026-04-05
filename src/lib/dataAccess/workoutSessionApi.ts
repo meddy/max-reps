@@ -3,7 +3,11 @@ import {
   editorGroupsFromWorkoutSets,
 } from "../workoutEditor/editorSeedBuilders";
 import { createWorkoutEditorPersistence } from "../workoutEditor/persistence";
-import type { DataAccess } from "./types";
+import type {
+  SetsDataSlice,
+  TemplatesDataSlice,
+  WorkoutsDataSlice,
+} from "./dataAccessSlices";
 import {
   rollupLastPerformedMap,
   toTemplateWithNameRows,
@@ -15,10 +19,12 @@ export type {
   WorkoutDetailSessionCallbacks,
 } from "./workoutSessionTypes";
 
-export type WorkoutSessionApiDeps = Pick<
-  DataAccess,
-  "workouts" | "sets" | "templates"
->;
+export type WorkoutSessionApiDeps = {
+  workouts: Pick<WorkoutsDataSlice, "get" | "update" | "deleteWithSets">;
+  /** Load path uses list/last-performed; editor persistence uses create/update/delete. */
+  sets: SetsDataSlice;
+  templates: Pick<TemplatesDataSlice, "catalog">;
+};
 
 export function createWorkoutSessionApi(
   deps: WorkoutSessionApiDeps
@@ -90,12 +96,26 @@ export function createWorkoutSessionApi(
       }
     },
 
-    async setWorkoutDate(workoutId, date) {
-      return deps.workouts.update(workoutId, { date });
+    async updateWorkout(workoutId, patch) {
+      return deps.workouts.update(workoutId, patch);
     },
 
-    editorPersistence() {
-      return createWorkoutEditorPersistence({ sets: deps.sets });
+    editorPersistence(getPerformedAt) {
+      return createWorkoutEditorPersistence({
+        sets: deps.sets,
+        getPerformedAt,
+      });
+    },
+
+    lastPerformedGroupForExercise(exerciseId, excludeWorkoutId) {
+      return deps.sets.lastPerformedGroupForExercise(
+        exerciseId,
+        excludeWorkoutId
+      );
+    },
+
+    deleteWorkoutWithSets(workoutId) {
+      return deps.workouts.deleteWithSets(workoutId);
     },
   };
 }

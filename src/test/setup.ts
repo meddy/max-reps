@@ -6,13 +6,9 @@ import { authState } from "./authState";
 import { mockDataAccess, resetDataAccessMocks } from "./mockDataAccess";
 import "./mockFirebaseAuth";
 
-vi.mock("../lib/dataAccess", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../lib/dataAccess")>();
-  return {
-    ...actual,
-    dataAccess: mockDataAccess,
-  };
-});
+vi.mock("../lib/productionDataAccess", () => ({
+  getDefaultDataAccess: () => mockDataAccess,
+}));
 
 vi.mock("recharts", () => {
   const Passthrough = ({

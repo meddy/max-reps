@@ -21,7 +21,7 @@ describe("useWorkoutDetailModel", () => {
   it("when workoutId is undefined, stays idle without fetching", async () => {
     const dataAccess = createTestDataAccess();
     const { result } = renderHook(() =>
-      useWorkoutDetailModel(undefined, dataAccess)
+      useWorkoutDetailModel(undefined, dataAccess.workoutSession)
     );
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.workout).toBeNull();
@@ -48,7 +48,7 @@ describe("useWorkoutDetailModel", () => {
     ]);
 
     const { result } = renderHook(() =>
-      useWorkoutDetailModel("w1", dataAccess)
+      useWorkoutDetailModel("w1", dataAccess.workoutSession)
     );
 
     await waitFor(() => expect(result.current.loading).toBe(false));

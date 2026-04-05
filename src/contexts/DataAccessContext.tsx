@@ -1,8 +1,6 @@
 import { createContext, useContext, useMemo, type ReactNode } from "react";
-import {
-  dataAccess as defaultDataAccess,
-  type DataAccess,
-} from "../lib/dataAccess";
+import { type DataAccess } from "../lib/dataAccess";
+import { getDefaultDataAccess } from "../lib/productionDataAccess";
 
 const DataAccessContext = createContext<DataAccess | null>(null);
 
@@ -14,7 +12,7 @@ export function DataAccessProvider({
   /** Test override: supply a fake `DataAccess` instead of the app singleton. */
   value?: DataAccess;
 }) {
-  const resolved = useMemo(() => value ?? defaultDataAccess, [value]);
+  const resolved = useMemo(() => value ?? getDefaultDataAccess(), [value]);
   return (
     <DataAccessContext.Provider value={resolved}>
       {children}

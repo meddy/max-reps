@@ -1,4 +1,5 @@
 import { vi } from "vitest";
+import { createDataAccess } from "../lib/dataAccess/createDataAccess";
 import { buildWorkoutsSlice } from "../lib/dataAccess/workoutsSlice";
 import { createWorkoutSessionApi } from "../lib/dataAccess/workoutSessionApi";
 import type { DataAccess } from "../lib/dataAccess/types";
@@ -82,8 +83,10 @@ function buildMockDataAccess() {
 
   const workoutSession = {
     loadWorkoutDetail: vi.fn(),
-    setWorkoutDate: vi.fn(),
+    updateWorkout: vi.fn(),
     editorPersistence: vi.fn(),
+    lastPerformedGroupForExercise: vi.fn(),
+    deleteWorkoutWithSets: vi.fn(),
   };
 
   return {
@@ -117,11 +120,17 @@ function wireWorkoutSession(da: BuiltMockDataAccess): void {
   da.workoutSession.loadWorkoutDetail.mockImplementation(
     session.loadWorkoutDetail.bind(session)
   );
-  da.workoutSession.setWorkoutDate.mockImplementation(
-    session.setWorkoutDate.bind(session)
+  da.workoutSession.updateWorkout.mockImplementation(
+    session.updateWorkout.bind(session)
   );
-  da.workoutSession.editorPersistence.mockImplementation(() =>
-    createWorkoutEditorPersistence({ sets: da.sets })
+  da.workoutSession.editorPersistence.mockImplementation((getPerformedAt) =>
+    createWorkoutEditorPersistence({ sets: da.sets, getPerformedAt })
+  );
+  da.workoutSession.lastPerformedGroupForExercise.mockImplementation(
+    session.lastPerformedGroupForExercise.bind(session)
+  );
+  da.workoutSession.deleteWorkoutWithSets.mockImplementation(
+    session.deleteWorkoutWithSets.bind(session)
   );
   da.workouts.update.mockImplementation((id, patch) =>
     sessionWorkoutsSlice.update(id, patch)
@@ -223,4 +232,17 @@ export function createTestDataAccess(
     Object.assign(da.catalog, overrides.catalog);
   }
   return da;
+}
+
+/**
+ * Full `createDataAccess` stack over an in-memory Firestore port — same assembly
+ * as production (`getDefaultDataAccess`), without Firebase. Prefer for tests
+ * that need real slice behavior end-to-end; use {@link createTestDataAccess}
+ * when you need Vitest spies on individual methods.
+ */
+export function createIntegrationTestDataAccess(): DataAccess {
+  return createDataAccess({
+    firestore: createInMemoryFirestoreDataPort(),
+    saving: { start: () => {}, end: () => {} },
+  });
 }

@@ -96,6 +96,31 @@ describe("createWorkoutSessionStore", () => {
     expect(store.getSnapshot().groups[0].exerciseId).toBe("e2");
   });
 
+  it("debounces workout persist until delay elapses", async () => {
+    vi.useFakeTimers();
+    let w: Workout | null = workoutFixture();
+    const store = createWorkoutSessionStore({
+      variant: "workout",
+      workoutId: "w1",
+      persistence,
+      debounceMs: 500,
+      getWorkout: () => w,
+    });
+    store.applyReset([
+      {
+        groupKey: "ex1",
+        exerciseId: "ex1",
+        exerciseName: "Squat",
+        rows: [{ id: "row-a", reps: 0, weight: 0, note: "" }],
+      },
+    ]);
+    store.getRowApi("row-a").setField("reps", 5);
+    expect(persistence.saveSet).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(500);
+    expect(persistence.saveSet).toHaveBeenCalledOnce();
+    vi.useRealTimers();
+  });
+
   it("no-ops persist when workout is null", async () => {
     let w: Workout | null = null;
     const store = createWorkoutSessionStore({

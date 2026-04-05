@@ -1,11 +1,22 @@
 import type { WorkoutSet } from "../../types";
 import type { FirestoreDataPort } from "../firestoreDataPort/types";
+
+/** Firestore operations used by {@link buildSetsSlice} only. */
+export type SetsSliceFirestorePort = Pick<
+  FirestoreDataPort,
+  | "querySetsForWorkoutOrdered"
+  | "querySetsByExercisePerformedAtDesc"
+  | "querySetsPrForExercise"
+  | "addDocument"
+  | "patchDocument"
+  | "removeDocument"
+>;
 import { mapWorkoutSetFromDoc } from "../firestoreModelMappers";
 import type { DataAccessDeps } from "./types";
 import { withSaving } from "./withSaving";
 
 export function buildSetsSlice(
-  firestore: FirestoreDataPort,
+  firestore: SetsSliceFirestorePort,
   saving: DataAccessDeps["saving"]
 ) {
   return {

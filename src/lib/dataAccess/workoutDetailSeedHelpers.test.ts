@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   rollupLastPerformedMap,
   toTemplateWithNameRows,
-} from "./workoutDetailSeed";
+} from "./workoutDetailSeedHelpers";
 
 describe("rollupLastPerformedMap", () => {
   it("keeps entries only when sets non-empty and workoutId present", () => {

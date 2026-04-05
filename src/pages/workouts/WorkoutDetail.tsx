@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useDataAccess } from "../../contexts/DataAccessContext";
 import { LoadingSpinner } from "../../components/LoadingSpinner";
@@ -12,7 +12,10 @@ import {
   useWorkoutEditor,
   type EditorExerciseGroup,
 } from "../../lib/workoutEditor/useWorkoutEditor";
-import { useWorkoutDetailModel } from "../../lib/workoutDetail";
+import {
+  createWorkoutDetailDataHandlers,
+  useWorkoutDetailModel,
+} from "../../lib/workoutDetail";
 
 export function WorkoutDetail() {
   const dataAccess = useDataAccess();
@@ -25,7 +28,17 @@ export function WorkoutDetail() {
     isTemplateMode,
     templateModeLoading,
     editorSeed,
-  } = useWorkoutDetailModel(workoutId, dataAccess);
+  } = useWorkoutDetailModel(workoutId, dataAccess.workoutSession);
+
+  const workoutRef = useRef(workout);
+  workoutRef.current = workout;
+  const getWorkout = useCallback(() => workoutRef.current, []);
+
+  const detailHandlers = useMemo(
+    () =>
+      createWorkoutDetailDataHandlers(dataAccess.workoutSession, getWorkout),
+    [dataAccess.workoutSession, getWorkout]
+  );
 
   const [editingDate, setEditingDate] = useState(false);
   const [dateInput, setDateInput] = useState("");
@@ -46,8 +59,8 @@ export function WorkoutDetail() {
   }, [workout?.id, workout?.date]);
 
   const persistence = useMemo(
-    () => dataAccess.workoutSession.editorPersistence(),
-    [dataAccess.workoutSession]
+    () => detailHandlers.createEditorPersistence(),
+    [detailHandlers]
   );
 
   const editor = useWorkoutEditor({
@@ -62,7 +75,7 @@ export function WorkoutDetail() {
   const saveDate = async () => {
     if (!workout || !dateInput) return;
     const newDate = new Date(dateInput);
-    await dataAccess.workouts.update(workout.id, { date: newDate });
+    await detailHandlers.updateWorkout(workout.id, { date: newDate });
 
     setWorkout((prev) => (prev ? { ...prev, date: newDate } : null));
     setEditingDate(false);
@@ -70,7 +83,7 @@ export function WorkoutDetail() {
 
   const saveNote = async (value: string) => {
     if (!workout) return;
-    await dataAccess.workouts.update(workout.id, { note: value });
+    await detailHandlers.updateWorkout(workout.id, { note: value });
     setWorkout((prev) => (prev ? { ...prev, note: value } : null));
   };
 
@@ -115,7 +128,7 @@ export function WorkoutDetail() {
         templateMeta: { repsLower: 0, repsUpper: 0, isAdHoc: true },
       };
       editor.appendTemplateGroup(virtualGroup);
-      const result = await dataAccess.sets.lastPerformedGroupForExercise(
+      const result = await detailHandlers.lastPerformedGroupForExercise(
         exerciseId,
         workoutId
       );
@@ -127,12 +140,12 @@ export function WorkoutDetail() {
       }
       setAddExerciseOpen(false);
     },
-    [dataAccess, editor, workout, workoutId]
+    [detailHandlers, editor, workout, workoutId]
   );
 
   const handleDeleteWorkout = async () => {
     if (!workoutId) return;
-    await dataAccess.workouts.deleteWithSets(workoutId);
+    await detailHandlers.deleteWorkoutWithSets(workoutId);
     setDeleteWorkoutConfirm(false);
     navigate("/workouts");
   };

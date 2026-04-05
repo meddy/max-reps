@@ -21,16 +21,18 @@ export interface WorkoutSessionApi {
     isTemplateMode: boolean;
   }>;
 
-  setWorkoutDate(workoutId: string, date: Date): Promise<void>;
+  updateWorkout(
+    workoutId: string,
+    patch: Partial<Pick<Workout, "date" | "note">>
+  ): Promise<void>;
 
-  editorPersistence(): {
+  editorPersistence(getPerformedAt: () => Date): {
     saveSet(input: {
       workoutId: string;
       exerciseId: string;
       exerciseNameSnapshot: string;
       row: { reps: number; weight: number; note: string };
       order: number;
-      performedAt: Date;
     }): Promise<string>;
     updateSet(
       id: string,
@@ -38,4 +40,14 @@ export interface WorkoutSessionApi {
     ): Promise<void>;
     deleteSet(id: string): Promise<void>;
   };
+
+  lastPerformedGroupForExercise(
+    exerciseId: string,
+    excludeWorkoutId?: string
+  ): Promise<{
+    sets: Array<{ reps: number; weight: number; note?: string }>;
+    workoutId?: string;
+  }>;
+
+  deleteWorkoutWithSets(workoutId: string): Promise<void>;
 }
