@@ -1,5 +1,8 @@
 import { vi } from "vitest";
+import { createWorkoutSessionApi } from "../lib/dataAccess/workoutSessionApi";
 import type { DataAccess } from "../lib/dataAccess/types";
+import { createInMemoryFirestoreDataPort } from "../lib/firestoreDataPort/inMemory";
+import { createWorkoutEditorPersistence } from "../lib/workoutEditor/persistence";
 
 function buildMockDataAccess() {
   const exercises = {
@@ -22,9 +25,18 @@ function buildMockDataAccess() {
     list: vi.fn(),
   };
 
+  const listForDayWithExerciseNames = vi.fn();
+  const listForDaysWithExerciseNames = vi.fn();
+
   const templates = {
-    listForDayWithExerciseNames: vi.fn(),
-    listForDaysWithExerciseNames: vi.fn(),
+    catalog: {
+      forDay: listForDayWithExerciseNames,
+      forDays: listForDaysWithExerciseNames,
+    },
+    forDay: listForDayWithExerciseNames,
+    forDays: listForDaysWithExerciseNames,
+    listForDayWithExerciseNames,
+    listForDaysWithExerciseNames,
     create: vi.fn(),
     update: vi.fn(),
     delete: vi.fn(),
@@ -67,7 +79,14 @@ function buildMockDataAccess() {
     ),
   };
 
+  const workoutSession = {
+    loadWorkoutDetail: vi.fn(),
+    setWorkoutDate: vi.fn(),
+    editorPersistence: vi.fn(),
+  };
+
   return {
+    catalog: { exercises, days },
     exercises,
     days,
     templates,
@@ -75,12 +94,36 @@ function buildMockDataAccess() {
     sets,
     resolveExerciseNames: vi.fn(),
     exportForBackup,
+    workoutSession,
   } satisfies DataAccess;
 }
 
 type BuiltMockDataAccess = ReturnType<typeof buildMockDataAccess>;
 
+const sessionFirestore = createInMemoryFirestoreDataPort();
+
+function wireWorkoutSession(da: BuiltMockDataAccess): void {
+  const session = createWorkoutSessionApi({
+    workouts: da.workouts,
+    sets: da.sets,
+    templates: da.templates,
+    firestore: sessionFirestore,
+    saving: { start: () => {}, end: () => {} },
+  });
+  da.workoutSession.loadWorkoutDetail.mockImplementation(
+    session.loadWorkoutDetail.bind(session)
+  );
+  da.workoutSession.setWorkoutDate.mockImplementation(
+    session.setWorkoutDate.bind(session)
+  );
+  da.workoutSession.editorPersistence.mockImplementation(() =>
+    createWorkoutEditorPersistence({ sets: da.sets })
+  );
+}
+
 function seedDefaultResolvedValues(da: BuiltMockDataAccess): void {
+  wireWorkoutSession(da);
+
   da.exercises.get.mockResolvedValue(null);
   da.exercises.searchByNamePrefix.mockResolvedValue([]);
   da.exercises.findByExactName.mockResolvedValue(null);
@@ -166,6 +209,12 @@ export function createTestDataAccess(
   }
   if (overrides.exportForBackup) {
     Object.assign(da.exportForBackup, overrides.exportForBackup);
+  }
+  if (overrides.workoutSession) {
+    Object.assign(da.workoutSession, overrides.workoutSession);
+  }
+  if (overrides.catalog) {
+    Object.assign(da.catalog, overrides.catalog);
   }
   return da;
 }

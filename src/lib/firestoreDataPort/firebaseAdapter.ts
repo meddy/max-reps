@@ -15,6 +15,7 @@ import {
   patchDocument as persistPatchDocument,
   removeDocument as persistRemoveDocument,
   removeDocumentAndRelated as persistRemoveDocumentAndRelated,
+  syncWorkoutDateAndSetsPerformedAt as persistSyncWorkoutDateAndSetsPerformedAt,
 } from "../firestorePersistence";
 import type { FirestoreDataPort, RawDoc } from "./types";
 
@@ -60,6 +61,10 @@ export function createFirebaseFirestoreDataPort(
         id,
         cascades as Parameters<typeof persistRemoveDocumentAndRelated>[3]
       );
+    },
+
+    syncWorkoutDateAndSetsPerformedAt(workoutId, date) {
+      return persistSyncWorkoutDateAndSetsPerformedAt(db, workoutId, date);
     },
 
     async queryExercisesByNamePrefix(term, max) {

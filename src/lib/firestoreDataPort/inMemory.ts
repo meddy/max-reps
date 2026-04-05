@@ -91,6 +91,21 @@ export function createInMemoryFirestoreDataPort(
       store.get(collectionName)?.delete(id);
     },
 
+    async syncWorkoutDateAndSetsPerformedAt(workoutId, date) {
+      const workouts = ensureCol("workouts");
+      const cur = workouts.get(workoutId);
+      if (cur) {
+        workouts.set(workoutId, { ...cur, date });
+      }
+      const setsCol = store.get("sets");
+      if (!setsCol) return;
+      for (const [setId, data] of setsCol.entries()) {
+        if (data.workoutId === workoutId) {
+          setsCol.set(setId, { ...data, performedAt: date });
+        }
+      }
+    },
+
     async queryExercisesByNamePrefix(term, max) {
       const hi = term + "\uf8ff";
       return listCol("exercises")

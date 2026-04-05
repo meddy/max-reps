@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useDataAccess } from "../../contexts/DataAccessContext";
-import { createWorkoutEditorPersistence } from "../../lib/workoutEditor/persistence";
 import { LoadingSpinner } from "../../components/LoadingSpinner";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { IconTrash } from "../../components/Icons";
@@ -13,7 +12,6 @@ import {
   useWorkoutEditor,
   type EditorExerciseGroup,
 } from "../../lib/workoutEditor/useWorkoutEditor";
-import { syncWorkoutDateAndSetsPerformedAt } from "./workoutDetailFlow";
 import { useWorkoutDetailModel } from "./useWorkoutDetailModel";
 
 export function WorkoutDetail() {
@@ -48,8 +46,11 @@ export function WorkoutDetail() {
   }, [workout?.id, workout?.date]);
 
   const persistence = useMemo(
-    () => createWorkoutEditorPersistence(dataAccess),
-    [dataAccess]
+    () =>
+      dataAccess.workoutSession.editorPersistence(
+        workout ?? { id: workoutId ?? "", date: new Date() }
+      ),
+    [dataAccess.workoutSession, workout, workoutId]
   );
 
   const editor = useWorkoutEditor({
@@ -64,10 +65,7 @@ export function WorkoutDetail() {
   const saveDate = async () => {
     if (!workout || !dateInput) return;
     const newDate = new Date(dateInput);
-    await syncWorkoutDateAndSetsPerformedAt(dataAccess, {
-      workoutId: workout.id,
-      date: newDate,
-    });
+    await dataAccess.workoutSession.setWorkoutDate(workout.id, newDate);
 
     setWorkout((prev) => (prev ? { ...prev, date: newDate } : null));
     setEditingDate(false);

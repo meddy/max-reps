@@ -8,14 +8,29 @@ export function buildTemplatesSlice(
   firestore: FirestoreDataPort,
   saving: DataAccessDeps["saving"]
 ) {
-  return {
-    async listForDayWithExerciseNames(dayId: string) {
+  const catalog = {
+    async forDay(dayId: string) {
       const map = await templatesWithNamesForDayIds(firestore, [dayId]);
       return map.get(dayId) ?? [];
     },
 
-    async listForDaysWithExerciseNames(dayIds: string[]) {
+    async forDays(dayIds: string[]) {
       return templatesWithNamesForDayIds(firestore, dayIds);
+    },
+  };
+
+  return {
+    catalog,
+
+    forDay: catalog.forDay,
+    forDays: catalog.forDays,
+
+    listForDayWithExerciseNames(dayId: string) {
+      return catalog.forDay(dayId);
+    },
+
+    listForDaysWithExerciseNames(dayIds: string[]) {
+      return catalog.forDays(dayIds);
     },
 
     async create(

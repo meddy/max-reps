@@ -1,0 +1,245 @@
+import { describe, expect, it, vi } from "vitest";
+import type { FirestoreDataPort } from "../firestoreDataPort/types";
+import type { DataAccess } from "./types";
+import type { Workout } from "../../types";
+import { createWorkoutSessionApi } from "./workoutSessionApi";
+
+function stubFirestore(
+  partial: Partial<FirestoreDataPort> = {}
+): FirestoreDataPort {
+  const reject = () => Promise.reject(new Error("stub"));
+  return {
+    getDocument: vi.fn(reject),
+    addDocument: vi.fn(reject),
+    patchDocument: vi.fn(reject),
+    removeDocument: vi.fn(reject),
+    removeDocumentAndRelated: vi.fn(reject),
+    syncWorkoutDateAndSetsPerformedAt: vi.fn().mockResolvedValue(undefined),
+    queryExercisesByNamePrefix: vi.fn(reject),
+    queryExerciseByNameLowerEqual: vi.fn(reject),
+    queryExercisesList: vi.fn(reject),
+    queryDaysByNamePrefix: vi.fn(reject),
+    queryDayByNameLowerEqual: vi.fn(reject),
+    queryDaysList: vi.fn(reject),
+    querySetsForWorkoutOrdered: vi.fn(reject),
+    queryWorkoutsByDate: vi.fn(reject),
+    querySetsByWorkoutId: vi.fn(reject),
+    querySetsByExercisePerformedAtDesc: vi.fn(reject),
+    querySetsPrForExercise: vi.fn(reject),
+    queryExercisesWhereDocumentIdIn: vi.fn(reject),
+    queryTemplatesWhereDayIdIn: vi.fn(reject),
+    queryCollectionDocuments: vi.fn(reject),
+    querySetsDocumentsForCsv: vi.fn(reject),
+    ...partial,
+  };
+}
+
+type SessionDepsMockOptions = {
+  templates?: Partial<DataAccess["templates"]>;
+  workouts?: Partial<DataAccess["workouts"]>;
+  sets?: Partial<DataAccess["sets"]>;
+  firestore?: Partial<FirestoreDataPort>;
+};
+
+function createSessionDeps(
+  partial: SessionDepsMockOptions = {}
+): Parameters<typeof createWorkoutSessionApi>[0] {
+  const reject = (): never => {
+    throw new Error("not implemented");
+  };
+  const t = partial.templates ?? {};
+  const listForDayWithExerciseNames =
+    t.listForDayWithExerciseNames ?? vi.fn(reject);
+  const listForDaysWithExerciseNames =
+    t.listForDaysWithExerciseNames ?? vi.fn(reject);
+  const catalog = {
+    forDay: listForDayWithExerciseNames,
+    forDays: listForDaysWithExerciseNames,
+  };
+  return {
+    workouts: {
+      get: vi.fn(reject),
+      getWithSets: vi.fn(reject),
+      create: vi.fn(reject),
+      update: vi.fn(reject),
+      deleteWithSets: vi.fn(reject),
+      getNotesByWorkoutIds: vi.fn(reject),
+      listWithStats: vi.fn(reject),
+      ...partial.workouts,
+    },
+    sets: {
+      listForWorkout: vi.fn(reject),
+      lastPerformedGroupForExercise: vi.fn(reject),
+      listForExercise: vi.fn(reject),
+      prForExercise: vi.fn(reject),
+      create: vi.fn(reject),
+      update: vi.fn(reject),
+      delete: vi.fn(reject),
+      ...partial.sets,
+    },
+    templates: {
+      catalog,
+      forDay: listForDayWithExerciseNames,
+      forDays: listForDaysWithExerciseNames,
+      listForDayWithExerciseNames,
+      listForDaysWithExerciseNames,
+      create: t.create ?? vi.fn(reject),
+      update: t.update ?? vi.fn(reject),
+      delete: t.delete ?? vi.fn(reject),
+    },
+    firestore: stubFirestore(partial.firestore),
+    saving: { start: () => {}, end: () => {} },
+  };
+}
+
+describe("createWorkoutSessionApi", () => {
+  it("loadWorkoutDetail returns nulls when workoutId is empty", async () => {
+    const api = createWorkoutSessionApi(createSessionDeps());
+    const out = await api.loadWorkoutDetail("");
+    expect(out.workout).toBeNull();
+    expect(out.editorSeed).toBeNull();
+    expect(out.isTemplateMode).toBe(false);
+  });
+
+  it("loadWorkoutDetail returns nulls when workout missing", async () => {
+    const get = vi.fn().mockResolvedValue(null);
+    const api = createWorkoutSessionApi(
+      createSessionDeps({ workouts: { get } })
+    );
+    const out = await api.loadWorkoutDetail("w1");
+    expect(get).toHaveBeenCalledWith("w1");
+    expect(out.workout).toBeNull();
+    expect(out.editorSeed).toBeNull();
+  });
+
+  it("loadWorkoutDetail uses workout sets when the workout has sets", async () => {
+    const listForWorkout = vi.fn().mockResolvedValue([
+      {
+        id: "s1",
+        workoutId: "w1",
+        exerciseId: "e1",
+        exerciseNameSnapshot: "Squat",
+        reps: 5,
+        weight: 100,
+        unit: "lbs",
+        note: "",
+        performedAt: new Date(),
+        order: 0,
+        createdAt: new Date(),
+      },
+    ]);
+    const workout: Workout & { id: string } = {
+      id: "w1",
+      date: new Date(),
+      dayId: "d1",
+      dayNameSnapshot: "Push",
+      note: "",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    const get = vi.fn().mockResolvedValue(workout);
+    const api = createWorkoutSessionApi(
+      createSessionDeps({
+        workouts: { get },
+        sets: { listForWorkout },
+      })
+    );
+
+    const out = await api.loadWorkoutDetail("w1");
+
+    expect(out.isTemplateMode).toBe(false);
+    expect(out.editorSeed?.variant).toBe("workout");
+    expect(out.editorSeed?.resetKey).toBe("w1-workout");
+    expect(out.editorSeed?.groups.length).toBe(1);
+    expect(listForWorkout).toHaveBeenCalledWith("w1");
+  });
+
+  it("loadWorkoutDetail uses template path when there are no sets and workout has dayId", async () => {
+    const listForWorkout = vi.fn().mockResolvedValue([]);
+    const listForDayWithExerciseNames = vi.fn().mockResolvedValue([
+      {
+        id: "t1",
+        dayId: "d1",
+        exerciseId: "e1",
+        numSets: 3,
+        repsLower: 8,
+        repsUpper: 12,
+        order: 0,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        exerciseDisplayName: "Squat",
+      },
+    ]);
+    const lastPerformedGroupForExercise = vi
+      .fn()
+      .mockResolvedValue({ sets: [], workoutId: undefined });
+
+    const workout: Workout & { id: string } = {
+      id: "w1",
+      date: new Date(),
+      dayId: "d1",
+      dayNameSnapshot: "Push",
+      note: "",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    const get = vi.fn().mockResolvedValue(workout);
+
+    const api = createWorkoutSessionApi(
+      createSessionDeps({
+        workouts: { get },
+        sets: { listForWorkout, lastPerformedGroupForExercise },
+        templates: { listForDayWithExerciseNames },
+      })
+    );
+
+    const onTemplateLoadingChange = vi.fn();
+    const out = await api.loadWorkoutDetail("w1", {
+      onTemplateLoadingChange,
+    });
+
+    expect(onTemplateLoadingChange).toHaveBeenCalledWith(true);
+    expect(onTemplateLoadingChange).toHaveBeenCalledWith(false);
+    expect(out.isTemplateMode).toBe(true);
+    expect(out.editorSeed?.variant).toBe("template");
+    expect(out.editorSeed?.resetKey).toBe("w1-template");
+    expect(listForDayWithExerciseNames).toHaveBeenCalledWith("d1");
+    expect(lastPerformedGroupForExercise).toHaveBeenCalledWith("e1", "w1");
+  });
+
+  it("loadWorkoutDetail returns empty workout seed when there are no sets and no dayId", async () => {
+    const listForWorkout = vi.fn().mockResolvedValue([]);
+    const workout: Workout & { id: string } = {
+      id: "w1",
+      date: new Date(),
+      dayId: "",
+      dayNameSnapshot: "Push",
+      note: "",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    const get = vi.fn().mockResolvedValue(workout);
+    const api = createWorkoutSessionApi(
+      createSessionDeps({ workouts: { get }, sets: { listForWorkout } })
+    );
+
+    const out = await api.loadWorkoutDetail("w1");
+
+    expect(out.isTemplateMode).toBe(false);
+    expect(out.editorSeed?.variant).toBe("workout");
+    expect(out.editorSeed?.resetKey).toBe("w1-workout-empty");
+    expect(out.editorSeed?.groups).toEqual([]);
+  });
+
+  it("setWorkoutDate calls firestore sync", async () => {
+    const sync = vi.fn().mockResolvedValue(undefined);
+    const api = createWorkoutSessionApi(
+      createSessionDeps({
+        firestore: { syncWorkoutDateAndSetsPerformedAt: sync },
+      })
+    );
+    const d = new Date("2025-06-15T12:00:00Z");
+    await api.setWorkoutDate("w1", d);
+    expect(sync).toHaveBeenCalledWith("w1", d);
+  });
+});

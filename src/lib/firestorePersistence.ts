@@ -3,7 +3,11 @@
  * Call only from {@link createFirebaseFirestoreDataPort}; do not import from
  * slices, pages, or other app modules — keep mutations behind FirestoreDataPort.
  */
-import type { Firestore, Timestamp } from "firebase/firestore";
+import type {
+  DocumentReference,
+  Firestore,
+  Timestamp,
+} from "firebase/firestore";
 import {
   addDoc,
   collection,
@@ -15,6 +19,7 @@ import {
   updateDoc,
   where,
   writeBatch,
+  type WriteBatch,
 } from "firebase/firestore";
 import type { CollectionName } from "../types";
 import { writePayload } from "./firestoreDocSerialize";
@@ -86,4 +91,56 @@ export async function removeDocumentAndRelated(
   }
   batch.delete(doc(firestore, collectionName, id));
   await batch.commit();
+}
+
+const FIRESTORE_BATCH_MAX_OPS = 500;
+
+/**
+ * Updates workout `date` and sets every set's `performedAt` for that workout.
+ * Commits in chunks of at most {@link FIRESTORE_BATCH_MAX_OPS} writes each.
+ */
+export async function syncWorkoutDateAndSetsPerformedAt(
+  firestore: Firestore,
+  workoutId: string,
+  date: Date
+): Promise<void> {
+  const workoutRef = doc(firestore, "workouts", workoutId);
+  const dateSerialized = writePayload({ date });
+  const workoutUpdate = {
+    ...dateSerialized,
+    updatedAt: serverTimestamp(),
+  };
+
+  const setsSnap = await getDocs(
+    query(collection(firestore, "sets"), where("workoutId", "==", workoutId))
+  );
+  const performedSerialized = writePayload({ performedAt: date });
+
+  let batch: WriteBatch = writeBatch(firestore);
+  let opCount = 0;
+
+  const flush = async () => {
+    if (opCount === 0) return;
+    await batch.commit();
+    batch = writeBatch(firestore);
+    opCount = 0;
+  };
+
+  const enqueueUpdate = async (
+    ref: DocumentReference,
+    data: Record<string, unknown>
+  ) => {
+    if (opCount >= FIRESTORE_BATCH_MAX_OPS) await flush();
+    // Firestore accepts Timestamp and FieldValue in update payloads.
+    batch.update(ref, data as never);
+    opCount += 1;
+  };
+
+  await enqueueUpdate(workoutRef, workoutUpdate);
+
+  for (const d of setsSnap.docs) {
+    await enqueueUpdate(d.ref, performedSerialized);
+  }
+
+  await flush();
 }

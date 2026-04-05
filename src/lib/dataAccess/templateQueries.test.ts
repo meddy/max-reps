@@ -13,6 +13,7 @@ function stubPort(partial: Partial<FirestoreDataPort>): FirestoreDataPort {
     patchDocument: vi.fn(reject),
     removeDocument: vi.fn(reject),
     removeDocumentAndRelated: vi.fn(reject),
+    syncWorkoutDateAndSetsPerformedAt: vi.fn(reject),
     queryExercisesByNamePrefix: vi.fn(reject),
     queryExerciseByNameLowerEqual: vi.fn(reject),
     queryExercisesList: vi.fn(reject),

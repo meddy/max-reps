@@ -18,12 +18,12 @@ function minimalWorkout(id: string) {
 }
 
 describe("useWorkoutDetailModel", () => {
-  it("does not finish loading when workoutId is undefined", () => {
+  it("when workoutId is undefined, stays idle without fetching", async () => {
     const dataAccess = createTestDataAccess();
     const { result } = renderHook(() =>
       useWorkoutDetailModel(undefined, dataAccess)
     );
-    expect(result.current.loading).toBe(true);
+    await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.workout).toBeNull();
     expect(dataAccess.workouts.get).not.toHaveBeenCalled();
   });

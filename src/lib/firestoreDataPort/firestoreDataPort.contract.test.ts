@@ -77,6 +77,50 @@ describe("FirestoreDataPort contract (in-memory)", () => {
     }
   );
 
+  it("syncWorkoutDateAndSetsPerformedAt updates workout date and all sets performedAt", async () => {
+    const d0 = new Date("2024-01-01");
+    const d1 = new Date("2024-06-15");
+    const port = createInMemoryFirestoreDataPort({
+      workouts: {
+        w1: {
+          date: d0,
+          dayId: "d1",
+          dayNameSnapshot: "Push",
+          note: "",
+        },
+      },
+      sets: {
+        s1: {
+          workoutId: "w1",
+          exerciseId: "e1",
+          reps: 5,
+          weight: 100,
+          performedAt: d0,
+          unit: "lbs",
+          note: "",
+          order: 0,
+        },
+        s2: {
+          workoutId: "w1",
+          exerciseId: "e1",
+          reps: 3,
+          weight: 90,
+          performedAt: d0,
+          unit: "lbs",
+          note: "",
+          order: 1,
+        },
+      },
+    });
+    await port.syncWorkoutDateAndSetsPerformedAt("w1", d1);
+    const w = await port.getDocument("workouts", "w1");
+    expect(w?.data.date).toEqual(d1);
+    const s1 = await port.getDocument("sets", "s1");
+    const s2 = await port.getDocument("sets", "s2");
+    expect(s1?.data.performedAt).toEqual(d1);
+    expect(s2?.data.performedAt).toEqual(d1);
+  });
+
   it("addDocument, patchDocument, removeDocument round-trip", async () => {
     const port = createInMemoryFirestoreDataPort();
     const id = await port.addDocument("exercises", {

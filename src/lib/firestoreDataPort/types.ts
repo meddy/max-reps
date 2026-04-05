@@ -34,6 +34,15 @@ export interface FirestoreDataPort {
     cascades: CascadeSpec[]
   ): Promise<void>;
 
+  /**
+   * Sets workout `date` (with `updatedAt` on workouts) and every set's
+   * `performedAt` for that workout. Batched in production; mirrors slice semantics.
+   */
+  syncWorkoutDateAndSetsPerformedAt(
+    workoutId: string,
+    date: Date
+  ): Promise<void>;
+
   queryExercisesByNamePrefix(term: string, max: number): Promise<RawDoc[]>;
 
   queryExerciseByNameLowerEqual(nameLower: string): Promise<RawDoc | null>;

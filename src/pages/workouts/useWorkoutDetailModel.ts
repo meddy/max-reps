@@ -1,11 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { DataAccess } from "../../lib/dataAccess/types";
-import type { EditorExerciseGroup } from "../../lib/workoutEditor/model";
+import type { WorkoutDetailEditorSeed } from "../../lib/dataAccess/workoutSessionTypes";
 import type { Workout } from "../../types";
-import {
-  fetchWorkoutDetailWorkout,
-  resolveWorkoutDetailEditorSeed,
-} from "./workoutDetailFlow";
 
 export function useWorkoutDetailModel(
   workoutId: string | undefined,
@@ -17,48 +13,42 @@ export function useWorkoutDetailModel(
   const [loading, setLoading] = useState(true);
   const [isTemplateMode, setIsTemplateMode] = useState(false);
   const [templateModeLoading, setTemplateModeLoading] = useState(false);
-  const [editorSeed, setEditorSeed] = useState<{
-    resetKey: string;
-    groups: EditorExerciseGroup[];
-    variant: "workout" | "template";
-  } | null>(null);
+  const [editorSeed, setEditorSeed] = useState<WorkoutDetailEditorSeed | null>(
+    null
+  );
 
   useEffect(() => {
     setEditorSeed(null);
     setWorkout(null);
     setLoading(true);
+    setIsTemplateMode(false);
+    setTemplateModeLoading(false);
   }, [workoutId]);
 
-  const loadWorkout = useCallback(async () => {
-    if (!workoutId) return;
-    const w = await fetchWorkoutDetailWorkout(workoutId, dataAccess);
-    if (!w) {
+  const loadDetail = useCallback(async () => {
+    if (!workoutId) {
       setWorkout(null);
+      setEditorSeed(null);
       setLoading(false);
       return;
     }
+    setLoading(true);
+    const {
+      workout: w,
+      editorSeed: seed,
+      isTemplateMode: templateMode,
+    } = await dataAccess.workoutSession.loadWorkoutDetail(workoutId, {
+      onTemplateLoadingChange: setTemplateModeLoading,
+    });
     setWorkout(w);
+    setEditorSeed(seed);
+    setIsTemplateMode(templateMode);
     setLoading(false);
   }, [dataAccess, workoutId]);
 
-  /** Deps use `workout?.dayId` only so note/date edits on the same workout do not re-run this fetch and reset the editor. */
-  const loadSets = useCallback(async () => {
-    if (!workoutId) return;
-    const { editorSeed: seed, isTemplateMode } =
-      await resolveWorkoutDetailEditorSeed(workoutId, workout, dataAccess, {
-        onTemplateLoadingChange: setTemplateModeLoading,
-      });
-    setEditorSeed(seed);
-    setIsTemplateMode(isTemplateMode);
-  }, [dataAccess, workoutId, workout?.dayId]);
-
   useEffect(() => {
-    void loadWorkout();
-  }, [loadWorkout]);
-
-  useEffect(() => {
-    if (workout) void loadSets();
-  }, [workout?.id, loadSets]);
+    void loadDetail();
+  }, [loadDetail]);
 
   return {
     workout,

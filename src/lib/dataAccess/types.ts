@@ -9,13 +9,21 @@ import type {
   WorkoutSet,
 } from "../../types";
 import type { FirestoreDataPort } from "../firestoreDataPort/types";
+import type { WorkoutSessionApi } from "./workoutSessionTypes";
 
 export interface DataAccessDeps {
   firestore: FirestoreDataPort;
   saving: { start: () => void; end: () => void };
 }
 
+/** Read path: templates with exercise display names joined and sorted per day. */
+export interface TemplateCatalog {
+  forDay(dayId: string): Promise<TemplateWithExerciseName[]>;
+  forDays(dayIds: string[]): Promise<Map<string, TemplateWithExerciseName[]>>;
+}
+
 export interface DataAccess {
+  catalog: Pick<DataAccess, "exercises" | "days">;
   exercises: {
     get(id: string): Promise<Exercise | null>;
     searchByNamePrefix(prefix: string, max?: number): Promise<Exercise[]>;
@@ -50,7 +58,8 @@ export interface DataAccess {
       limit?: number;
     }): Promise<Array<Day & { id: string }>>;
   };
-  templates: {
+  templates: TemplateCatalog & {
+    catalog: TemplateCatalog;
     listForDayWithExerciseNames(
       dayId: string
     ): Promise<TemplateWithExerciseName[]>;
@@ -126,6 +135,7 @@ export interface DataAccess {
       limitCount: number
     ): Promise<Array<{ id: string; data: Record<string, unknown> }>>;
   };
+  workoutSession: WorkoutSessionApi;
 }
 
 export type CatalogDataPort = Pick<DataAccess, "exercises" | "days">;
