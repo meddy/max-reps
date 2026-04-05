@@ -1,7 +1,7 @@
 import { renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { createTestDataAccess } from "../../test/mockDataAccess";
-import { useWorkoutDetailModel } from "./useWorkoutDetailModel";
+import { useWorkoutDetailModel } from "../../lib/workoutDetail";
 
 const baseDate = new Date("2024-01-01T12:00:00.000Z");
 

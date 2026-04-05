@@ -1,37 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { FirestoreDataPort } from "../firestoreDataPort/types";
+import { createStubFirestoreDataPort } from "../../test/stubFirestoreDataPort";
 import {
   resolveExerciseNamesImpl,
   templatesWithNamesForDayIds,
 } from "./templateQueries";
-
-function stubPort(partial: Partial<FirestoreDataPort>): FirestoreDataPort {
-  const reject = () => Promise.reject(new Error("stub"));
-  return {
-    getDocument: vi.fn(reject),
-    addDocument: vi.fn(reject),
-    patchDocument: vi.fn(reject),
-    removeDocument: vi.fn(reject),
-    removeDocumentAndRelated: vi.fn(reject),
-    syncWorkoutDateAndSetsPerformedAt: vi.fn(reject),
-    queryExercisesByNamePrefix: vi.fn(reject),
-    queryExerciseByNameLowerEqual: vi.fn(reject),
-    queryExercisesList: vi.fn(reject),
-    queryDaysByNamePrefix: vi.fn(reject),
-    queryDayByNameLowerEqual: vi.fn(reject),
-    queryDaysList: vi.fn(reject),
-    querySetsForWorkoutOrdered: vi.fn(reject),
-    queryWorkoutsByDate: vi.fn(reject),
-    querySetsByWorkoutId: vi.fn(reject),
-    querySetsByExercisePerformedAtDesc: vi.fn(reject),
-    querySetsPrForExercise: vi.fn(reject),
-    queryExercisesWhereDocumentIdIn: vi.fn(reject),
-    queryTemplatesWhereDayIdIn: vi.fn(reject),
-    queryCollectionDocuments: vi.fn(reject),
-    querySetsDocumentsForCsv: vi.fn(reject),
-    ...partial,
-  };
-}
 
 describe("resolveExerciseNamesImpl", () => {
   beforeEach(() => {
@@ -40,7 +12,9 @@ describe("resolveExerciseNamesImpl", () => {
 
   it("returns empty map for empty input without querying", async () => {
     const queryExercisesWhereDocumentIdIn = vi.fn();
-    const port = stubPort({ queryExercisesWhereDocumentIdIn });
+    const port = createStubFirestoreDataPort({
+      queryExercisesWhereDocumentIdIn,
+    });
     const map = await resolveExerciseNamesImpl(port, []);
     expect(map.size).toBe(0);
     expect(queryExercisesWhereDocumentIdIn).not.toHaveBeenCalled();
@@ -54,7 +28,9 @@ describe("resolveExerciseNamesImpl", () => {
         data: { displayName: `Name ${id}` },
       }))
     );
-    const port = stubPort({ queryExercisesWhereDocumentIdIn });
+    const port = createStubFirestoreDataPort({
+      queryExercisesWhereDocumentIdIn,
+    });
 
     const map = await resolveExerciseNamesImpl(port, [...ids, "e0"]);
 
@@ -69,7 +45,9 @@ describe("resolveExerciseNamesImpl", () => {
       { id: "a", data: { displayName: "Lift" } },
       { id: "b", data: {} },
     ]);
-    const port = stubPort({ queryExercisesWhereDocumentIdIn });
+    const port = createStubFirestoreDataPort({
+      queryExercisesWhereDocumentIdIn,
+    });
 
     const map = await resolveExerciseNamesImpl(port, ["a", "b"]);
     expect(map.has("a")).toBe(true);
@@ -84,7 +62,7 @@ describe("templatesWithNamesForDayIds", () => {
 
   it("returns empty map for empty day id list without querying", async () => {
     const queryTemplatesWhereDayIdIn = vi.fn();
-    const port = stubPort({ queryTemplatesWhereDayIdIn });
+    const port = createStubFirestoreDataPort({ queryTemplatesWhereDayIdIn });
 
     const map = await templatesWithNamesForDayIds(port, []);
 
@@ -111,7 +89,7 @@ describe("templatesWithNamesForDayIds", () => {
     const queryExercisesWhereDocumentIdIn = vi
       .fn()
       .mockResolvedValue([{ id: "e1", data: { displayName: "Squat" } }]);
-    const port = stubPort({
+    const port = createStubFirestoreDataPort({
       queryTemplatesWhereDayIdIn,
       queryExercisesWhereDocumentIdIn,
     });

@@ -1,4 +1,5 @@
 import { vi } from "vitest";
+import { buildWorkoutsSlice } from "../lib/dataAccess/workoutsSlice";
 import { createWorkoutSessionApi } from "../lib/dataAccess/workoutSessionApi";
 import type { DataAccess } from "../lib/dataAccess/types";
 import { createInMemoryFirestoreDataPort } from "../lib/firestoreDataPort/inMemory";
@@ -101,14 +102,17 @@ function buildMockDataAccess() {
 type BuiltMockDataAccess = ReturnType<typeof buildMockDataAccess>;
 
 const sessionFirestore = createInMemoryFirestoreDataPort();
+const sessionSaving = { start: () => {}, end: () => {} };
+const sessionWorkoutsSlice = buildWorkoutsSlice(
+  sessionFirestore,
+  sessionSaving
+);
 
 function wireWorkoutSession(da: BuiltMockDataAccess): void {
   const session = createWorkoutSessionApi({
     workouts: da.workouts,
     sets: da.sets,
     templates: da.templates,
-    firestore: sessionFirestore,
-    saving: { start: () => {}, end: () => {} },
   });
   da.workoutSession.loadWorkoutDetail.mockImplementation(
     session.loadWorkoutDetail.bind(session)
@@ -118,6 +122,9 @@ function wireWorkoutSession(da: BuiltMockDataAccess): void {
   );
   da.workoutSession.editorPersistence.mockImplementation(() =>
     createWorkoutEditorPersistence({ sets: da.sets })
+  );
+  da.workouts.update.mockImplementation((id, patch) =>
+    sessionWorkoutsSlice.update(id, patch)
   );
 }
 
@@ -149,7 +156,6 @@ function seedDefaultResolvedValues(da: BuiltMockDataAccess): void {
   da.workouts.get.mockResolvedValue(null);
   da.workouts.getWithSets.mockResolvedValue(null);
   da.workouts.create.mockResolvedValue("w-new");
-  da.workouts.update.mockResolvedValue(undefined);
   da.workouts.deleteWithSets.mockResolvedValue(undefined);
   da.workouts.getNotesByWorkoutIds.mockResolvedValue({});
   da.workouts.listWithStats.mockResolvedValue([]);

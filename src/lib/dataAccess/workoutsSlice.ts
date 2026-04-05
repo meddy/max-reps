@@ -52,13 +52,18 @@ export function buildWorkoutsSlice(
         Pick<Workout, "date" | "dayId" | "dayNameSnapshot" | "note">
       >
     ): Promise<void> {
-      return withSaving(saving, () =>
-        firestore.patchDocument(
-          "workouts",
-          id,
-          patch as Record<string, unknown>
-        )
-      );
+      return withSaving(saving, async () => {
+        const { date, ...rest } = patch;
+        const restPatch = Object.fromEntries(
+          Object.entries(rest).filter(([, v]) => v !== undefined)
+        ) as Record<string, unknown>;
+        if (date !== undefined) {
+          await firestore.syncWorkoutDateAndSetsPerformedAt(id, date);
+        }
+        if (Object.keys(restPatch).length > 0) {
+          await firestore.patchDocument("workouts", id, restPatch);
+        }
+      });
     },
 
     async deleteWithSets(id: string): Promise<void> {

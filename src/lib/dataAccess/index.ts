@@ -1,9 +1,13 @@
 import { db } from "../firebase";
 import { createFirebaseFirestoreDataPort } from "../firestoreDataPort/firebaseAdapter";
 import { endSaving, startSaving } from "../savingStore";
-import { buildCatalogDataPort } from "./ports/catalogPort";
-import { buildTemplateDataPort } from "./ports/templatePort";
-import { buildWorkoutDataPort } from "./ports/workoutPort";
+import { buildDaysSlice } from "./daysSlice";
+import { buildExercisesSlice } from "./exercisesSlice";
+import { buildExportForBackup } from "./exportForBackup";
+import { buildSetsSlice } from "./setsSlice";
+import { buildTemplatesSlice } from "./templatesSlice";
+import { resolveExerciseNamesImpl } from "./templateQueries";
+import { buildWorkoutsSlice } from "./workoutsSlice";
 import type { DataAccess, DataAccessDeps } from "./types";
 import { createWorkoutSessionApi } from "./workoutSessionApi";
 
@@ -22,21 +26,20 @@ export type {
 } from "./workoutSessionTypes";
 
 export function createDataAccess(deps: DataAccessDeps): DataAccess {
-  const catalogPort = buildCatalogDataPort(deps);
-  const templatePort = buildTemplateDataPort(deps);
-  const workoutPort = buildWorkoutDataPort(deps);
-
-  const exercises = catalogPort.exercises;
-  const days = catalogPort.days;
-  const { templates, resolveExerciseNames } = templatePort;
-  const { workouts, sets, exportForBackup } = workoutPort;
+  const { firestore, saving } = deps;
+  const exercises = buildExercisesSlice(firestore, saving);
+  const days = buildDaysSlice(firestore, saving);
+  const templates = buildTemplatesSlice(firestore, saving);
+  const resolveExerciseNames = (ids: string[]) =>
+    resolveExerciseNamesImpl(firestore, ids);
+  const workouts = buildWorkoutsSlice(firestore, saving);
+  const sets = buildSetsSlice(firestore, saving);
+  const exportForBackup = buildExportForBackup(firestore);
 
   const workoutSession = createWorkoutSessionApi({
     workouts,
     sets,
     templates,
-    firestore: deps.firestore,
-    saving: deps.saving,
   });
 
   return {

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { CollectionName } from "../../types";
 import type { FirestoreDataPort, RawDoc } from "../firestoreDataPort/types";
+import { createStubFirestoreDataPort } from "../../test/stubFirestoreDataPort";
 import { buildExportForBackup } from "./exportForBackup";
 
 const COLLECTION_ORDER: CollectionName[] = [
@@ -11,58 +12,24 @@ const COLLECTION_ORDER: CollectionName[] = [
   "sets",
 ];
 
-function createFakePort(
-  overrides: Partial<FirestoreDataPort> = {}
-): FirestoreDataPort {
-  const queryCollectionDocuments = vi
-    .fn()
-    .mockImplementation(async (_name: CollectionName): Promise<RawDoc[]> => []);
-  const querySetsDocumentsForCsv = vi.fn().mockResolvedValue([] as RawDoc[]);
-
-  const reject = (): never => {
-    throw new Error("not implemented in fake");
-  };
-
-  return {
-    getDocument: vi.fn(reject),
-    addDocument: vi.fn(reject),
-    patchDocument: vi.fn(reject),
-    removeDocument: vi.fn(reject),
-    removeDocumentAndRelated: vi.fn(reject),
-    syncWorkoutDateAndSetsPerformedAt: vi.fn(reject),
-    queryExercisesByNamePrefix: vi.fn(reject),
-    queryExerciseByNameLowerEqual: vi.fn(reject),
-    queryExercisesList: vi.fn(reject),
-    queryDaysByNamePrefix: vi.fn(reject),
-    queryDayByNameLowerEqual: vi.fn(reject),
-    queryDaysList: vi.fn(reject),
-    querySetsForWorkoutOrdered: vi.fn(reject),
-    queryWorkoutsByDate: vi.fn(reject),
-    querySetsByWorkoutId: vi.fn(reject),
-    querySetsByExercisePerformedAtDesc: vi.fn(reject),
-    querySetsPrForExercise: vi.fn(reject),
-    queryExercisesWhereDocumentIdIn: vi.fn(reject),
-    queryTemplatesWhereDayIdIn: vi.fn(reject),
-    queryCollectionDocuments,
-    querySetsDocumentsForCsv,
-    ...overrides,
-  };
-}
-
 describe("buildExportForBackup", () => {
   let port: FirestoreDataPort;
   let queryCollectionDocuments: ReturnType<typeof vi.fn>;
   let querySetsDocumentsForCsv: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
-    const fake = createFakePort();
-    port = fake;
-    queryCollectionDocuments = fake.queryCollectionDocuments as ReturnType<
-      typeof vi.fn
-    >;
-    querySetsDocumentsForCsv = fake.querySetsDocumentsForCsv as ReturnType<
-      typeof vi.fn
-    >;
+    queryCollectionDocuments = vi
+      .fn()
+      .mockImplementation(
+        async (_name: CollectionName): Promise<RawDoc[]> => []
+      );
+    querySetsDocumentsForCsv = vi.fn().mockResolvedValue([] as RawDoc[]);
+    port = createStubFirestoreDataPort({
+      queryCollectionDocuments:
+        queryCollectionDocuments as FirestoreDataPort["queryCollectionDocuments"],
+      querySetsDocumentsForCsv:
+        querySetsDocumentsForCsv as FirestoreDataPort["querySetsDocumentsForCsv"],
+    });
   });
 
   describe("allCollectionsRaw", () => {

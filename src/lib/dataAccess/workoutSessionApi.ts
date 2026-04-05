@@ -3,9 +3,7 @@ import {
   editorGroupsFromWorkoutSets,
 } from "../workoutEditor/editorSeedBuilders";
 import { createWorkoutEditorPersistence } from "../workoutEditor/persistence";
-import type { FirestoreDataPort } from "../firestoreDataPort/types";
-import type { DataAccess, DataAccessDeps } from "./types";
-import { withSaving } from "./withSaving";
+import type { DataAccess } from "./types";
 import {
   rollupLastPerformedMap,
   toTemplateWithNameRows,
@@ -20,10 +18,7 @@ export type {
 export type WorkoutSessionApiDeps = Pick<
   DataAccess,
   "workouts" | "sets" | "templates"
-> & {
-  firestore: FirestoreDataPort;
-  saving: DataAccessDeps["saving"];
-};
+>;
 
 export function createWorkoutSessionApi(
   deps: WorkoutSessionApiDeps
@@ -96,12 +91,10 @@ export function createWorkoutSessionApi(
     },
 
     async setWorkoutDate(workoutId, date) {
-      return withSaving(deps.saving, () =>
-        deps.firestore.syncWorkoutDateAndSetsPerformedAt(workoutId, date)
-      );
+      return deps.workouts.update(workoutId, { date });
     },
 
-    editorPersistence(_workout) {
+    editorPersistence() {
       return createWorkoutEditorPersistence({ sets: deps.sets });
     },
   };

@@ -1,44 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
-import type { FirestoreDataPort } from "../firestoreDataPort/types";
 import type { DataAccess } from "./types";
 import type { Workout } from "../../types";
 import { createWorkoutSessionApi } from "./workoutSessionApi";
-
-function stubFirestore(
-  partial: Partial<FirestoreDataPort> = {}
-): FirestoreDataPort {
-  const reject = () => Promise.reject(new Error("stub"));
-  return {
-    getDocument: vi.fn(reject),
-    addDocument: vi.fn(reject),
-    patchDocument: vi.fn(reject),
-    removeDocument: vi.fn(reject),
-    removeDocumentAndRelated: vi.fn(reject),
-    syncWorkoutDateAndSetsPerformedAt: vi.fn().mockResolvedValue(undefined),
-    queryExercisesByNamePrefix: vi.fn(reject),
-    queryExerciseByNameLowerEqual: vi.fn(reject),
-    queryExercisesList: vi.fn(reject),
-    queryDaysByNamePrefix: vi.fn(reject),
-    queryDayByNameLowerEqual: vi.fn(reject),
-    queryDaysList: vi.fn(reject),
-    querySetsForWorkoutOrdered: vi.fn(reject),
-    queryWorkoutsByDate: vi.fn(reject),
-    querySetsByWorkoutId: vi.fn(reject),
-    querySetsByExercisePerformedAtDesc: vi.fn(reject),
-    querySetsPrForExercise: vi.fn(reject),
-    queryExercisesWhereDocumentIdIn: vi.fn(reject),
-    queryTemplatesWhereDayIdIn: vi.fn(reject),
-    queryCollectionDocuments: vi.fn(reject),
-    querySetsDocumentsForCsv: vi.fn(reject),
-    ...partial,
-  };
-}
 
 type SessionDepsMockOptions = {
   templates?: Partial<DataAccess["templates"]>;
   workouts?: Partial<DataAccess["workouts"]>;
   sets?: Partial<DataAccess["sets"]>;
-  firestore?: Partial<FirestoreDataPort>;
 };
 
 function createSessionDeps(
@@ -87,8 +55,6 @@ function createSessionDeps(
       update: t.update ?? vi.fn(reject),
       delete: t.delete ?? vi.fn(reject),
     },
-    firestore: stubFirestore(partial.firestore),
-    saving: { start: () => {}, end: () => {} },
   };
 }
 
@@ -231,15 +197,13 @@ describe("createWorkoutSessionApi", () => {
     expect(out.editorSeed?.groups).toEqual([]);
   });
 
-  it("setWorkoutDate calls firestore sync", async () => {
-    const sync = vi.fn().mockResolvedValue(undefined);
+  it("setWorkoutDate delegates to workouts.update", async () => {
+    const update = vi.fn().mockResolvedValue(undefined);
     const api = createWorkoutSessionApi(
-      createSessionDeps({
-        firestore: { syncWorkoutDateAndSetsPerformedAt: sync },
-      })
+      createSessionDeps({ workouts: { update } })
     );
     const d = new Date("2025-06-15T12:00:00Z");
     await api.setWorkoutDate("w1", d);
-    expect(sync).toHaveBeenCalledWith("w1", d);
+    expect(update).toHaveBeenCalledWith("w1", { date: d });
   });
 });

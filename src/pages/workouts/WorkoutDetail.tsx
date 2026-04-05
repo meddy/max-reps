@@ -12,7 +12,7 @@ import {
   useWorkoutEditor,
   type EditorExerciseGroup,
 } from "../../lib/workoutEditor/useWorkoutEditor";
-import { useWorkoutDetailModel } from "./useWorkoutDetailModel";
+import { useWorkoutDetailModel } from "../../lib/workoutDetail";
 
 export function WorkoutDetail() {
   const dataAccess = useDataAccess();
@@ -46,11 +46,8 @@ export function WorkoutDetail() {
   }, [workout?.id, workout?.date]);
 
   const persistence = useMemo(
-    () =>
-      dataAccess.workoutSession.editorPersistence(
-        workout ?? { id: workoutId ?? "", date: new Date() }
-      ),
-    [dataAccess.workoutSession, workout, workoutId]
+    () => dataAccess.workoutSession.editorPersistence(),
+    [dataAccess.workoutSession]
   );
 
   const editor = useWorkoutEditor({
@@ -65,7 +62,7 @@ export function WorkoutDetail() {
   const saveDate = async () => {
     if (!workout || !dateInput) return;
     const newDate = new Date(dateInput);
-    await dataAccess.workoutSession.setWorkoutDate(workout.id, newDate);
+    await dataAccess.workouts.update(workout.id, { date: newDate });
 
     setWorkout((prev) => (prev ? { ...prev, date: newDate } : null));
     setEditingDate(false);

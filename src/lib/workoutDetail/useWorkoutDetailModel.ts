@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import type { DataAccess } from "../../lib/dataAccess/types";
-import type { WorkoutDetailEditorSeed } from "../../lib/dataAccess/workoutSessionTypes";
+import type { DataAccess } from "../dataAccess/types";
+import type { WorkoutDetailEditorSeed } from "../dataAccess/workoutSessionTypes";
 import type { Workout } from "../../types";
 
 export function useWorkoutDetailModel(

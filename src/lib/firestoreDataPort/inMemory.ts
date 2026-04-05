@@ -95,7 +95,11 @@ export function createInMemoryFirestoreDataPort(
       const workouts = ensureCol("workouts");
       const cur = workouts.get(workoutId);
       if (cur) {
-        workouts.set(workoutId, { ...cur, date });
+        workouts.set(workoutId, {
+          ...cur,
+          date,
+          updatedAt: new Date(),
+        });
       }
       const setsCol = store.get("sets");
       if (!setsCol) return;

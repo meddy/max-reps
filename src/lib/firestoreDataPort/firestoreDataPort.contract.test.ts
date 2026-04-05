@@ -115,6 +115,7 @@ describe("FirestoreDataPort contract (in-memory)", () => {
     await port.syncWorkoutDateAndSetsPerformedAt("w1", d1);
     const w = await port.getDocument("workouts", "w1");
     expect(w?.data.date).toEqual(d1);
+    expect(w?.data.updatedAt).toBeInstanceOf(Date);
     const s1 = await port.getDocument("sets", "s1");
     const s2 = await port.getDocument("sets", "s2");
     expect(s1?.data.performedAt).toEqual(d1);

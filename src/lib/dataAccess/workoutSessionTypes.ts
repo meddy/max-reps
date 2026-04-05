@@ -23,7 +23,7 @@ export interface WorkoutSessionApi {
 
   setWorkoutDate(workoutId: string, date: Date): Promise<void>;
 
-  editorPersistence(workout: { id: string; date: Date }): {
+  editorPersistence(): {
     saveSet(input: {
       workoutId: string;
       exerciseId: string;
