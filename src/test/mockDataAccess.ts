@@ -41,6 +41,7 @@ function buildMockDataAccess() {
     listForDaysWithExerciseNames,
     create: vi.fn(),
     update: vi.fn(),
+    reorder: vi.fn(),
     delete: vi.fn(),
   };
 
@@ -61,6 +62,7 @@ function buildMockDataAccess() {
     prForExercise: vi.fn(),
     create: vi.fn(),
     update: vi.fn(),
+    reorder: vi.fn(),
     delete: vi.fn(),
   };
 
@@ -160,6 +162,7 @@ function seedDefaultResolvedValues(da: BuiltMockDataAccess): void {
   da.templates.listForDaysWithExerciseNames.mockResolvedValue(new Map());
   da.templates.create.mockResolvedValue("tpl-new");
   da.templates.update.mockResolvedValue(undefined);
+  da.templates.reorder.mockResolvedValue(undefined);
   da.templates.delete.mockResolvedValue(undefined);
 
   da.workouts.get.mockResolvedValue(null);
@@ -177,6 +180,7 @@ function seedDefaultResolvedValues(da: BuiltMockDataAccess): void {
   da.sets.prForExercise.mockResolvedValue(null);
   da.sets.create.mockResolvedValue("set-new");
   da.sets.update.mockResolvedValue(undefined);
+  da.sets.reorder.mockResolvedValue(undefined);
   da.sets.delete.mockResolvedValue(undefined);
 
   da.resolveExerciseNames.mockResolvedValue(new Map());

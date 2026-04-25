@@ -74,6 +74,14 @@ export function createInMemoryFirestoreDataPort(
       m.set(id, { ...cur, ...data });
     },
 
+    async patchDocuments(patches) {
+      for (const { collectionName, id, data } of patches) {
+        const m = ensureCol(collectionName);
+        const cur = m.get(id) ?? {};
+        m.set(id, { ...cur, ...data });
+      }
+    },
+
     async removeDocument(collectionName, id) {
       store.get(collectionName)?.delete(id);
     },

@@ -39,6 +39,7 @@ export interface WorkoutSessionApi {
       patch: { reps?: number; weight?: number; note?: string }
     ): Promise<void>;
     deleteSet(id: string): Promise<void>;
+    reorderSets(updates: Array<{ id: string; order: number }>): Promise<void>;
   };
 
   lastPerformedGroupForExercise(

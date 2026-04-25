@@ -1,4 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  DndContext,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useDataAccess } from "../../contexts/DataAccessContext";
 import { LoadingSpinner } from "../../components/LoadingSpinner";
@@ -16,6 +29,78 @@ import {
   createWorkoutDetailDataHandlers,
   useWorkoutDetailModel,
 } from "../../lib/workoutDetail";
+import {
+  GuardedPointerSensor,
+  GuardedTouchSensor,
+} from "../../lib/dnd/guardedSensors";
+
+function moveGroup<T>(groups: T[], from: number, to: number): T[] {
+  const next = groups.slice();
+  const [moved] = next.splice(from, 1);
+  next.splice(to, 0, moved);
+  return next;
+}
+
+export function buildReorderedExerciseGroups(
+  groups: EditorExerciseGroup[],
+  activeGroupKey: string,
+  overGroupKey: string
+): EditorExerciseGroup[] | null {
+  const from = groups.findIndex((group) => group.groupKey === activeGroupKey);
+  const to = groups.findIndex((group) => group.groupKey === overGroupKey);
+  if (from < 0 || to < 0 || from === to) return null;
+  return moveGroup(groups, from, to);
+}
+
+export function buildWorkoutSetOrderUpdates(
+  groups: EditorExerciseGroup[]
+): Array<{
+  id: string;
+  order: number;
+}> {
+  const updates: Array<{ id: string; order: number }> = [];
+  let order = 0;
+  for (const group of groups) {
+    for (const row of group.rows) {
+      if (!row.persistedSetId) continue;
+      updates.push({ id: row.persistedSetId, order });
+      order += 1;
+    }
+  }
+  return updates;
+}
+
+type SortableExerciseCardProps = {
+  group: EditorExerciseGroup;
+  disabled: boolean;
+  children: React.ReactNode;
+};
+
+function SortableExerciseCard({
+  group,
+  disabled,
+  children,
+}: SortableExerciseCardProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: group.groupKey, disabled });
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      className={isDragging ? "opacity-80" : ""}
+      {...attributes}
+      {...listeners}
+    >
+      {children}
+    </div>
+  );
+}
 
 export function WorkoutDetail() {
   const dataAccess = useDataAccess();
@@ -71,6 +156,36 @@ export function WorkoutDetail() {
     resetKey: editorSeed?.resetKey ?? "__loading",
     persistence,
   });
+  const sensors = useSensors(
+    useSensor(GuardedPointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(GuardedTouchSensor, {
+      activationConstraint: { delay: 150, tolerance: 8 },
+    })
+  );
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    if (editor.isDirty) return;
+    const activeGroupKey = String(event.active.id);
+    const overGroupKey = event.over?.id ? String(event.over.id) : null;
+    if (!overGroupKey || activeGroupKey === overGroupKey) return;
+
+    const reordered = buildReorderedExerciseGroups(
+      editor.groups,
+      activeGroupKey,
+      overGroupKey
+    );
+    if (!reordered) return;
+
+    const previousGroups = editor.groups;
+    editor.setGroups(reordered);
+    const updates = buildWorkoutSetOrderUpdates(reordered);
+    if (updates.length === 0) return;
+    try {
+      await persistence.reorderSets(updates);
+    } catch {
+      editor.setGroups(previousGroups);
+    }
+  };
 
   const saveDate = async () => {
     if (!workout || !dateInput) return;
@@ -254,101 +369,121 @@ export function WorkoutDetail() {
 
         {headerCard}
 
-        {editor.groups.map((group) => {
-          const last = group.lastPerformed;
-          const lastFormatted =
-            last && last.sets.length > 0
-              ? last.sets.map((s) => `${s.weight}x${s.reps}`).join(", ") +
-                " lbs"
-              : null;
-          const lastNotes =
-            last?.sets?.map((s) => s.note?.trim()).filter(Boolean) ?? [];
-          const notesText = lastNotes.length > 0 ? lastNotes.join(" • ") : null;
-          const meta = group.templateMeta;
-          const isAdHoc = meta?.isAdHoc;
-          const dayId = group.dayId ?? workout.dayId;
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={(event) => void handleDragEnd(event)}
+          autoScroll
+        >
+          <SortableContext
+            items={editor.groups.map((group) => group.groupKey)}
+            strategy={verticalListSortingStrategy}
+          >
+            {editor.groups.map((group) => {
+              const last = group.lastPerformed;
+              const lastFormatted =
+                last && last.sets.length > 0
+                  ? last.sets.map((s) => `${s.weight}x${s.reps}`).join(", ") +
+                    " lbs"
+                  : null;
+              const lastNotes =
+                last?.sets?.map((s) => s.note?.trim()).filter(Boolean) ?? [];
+              const notesText =
+                lastNotes.length > 0 ? lastNotes.join(" • ") : null;
+              const meta = group.templateMeta;
+              const isAdHoc = meta?.isAdHoc;
+              const dayId = group.dayId ?? workout.dayId;
 
-          const metadata =
-            !isAdHoc && meta ? (
-              <div className="space-y-1">
-                <p className="text-sm text-gray-500">
-                  <strong>Target:</strong>{" "}
-                  <Link
-                    to={`/days/${dayId}`}
-                    className="text-indigo-600 hover:underline"
-                  >
-                    {meta.repsLower}–{meta.repsUpper} reps
-                  </Link>
-                  {lastFormatted && last?.workoutId && (
-                    <span className="ml-2">
-                      <strong>Last:</strong>{" "}
+              const metadata =
+                !isAdHoc && meta ? (
+                  <div className="space-y-1">
+                    <p className="text-sm text-gray-500">
+                      <strong>Target:</strong>{" "}
                       <Link
-                        to={`/workouts/${last.workoutId}`}
+                        to={`/days/${dayId}`}
                         className="text-indigo-600 hover:underline"
                       >
-                        {lastFormatted}
+                        {meta.repsLower}–{meta.repsUpper} reps
                       </Link>
-                    </span>
-                  )}
-                </p>
-                {notesText && (
-                  <p className="text-sm text-gray-500">
-                    <strong>Notes:</strong> {notesText}
-                  </p>
-                )}
-              </div>
-            ) : (
-              lastFormatted &&
-              last?.workoutId && (
-                <div className="space-y-1">
-                  <p className="text-sm text-gray-500">
-                    Last:{" "}
-                    <Link
-                      to={`/workouts/${last.workoutId}`}
-                      className="text-indigo-600 hover:underline"
-                    >
-                      {lastFormatted}
-                    </Link>
-                  </p>
-                  {notesText && (
-                    <p className="text-sm text-gray-500">
-                      <strong>Notes:</strong> {notesText}
+                      {lastFormatted && last?.workoutId && (
+                        <span className="ml-2">
+                          <strong>Last:</strong>{" "}
+                          <Link
+                            to={`/workouts/${last.workoutId}`}
+                            className="text-indigo-600 hover:underline"
+                          >
+                            {lastFormatted}
+                          </Link>
+                        </span>
+                      )}
                     </p>
-                  )}
-                </div>
-              )
-            );
-
-          return (
-            <ExerciseCard
-              key={group.groupKey}
-              exerciseName={group.exerciseName}
-              exerciseId={group.exerciseId}
-              metadata={metadata}
-              onRemove={() => setRemoveExerciseTemplateGroupKey(group.groupKey)}
-              onAddSet={() => editor.addSet(group.groupKey)}
-            >
-              {group.rows.map((row) => {
-                const api = editor.getRowApi(row.id);
-                return (
-                  <SetRow
-                    key={row.id}
-                    reps={row.reps}
-                    weight={row.weight}
-                    note={row.note}
-                    onRepsChange={(val) => api.setField("reps", val)}
-                    onWeightChange={(val) => api.setField("weight", val)}
-                    onNoteChange={(val) => api.setField("note", val)}
-                    onDelete={() => removeTemplateSetRow(row)}
-                    deleteAriaLabel={
-                      row.persistedSetId ? "Delete set" : "Remove set"
-                    }
-                  />
+                    {notesText && (
+                      <p className="text-sm text-gray-500">
+                        <strong>Notes:</strong> {notesText}
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  lastFormatted &&
+                  last?.workoutId && (
+                    <div className="space-y-1">
+                      <p className="text-sm text-gray-500">
+                        Last:{" "}
+                        <Link
+                          to={`/workouts/${last.workoutId}`}
+                          className="text-indigo-600 hover:underline"
+                        >
+                          {lastFormatted}
+                        </Link>
+                      </p>
+                      {notesText && (
+                        <p className="text-sm text-gray-500">
+                          <strong>Notes:</strong> {notesText}
+                        </p>
+                      )}
+                    </div>
+                  )
                 );
-              })}
-            </ExerciseCard>
-          );
-        })}
+
+              return (
+                <SortableExerciseCard
+                  key={group.groupKey}
+                  group={group}
+                  disabled={editor.isDirty}
+                >
+                  <ExerciseCard
+                    exerciseName={group.exerciseName}
+                    exerciseId={group.exerciseId}
+                    metadata={metadata}
+                    onRemove={() =>
+                      setRemoveExerciseTemplateGroupKey(group.groupKey)
+                    }
+                    onAddSet={() => editor.addSet(group.groupKey)}
+                  >
+                    {group.rows.map((row) => {
+                      const api = editor.getRowApi(row.id);
+                      return (
+                        <SetRow
+                          key={row.id}
+                          reps={row.reps}
+                          weight={row.weight}
+                          note={row.note}
+                          onRepsChange={(val) => api.setField("reps", val)}
+                          onWeightChange={(val) => api.setField("weight", val)}
+                          onNoteChange={(val) => api.setField("note", val)}
+                          onDelete={() => removeTemplateSetRow(row)}
+                          deleteAriaLabel={
+                            row.persistedSetId ? "Delete set" : "Remove set"
+                          }
+                        />
+                      );
+                    })}
+                  </ExerciseCard>
+                </SortableExerciseCard>
+              );
+            })}
+          </SortableContext>
+        </DndContext>
 
         <button
           type="button"
@@ -483,32 +618,49 @@ export function WorkoutDetail() {
         />
       </div>
 
-      {editor.groups.map((group) => (
-        <ExerciseCard
-          key={group.groupKey}
-          exerciseName={group.exerciseName}
-          exerciseId={group.exerciseId}
-          onRemove={() => setRemoveExerciseGroupKey(group.groupKey)}
-          onAddSet={() => editor.addSet(group.groupKey)}
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={(event) => void handleDragEnd(event)}
+        autoScroll
+      >
+        <SortableContext
+          items={editor.groups.map((group) => group.groupKey)}
+          strategy={verticalListSortingStrategy}
         >
-          {group.rows.map((row) => {
-            const api = editor.getRowApi(row.id);
-            return (
-              <SetRow
-                key={row.id}
-                reps={row.reps}
-                weight={row.weight}
-                note={row.note}
-                onRepsChange={(val) => api.setField("reps", val)}
-                onWeightChange={(val) => api.setField("weight", val)}
-                onNoteChange={(val) => api.setField("note", val)}
-                onBlur={() => void api.flush()}
-                onDelete={() => removeWorkoutSetRow(row)}
-              />
-            );
-          })}
-        </ExerciseCard>
-      ))}
+          {editor.groups.map((group) => (
+            <SortableExerciseCard
+              key={group.groupKey}
+              group={group}
+              disabled={editor.isDirty}
+            >
+              <ExerciseCard
+                exerciseName={group.exerciseName}
+                exerciseId={group.exerciseId}
+                onRemove={() => setRemoveExerciseGroupKey(group.groupKey)}
+                onAddSet={() => editor.addSet(group.groupKey)}
+              >
+                {group.rows.map((row) => {
+                  const api = editor.getRowApi(row.id);
+                  return (
+                    <SetRow
+                      key={row.id}
+                      reps={row.reps}
+                      weight={row.weight}
+                      note={row.note}
+                      onRepsChange={(val) => api.setField("reps", val)}
+                      onWeightChange={(val) => api.setField("weight", val)}
+                      onNoteChange={(val) => api.setField("note", val)}
+                      onBlur={() => void api.flush()}
+                      onDelete={() => removeWorkoutSetRow(row)}
+                    />
+                  );
+                })}
+              </ExerciseCard>
+            </SortableExerciseCard>
+          ))}
+        </SortableContext>
+      </DndContext>
 
       <button
         type="button"

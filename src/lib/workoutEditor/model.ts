@@ -59,6 +59,8 @@ export type WorkoutSessionStore = {
   getRowApi: (rowId: EditorRowId) => WorkoutRowApi;
   addExercise: (exerciseId: string, name: string) => void;
   appendTemplateGroup: (group: EditorExerciseGroup) => void;
+  reorderExerciseGroups: (activeGroupKey: string, overGroupKey: string) => void;
+  setGroups: (groups: EditorExerciseGroup[]) => void;
   removeExercise: (groupKey: string) => Promise<void>;
   addSet: (groupKey: string) => void;
   removeSet: (rowId: EditorRowId) => Promise<void>;
@@ -83,6 +85,8 @@ export type UseWorkoutEditorResult = WorkoutSessionSnapshot &
     | "getRowApi"
     | "addExercise"
     | "appendTemplateGroup"
+    | "reorderExerciseGroups"
+    | "setGroups"
     | "removeExercise"
     | "addSet"
     | "removeSet"

@@ -66,6 +66,7 @@ export interface TemplatesDataSlice extends TemplateCatalog {
     id: string,
     patch: Partial<Omit<ExerciseSetTemplate, "id" | "createdAt" | "updatedAt">>
   ): Promise<void>;
+  reorder(updates: Array<{ id: string; order: number }>): Promise<void>;
   delete(id: string): Promise<void>;
 }
 
@@ -114,6 +115,7 @@ export interface SetsDataSlice {
     id: string,
     patch: Partial<Omit<WorkoutSet, "id" | "createdAt">>
   ): Promise<void>;
+  reorder(updates: Array<{ id: string; order: number }>): Promise<void>;
   delete(id: string): Promise<void>;
 }
 

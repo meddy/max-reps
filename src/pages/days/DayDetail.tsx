@@ -1,4 +1,18 @@
 import { useCallback, useEffect, useState } from "react";
+import {
+  DndContext,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useDataAccess } from "../../contexts/DataAccessContext";
 import type { Day, TemplateWithExerciseName } from "../../types";
@@ -8,6 +22,10 @@ import { EmptyState } from "../../components/EmptyState";
 import { IconPencil, IconTrash } from "../../components/Icons";
 import { LoadingSpinner } from "../../components/LoadingSpinner";
 import { Modal } from "../../components/Modal";
+import {
+  GuardedPointerSensor,
+  GuardedTouchSensor,
+} from "../../lib/dnd/guardedSensors";
 
 function parseTemplateFieldStrings(
   numSetsStr: string,
@@ -32,6 +50,167 @@ function parseTemplateFieldStrings(
   return { numSets, repsLower, repsUpper };
 }
 
+type TemplateOrderUpdate = { id: string; order: number };
+
+export function buildTemplateReorderResult(
+  templates: TemplateWithExerciseName[],
+  activeId: string,
+  overId: string
+): {
+  nextTemplates: TemplateWithExerciseName[];
+  updates: TemplateOrderUpdate[];
+} | null {
+  const oldIndex = templates.findIndex((t) => t.id === activeId);
+  const newIndex = templates.findIndex((t) => t.id === overId);
+  if (oldIndex < 0 || newIndex < 0 || oldIndex === newIndex) return null;
+
+  const previousOrderById = new Map(templates.map((t) => [t.id, t.order]));
+  const reordered = arrayMove(templates, oldIndex, newIndex);
+  const nextTemplates = reordered.map((t, index) =>
+    t.order === index ? t : { ...t, order: index }
+  );
+  const updates = nextTemplates
+    .filter((t) => previousOrderById.get(t.id) !== t.order)
+    .map((t) => ({ id: t.id, order: t.order }));
+  return { nextTemplates, updates };
+}
+
+type SortableTemplateRowProps = {
+  template: TemplateWithExerciseName;
+  isEditing: boolean;
+  onBeginEdit: (template: TemplateWithExerciseName) => void;
+  onCancelEdit: () => void;
+  onSaveEdit: () => void;
+  onDelete: (templateId: string) => void;
+  editNumSets: string;
+  editRepsLower: string;
+  editRepsUpper: string;
+  setEditNumSets: (value: string) => void;
+  setEditRepsLower: (value: string) => void;
+  setEditRepsUpper: (value: string) => void;
+};
+
+function SortableTemplateRow({
+  template,
+  isEditing,
+  onBeginEdit,
+  onCancelEdit,
+  onSaveEdit,
+  onDelete,
+  editNumSets,
+  editRepsLower,
+  editRepsUpper,
+  setEditNumSets,
+  setEditRepsLower,
+  setEditRepsUpper,
+}: SortableTemplateRowProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
+    id: template.id,
+    disabled: isEditing,
+  });
+
+  return (
+    <li
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      className={`flex flex-wrap items-center justify-between gap-2 rounded-xl bg-white p-4 shadow-sm transition-colors hover:bg-gray-100 ${
+        isDragging ? "opacity-80" : ""
+      }`}
+      {...attributes}
+      {...listeners}
+    >
+      <div className="min-w-0 flex-1">
+        <Link
+          to={`/exercises/${template.exerciseId}`}
+          className="font-medium text-gray-900 hover:text-indigo-700"
+        >
+          {template.exerciseDisplayName}
+        </Link>
+        <p className="text-sm text-gray-500">
+          {isEditing ? (
+            <span className="flex flex-wrap items-center gap-2">
+              <input
+                type="number"
+                min={1}
+                value={editNumSets}
+                onChange={(e) => setEditNumSets(e.target.value)}
+                className="w-14 rounded border border-gray-300 px-2 py-1 text-sm"
+              />
+              sets ×
+              <input
+                type="number"
+                min={0}
+                value={editRepsLower}
+                onChange={(e) => setEditRepsLower(e.target.value)}
+                className="w-14 rounded border border-gray-300 px-2 py-1 text-sm"
+              />
+              –
+              <input
+                type="number"
+                min={0}
+                value={editRepsUpper}
+                onChange={(e) => setEditRepsUpper(e.target.value)}
+                className="w-14 rounded border border-gray-300 px-2 py-1 text-sm"
+              />
+              reps
+            </span>
+          ) : (
+            `${template.numSets} × ${template.repsLower}–${template.repsUpper} reps`
+          )}
+        </p>
+      </div>
+      <div className="flex items-center gap-1">
+        {isEditing ? (
+          <>
+            <button
+              type="button"
+              onClick={() => void onSaveEdit()}
+              className="min-h-[44px] rounded-lg px-2 text-sm text-indigo-600 hover:bg-indigo-100"
+            >
+              Save
+            </button>
+            <button
+              type="button"
+              onClick={onCancelEdit}
+              className="min-h-[44px] rounded-lg px-2 text-sm text-gray-500"
+            >
+              Cancel
+            </button>
+          </>
+        ) : (
+          <>
+            <button
+              type="button"
+              onClick={() => onBeginEdit(template)}
+              className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-gray-500 hover:bg-gray-200"
+              aria-label="Edit template"
+              title="Edit template"
+            >
+              <IconPencil className="size-6" />
+            </button>
+            <button
+              type="button"
+              onClick={() => onDelete(template.id)}
+              className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-red-600 hover:bg-red-100"
+              aria-label="Delete template"
+              title="Delete template"
+            >
+              <IconTrash className="size-6" />
+            </button>
+          </>
+        )}
+      </div>
+    </li>
+  );
+}
+
 export function DayDetail() {
   const dataAccess = useDataAccess();
   const { id } = useParams<{ id: string }>();
@@ -50,6 +229,12 @@ export function DayDetail() {
   const [editRepsLower, setEditRepsLower] = useState("");
   const [editRepsUpper, setEditRepsUpper] = useState("");
   const [deleteTemplateId, setDeleteTemplateId] = useState<string | null>(null);
+  const sensors = useSensors(
+    useSensor(GuardedPointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(GuardedTouchSensor, {
+      activationConstraint: { delay: 140, tolerance: 8 },
+    })
+  );
 
   const loadDay = useCallback(async () => {
     if (!id) return;
@@ -124,16 +309,21 @@ export function DayDetail() {
     void loadTemplates();
   };
 
-  const moveTemplate = async (index: number, direction: "up" | "down") => {
-    const newOrder = direction === "up" ? index - 1 : index + 1;
-    if (newOrder < 0 || newOrder >= templates.length) return;
-    const a = templates[index];
-    const b = templates[newOrder];
-    await Promise.all([
-      dataAccess.templates.update(a.id, { order: newOrder }),
-      dataAccess.templates.update(b.id, { order: index }),
-    ]);
-    void loadTemplates();
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const activeId = String(event.active.id);
+    const overId = event.over?.id ? String(event.over.id) : null;
+    if (!overId || activeId === overId) return;
+
+    const result = buildTemplateReorderResult(templates, activeId, overId);
+    if (!result || result.updates.length === 0) return;
+
+    const previousTemplates = templates;
+    setTemplates(result.nextTemplates);
+    try {
+      await dataAccess.templates.reorder(result.updates);
+    } catch {
+      setTemplates(previousTemplates);
+    }
   };
 
   if (loading) {
@@ -199,119 +389,42 @@ export function DayDetail() {
           }
         />
       ) : (
-        <ul className="flex flex-col gap-2">
-          {templates.map((t, index) => (
-            <li
-              key={t.id}
-              className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-white p-4 shadow-sm transition-colors hover:bg-gray-100"
-            >
-              <div>
-                <Link
-                  to={`/exercises/${t.exerciseId}`}
-                  className="font-medium text-gray-900 hover:text-indigo-700"
-                >
-                  {t.exerciseDisplayName}
-                </Link>
-                <p className="text-sm text-gray-500">
-                  {editingTemplateId === t.id ? (
-                    <span className="flex flex-wrap items-center gap-2">
-                      <input
-                        type="number"
-                        min={1}
-                        value={editNumSets}
-                        onChange={(e) => setEditNumSets(e.target.value)}
-                        className="w-14 rounded border border-gray-300 px-2 py-1 text-sm"
-                      />
-                      sets ×
-                      <input
-                        type="number"
-                        min={0}
-                        value={editRepsLower}
-                        onChange={(e) => setEditRepsLower(e.target.value)}
-                        className="w-14 rounded border border-gray-300 px-2 py-1 text-sm"
-                      />
-                      –
-                      <input
-                        type="number"
-                        min={0}
-                        value={editRepsUpper}
-                        onChange={(e) => setEditRepsUpper(e.target.value)}
-                        className="w-14 rounded border border-gray-300 px-2 py-1 text-sm"
-                      />
-                      reps
-                    </span>
-                  ) : (
-                    `${t.numSets} × ${t.repsLower}–${t.repsUpper} reps`
-                  )}
-                </p>
-              </div>
-              <div className="flex items-center gap-1">
-                {editingTemplateId === t.id ? (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => void handleSaveEdit()}
-                      className="min-h-[44px] rounded-lg px-2 text-sm text-indigo-600 hover:bg-indigo-100"
-                    >
-                      Save
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setEditingTemplateId(null)}
-                      className="min-h-[44px] rounded-lg px-2 text-sm text-gray-500"
-                    >
-                      Cancel
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => moveTemplate(index, "up")}
-                      disabled={index === 0}
-                      className="min-h-[44px] min-w-[44px] rounded-lg text-gray-500 hover:bg-gray-200 disabled:opacity-50"
-                      aria-label="Move up"
-                    >
-                      ↑
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => moveTemplate(index, "down")}
-                      disabled={index === templates.length - 1}
-                      className="min-h-[44px] min-w-[44px] rounded-lg text-gray-500 hover:bg-gray-200 disabled:opacity-50"
-                      aria-label="Move down"
-                    >
-                      ↓
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEditingTemplateId(t.id);
-                        setEditNumSets(String(t.numSets));
-                        setEditRepsLower(String(t.repsLower));
-                        setEditRepsUpper(String(t.repsUpper));
-                      }}
-                      className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-gray-500 hover:bg-gray-200"
-                      aria-label="Edit template"
-                      title="Edit template"
-                    >
-                      <IconPencil className="size-6" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setDeleteTemplateId(t.id)}
-                      className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-red-600 hover:bg-red-100"
-                      aria-label="Delete template"
-                      title="Delete template"
-                    >
-                      <IconTrash className="size-6" />
-                    </button>
-                  </>
-                )}
-              </div>
-            </li>
-          ))}
-        </ul>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={(event) => void handleDragEnd(event)}
+          autoScroll
+        >
+          <SortableContext
+            items={templates.map((t) => t.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            <ul className="flex flex-col gap-2">
+              {templates.map((template) => (
+                <SortableTemplateRow
+                  key={template.id}
+                  template={template}
+                  isEditing={editingTemplateId === template.id}
+                  onBeginEdit={(t) => {
+                    setEditingTemplateId(t.id);
+                    setEditNumSets(String(t.numSets));
+                    setEditRepsLower(String(t.repsLower));
+                    setEditRepsUpper(String(t.repsUpper));
+                  }}
+                  onCancelEdit={() => setEditingTemplateId(null)}
+                  onSaveEdit={() => void handleSaveEdit()}
+                  onDelete={(templateId) => setDeleteTemplateId(templateId)}
+                  editNumSets={editNumSets}
+                  editRepsLower={editRepsLower}
+                  editRepsUpper={editRepsUpper}
+                  setEditNumSets={setEditNumSets}
+                  setEditRepsLower={setEditRepsLower}
+                  setEditRepsUpper={setEditRepsUpper}
+                />
+              ))}
+            </ul>
+          </SortableContext>
+        </DndContext>
       )}
 
       <Modal

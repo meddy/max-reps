@@ -46,6 +46,7 @@ function createSessionDeps(
       prForExercise: vi.fn(reject),
       create: vi.fn(reject),
       update: vi.fn(reject),
+      reorder: vi.fn(reject),
       delete: vi.fn(reject),
       ...partial.sets,
     },

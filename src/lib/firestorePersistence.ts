@@ -64,6 +64,30 @@ export async function patchDocument(
   await updateDoc(ref, payload);
 }
 
+export async function patchDocuments(
+  firestore: Firestore,
+  patches: Array<{
+    collectionName: CollectionName;
+    id: string;
+    data: Record<string, unknown>;
+  }>
+): Promise<void> {
+  if (patches.length === 0) return;
+
+  const batch = writeBatch(firestore);
+  for (const { collectionName, id, data } of patches) {
+    const ref = doc(firestore, collectionName, id);
+    const serialized = writePayload(data);
+    const payload =
+      collectionName === "sets"
+        ? serialized
+        : { ...serialized, updatedAt: serverTimestamp() };
+    // Firestore accepts Timestamp and FieldValue in update payloads.
+    batch.update(ref, payload as never);
+  }
+  await batch.commit();
+}
+
 export async function removeDocument(
   firestore: Firestore,
   collectionName: CollectionName,

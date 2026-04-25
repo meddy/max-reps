@@ -31,6 +31,7 @@ export interface WorkoutEditorPersistence {
     patch: { reps?: number; weight?: number; note?: string }
   ): Promise<void>;
   deleteSet(id: string): Promise<void>;
+  reorderSets(updates: Array<{ id: string; order: number }>): Promise<void>;
 }
 
 export function createWorkoutEditorPersistence(access: {
@@ -58,6 +59,9 @@ export function createWorkoutEditorPersistence(access: {
     },
     deleteSet(id) {
       return access.sets.delete(id);
+    },
+    reorderSets(updates) {
+      return access.sets.reorder(updates);
     },
   };
 }

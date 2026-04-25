@@ -13,6 +13,7 @@ import {
 import {
   addDocument as persistAddDocument,
   patchDocument as persistPatchDocument,
+  patchDocuments as persistPatchDocuments,
   removeDocument as persistRemoveDocument,
   removeDocumentAndRelated as persistRemoveDocumentAndRelated,
   syncWorkoutDateAndSetsPerformedAt as persistSyncWorkoutDateAndSetsPerformedAt,
@@ -48,6 +49,10 @@ export function createFirebaseFirestoreDataPort(
 
     patchDocument(collectionName, id, data) {
       return persistPatchDocument(db, collectionName, id, data);
+    },
+
+    patchDocuments(patches) {
+      return persistPatchDocuments(db, patches);
     },
 
     removeDocument(collectionName, id) {

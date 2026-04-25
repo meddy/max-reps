@@ -140,6 +140,33 @@ describe("FirestoreDataPort contract (in-memory)", () => {
     expect(await port.getDocument("exercises", id)).toBeNull();
   });
 
+  it("patchDocuments applies multiple document updates", async () => {
+    const port = createInMemoryFirestoreDataPort({
+      exerciseSetTemplates: {
+        t1: { dayId: "d1", exerciseId: "e1", order: 0 },
+        t2: { dayId: "d1", exerciseId: "e2", order: 1 },
+      },
+    });
+
+    await port.patchDocuments([
+      {
+        collectionName: "exerciseSetTemplates",
+        id: "t1",
+        data: { order: 1 },
+      },
+      {
+        collectionName: "exerciseSetTemplates",
+        id: "t2",
+        data: { order: 0 },
+      },
+    ]);
+
+    const t1 = await port.getDocument("exerciseSetTemplates", "t1");
+    const t2 = await port.getDocument("exerciseSetTemplates", "t2");
+    expect(t1?.data.order).toBe(1);
+    expect(t2?.data.order).toBe(0);
+  });
+
   describe.each([
     {
       sort: "asc" as const,

@@ -58,4 +58,50 @@ describe("buildSetsSlice", () => {
     expect(list[0].reps).toBe(5);
     expect(list[0].exerciseNameSnapshot).toBe("Bench");
   });
+
+  it("reorder batch-updates set order values", async () => {
+    const ts = new Date("2024-03-01T12:00:00.000Z");
+    const firestore = createInMemoryFirestoreDataPort({
+      sets: {
+        s1: {
+          workoutId: "w1",
+          exerciseId: "e1",
+          exerciseNameSnapshot: "A",
+          reps: 2,
+          weight: 2,
+          unit: "lbs",
+          note: "",
+          performedAt: ts,
+          order: 0,
+          createdAt: ts,
+        },
+        s2: {
+          workoutId: "w1",
+          exerciseId: "e2",
+          exerciseNameSnapshot: "B",
+          reps: 1,
+          weight: 1,
+          unit: "lbs",
+          note: "",
+          performedAt: ts,
+          order: 1,
+          createdAt: ts,
+        },
+      },
+    });
+    const patchDocumentsSpy = vi.spyOn(firestore, "patchDocuments");
+    const slice = buildSetsSlice(firestore, { start: vi.fn(), end: vi.fn() });
+
+    await slice.reorder([
+      { id: "s1", order: 1 },
+      { id: "s2", order: 0 },
+    ]);
+
+    expect(patchDocumentsSpy).toHaveBeenCalledWith([
+      { collectionName: "sets", id: "s1", data: { order: 1 } },
+      { collectionName: "sets", id: "s2", data: { order: 0 } },
+    ]);
+    const list = await slice.listForWorkout("w1");
+    expect(list.map((s) => s.id)).toEqual(["s2", "s1"]);
+  });
 });

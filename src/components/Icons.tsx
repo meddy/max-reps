@@ -70,6 +70,14 @@ export function IconList(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+export function IconGripVertical(props: SVGProps<SVGSVGElement>) {
+  return (
+    <IconSvg {...strokeProps} {...props}>
+      <path d="M9 6h.01M9 12h.01M9 18h.01M15 6h.01M15 12h.01M15 18h.01" />
+    </IconSvg>
+  );
+}
+
 export function IconCalendar(props: SVGProps<SVGSVGElement>) {
   return (
     <IconSvg {...strokeProps} {...props}>

@@ -8,8 +8,30 @@ import {
   type WorkoutSessionSnapshot,
   type WorkoutSessionStore,
   type WorkoutSessionStoreConfig,
-  workoutNextOrderSeed,
 } from "./model";
+
+function moveItem<T>(items: T[], from: number, to: number): T[] {
+  const next = items.slice();
+  const [moved] = next.splice(from, 1);
+  next.splice(to, 0, moved);
+  return next;
+}
+
+function buildPersistedSetOrderUpdates(groups: EditorExerciseGroup[]): Array<{
+  id: string;
+  order: number;
+}> {
+  const updates: Array<{ id: string; order: number }> = [];
+  let order = 0;
+  for (const group of groups) {
+    for (const row of group.rows) {
+      if (!row.persistedSetId) continue;
+      updates.push({ id: row.persistedSetId, order });
+      order += 1;
+    }
+  }
+  return updates;
+}
 
 function makeSnapshot(
   groups: EditorExerciseGroup[],
@@ -33,9 +55,6 @@ export function createWorkoutSessionStore(
   let dirtyKeys = new Set<string>();
   let snapshot = makeSnapshot(groups, dirtyKeys, variant);
   const listeners = new Set<() => void>();
-
-  let nextOrder = 0;
-  let nextSetOrder = 0;
 
   const persistDebounceTimers: Record<
     string,
@@ -103,13 +122,12 @@ export function createWorkoutSessionStore(
     }
     if (row.reps <= 0) return;
 
-    const order = nextOrder++;
     const newId = await persistence.saveSet({
       workoutId,
       exerciseId: group.exerciseId,
       exerciseNameSnapshot: group.exerciseName,
       row: persistableFields(row),
-      order,
+      order: 0,
     });
     setGroupsFromUpdater((prev) => {
       const next = cloneGroups(prev);
@@ -120,6 +138,7 @@ export function createWorkoutSessionStore(
       r.id = newId;
       return next;
     });
+    await persistence.reorderSets(buildPersistedSetOrderUpdates(groups));
     clearDirty(rowId);
   }
 
@@ -163,13 +182,12 @@ export function createWorkoutSessionStore(
           note: rowSnapshot.note ?? "",
         });
       } else {
-        const order = nextSetOrder++;
         const newId = await persistence.saveSet({
           workoutId,
           exerciseId,
           exerciseNameSnapshot: exerciseName,
           row: persistableFields(rowSnapshot),
-          order,
+          order: 0,
         });
         setGroupsFromUpdater((prev) => {
           const next = cloneGroups(prev);
@@ -186,6 +204,7 @@ export function createWorkoutSessionStore(
           return next;
         });
       }
+      await persistence.reorderSets(buildPersistedSetOrderUpdates(groups));
     } catch {
       // match WorkoutDetail: ignore template save errors
     }
@@ -306,8 +325,6 @@ export function createWorkoutSessionStore(
     },
     applyReset(initialGroups) {
       groups = cloneGroups(initialGroups);
-      nextOrder = workoutNextOrderSeed(initialGroups);
-      nextSetOrder = 0;
       dirtyKeys = new Set();
       clearPersistTimers();
       clearTemplateTimers();
@@ -338,6 +355,19 @@ export function createWorkoutSessionStore(
     },
     appendTemplateGroup(group) {
       setGroupsFromUpdater((prev) => [...prev, cloneGroups([group])[0]]);
+    },
+    reorderExerciseGroups(activeGroupKey, overGroupKey) {
+      if (activeGroupKey === overGroupKey) return;
+      setGroupsFromUpdater((prev) => {
+        const from = prev.findIndex((g) => g.groupKey === activeGroupKey);
+        const to = prev.findIndex((g) => g.groupKey === overGroupKey);
+        if (from < 0 || to < 0 || from === to) return prev;
+        return moveItem(prev, from, to);
+      });
+    },
+    setGroups(nextGroups) {
+      groups = cloneGroups(nextGroups);
+      emit();
     },
     async removeExercise(groupKey) {
       const g = groups.find((x) => x.groupKey === groupKey);

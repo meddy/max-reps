@@ -76,6 +76,8 @@ export function useWorkoutEditor(
       getRowApi: store.getRowApi.bind(store),
       addExercise: store.addExercise.bind(store),
       appendTemplateGroup: store.appendTemplateGroup.bind(store),
+      reorderExerciseGroups: store.reorderExerciseGroups.bind(store),
+      setGroups: store.setGroups.bind(store),
       removeExercise: store.removeExercise.bind(store),
       addSet: store.addSet.bind(store),
       removeSet: store.removeSet.bind(store),

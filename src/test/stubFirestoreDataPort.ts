@@ -14,6 +14,7 @@ export function createStubFirestoreDataPort(
     getDocument: vi.fn(reject),
     addDocument: vi.fn(reject),
     patchDocument: vi.fn(reject),
+    patchDocuments: vi.fn(reject),
     removeDocument: vi.fn(reject),
     removeDocumentAndRelated: vi.fn(reject),
     syncWorkoutDateAndSetsPerformedAt: vi.fn(reject),

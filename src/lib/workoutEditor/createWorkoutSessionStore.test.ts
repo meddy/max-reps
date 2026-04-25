@@ -19,6 +19,7 @@ describe("createWorkoutSessionStore", () => {
     saveSet: vi.fn().mockResolvedValue("set-new"),
     updateSet: vi.fn().mockResolvedValue(undefined),
     deleteSet: vi.fn().mockResolvedValue(undefined),
+    reorderSets: vi.fn().mockResolvedValue(undefined),
   };
 
   beforeEach(() => {
@@ -74,8 +75,11 @@ describe("createWorkoutSessionStore", () => {
     expect(persistence.saveSet.mock.calls[0][0]).toMatchObject({
       workoutId: "w1",
       exerciseId: "ex1",
-      order: 1,
+      order: 0,
     });
+    expect(persistence.reorderSets).toHaveBeenCalledWith([
+      { id: "set-new", order: 0 },
+    ]);
     const snap = store.getSnapshot();
     expect(snap.groups[0].rows[0].persistedSetId).toBe("set-new");
     expect(snap.groups[0].rows[0].id).toBe("set-new");
@@ -94,6 +98,37 @@ describe("createWorkoutSessionStore", () => {
     store.addExercise("e2", "Curl");
     expect(store.getSnapshot().groups).toHaveLength(1);
     expect(store.getSnapshot().groups[0].exerciseId).toBe("e2");
+  });
+
+  it("reorderExerciseGroups moves groups by key", () => {
+    let w: Workout | null = workoutFixture();
+    const store = createWorkoutSessionStore({
+      variant: "workout",
+      workoutId: "w1",
+      persistence,
+      debounceMs: 9999,
+      getWorkout: () => w,
+    });
+    store.applyReset([
+      {
+        groupKey: "ex1",
+        exerciseId: "ex1",
+        exerciseName: "Squat",
+        rows: [{ id: "row-a", reps: 1, weight: 100, note: "" }],
+      },
+      {
+        groupKey: "ex2",
+        exerciseId: "ex2",
+        exerciseName: "Bench",
+        rows: [{ id: "row-b", reps: 1, weight: 100, note: "" }],
+      },
+    ]);
+
+    store.reorderExerciseGroups("ex2", "ex1");
+    expect(store.getSnapshot().groups.map((g) => g.groupKey)).toEqual([
+      "ex2",
+      "ex1",
+    ]);
   });
 
   it("debounces workout persist until delay elapses", async () => {

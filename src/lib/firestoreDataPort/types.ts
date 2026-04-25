@@ -4,6 +4,11 @@ import type { CollectionName } from "../../types";
 export type RawDoc = { id: string; data: Record<string, unknown> };
 
 export type CascadeSpec = { collection: CollectionName; field: string };
+export type DocumentPatch = {
+  collectionName: CollectionName;
+  id: string;
+  data: Record<string, unknown>;
+};
 
 /** Generic document CRUD, cascaded deletes, and workout date sync. */
 export interface FirestoreCorePort {
@@ -22,6 +27,8 @@ export interface FirestoreCorePort {
     id: string,
     data: Record<string, unknown>
   ): Promise<void>;
+
+  patchDocuments(patches: DocumentPatch[]): Promise<void>;
 
   removeDocument(collectionName: CollectionName, id: string): Promise<void>;
 
@@ -127,7 +134,7 @@ export type WorkoutsSliceFirestorePort = FirestoreCorePort &
 
 export type SetsSliceFirestorePort = Pick<
   FirestoreCorePort,
-  "addDocument" | "patchDocument" | "removeDocument"
+  "addDocument" | "patchDocument" | "patchDocuments" | "removeDocument"
 > &
   Pick<
     FirestoreWorkoutSetQueryPort,

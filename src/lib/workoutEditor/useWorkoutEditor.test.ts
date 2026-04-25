@@ -76,6 +76,7 @@ describe("useWorkoutEditor", () => {
       saveSet: vi.fn().mockResolvedValue("new-id"),
       updateSet: vi.fn().mockResolvedValue(undefined),
       deleteSet: vi.fn().mockResolvedValue(undefined),
+      reorderSets: vi.fn().mockResolvedValue(undefined),
     };
 
     const { result } = renderHook(() =>

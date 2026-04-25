@@ -55,6 +55,21 @@ export function buildTemplatesSlice(
       );
     },
 
+    async reorder(
+      updates: Array<{ id: string; order: number }>
+    ): Promise<void> {
+      if (updates.length === 0) return;
+      return withSaving(saving, () =>
+        firestore.patchDocuments(
+          updates.map(({ id, order }) => ({
+            collectionName: "exerciseSetTemplates" as const,
+            id,
+            data: { order },
+          }))
+        )
+      );
+    },
+
     async delete(id: string): Promise<void> {
       return withSaving(saving, () =>
         firestore.removeDocument("exerciseSetTemplates", id)
