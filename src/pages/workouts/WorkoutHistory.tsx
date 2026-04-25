@@ -208,8 +208,9 @@ export function WorkoutHistory() {
                 to={`/workouts/${w.id}`}
                 className="block min-h-[44px] rounded-xl bg-white p-4 shadow-sm transition-colors hover:bg-gray-100"
               >
-                <p className="font-medium text-gray-900">
-                  {formatDate(w.date, { weekday: true })} — {w.dayNameSnapshot}
+                <p className="font-medium text-gray-900">{w.dayNameSnapshot}</p>
+                <p className="text-sm text-gray-500">
+                  {formatDate(w.date, { weekday: true })}
                 </p>
                 <p className="text-sm text-gray-500">
                   {w.exerciseCount ?? 0} exercises - {w.setCount ?? 0} sets

@@ -2,6 +2,7 @@ import { screen, waitFor } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { createTestDataAccess } from "../../test/mockDataAccess";
 import { renderWithProviders } from "../../test/renderWithProviders";
+import { formatDate } from "../../lib/format";
 import { WorkoutHistory } from "./WorkoutHistory";
 
 const authValue = {
@@ -54,6 +55,9 @@ describe("WorkoutHistory", () => {
     await waitFor(() => {
       expect(screen.getByText(/Push Day/)).toBeInTheDocument();
     });
+    expect(
+      screen.getByText(formatDate(ts, { weekday: true }))
+    ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Push Day/i })).toHaveAttribute(
       "href",
       "/workouts/w1"
