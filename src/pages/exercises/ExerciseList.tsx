@@ -1,6 +1,13 @@
-import { useCallback, useEffect, useState, useTransition } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  useTransition,
+} from "react";
 import { Link } from "react-router-dom";
 import { useDataAccess } from "../../contexts/DataAccessContext";
+import { searchExercises } from "../../lib/exerciseSearch";
 import type { Exercise } from "../../types";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { EmptyState } from "../../components/EmptyState";
@@ -24,9 +31,9 @@ function getStoredSortOrder(): "asc" | "desc" {
 
 export function ExerciseList() {
   const dataAccess = useDataAccess();
-  const [exercises, setExercises] = useState<Array<Exercise & { id: string }>>(
-    []
-  );
+  const [exerciseCatalog, setExerciseCatalog] = useState<
+    Array<Exercise & { id: string }>
+  >([]);
   const [isPending, startTransition] = useTransition();
   const [search, setSearch] = useState("");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">(() =>
@@ -39,20 +46,28 @@ export function ExerciseList() {
   const [editName, setEditName] = useState("");
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  const fetchExercises = useCallback(async () => {
-    const list = await dataAccess.exercises.list({
-      sort: sortOrder,
-      search: search.trim() || undefined,
-      limit: PAGE_SIZE,
-    });
-    setExercises(list);
-  }, [dataAccess, search, sortOrder]);
+  const fetchExerciseCatalog = useCallback(async () => {
+    const list = await dataAccess.exercises.listAllForSearch();
+    setExerciseCatalog(list);
+  }, [dataAccess]);
 
   useEffect(() => {
     startTransition(() => {
-      void fetchExercises();
+      void fetchExerciseCatalog();
     });
-  }, [fetchExercises, startTransition]);
+  }, [fetchExerciseCatalog, startTransition]);
+
+  const exercises = useMemo(() => {
+    const query = search.trim();
+    if (query) return searchExercises(exerciseCatalog, query, PAGE_SIZE);
+    const next = [...exerciseCatalog];
+    next.sort((a, b) =>
+      sortOrder === "asc"
+        ? a.nameLower.localeCompare(b.nameLower)
+        : b.nameLower.localeCompare(a.nameLower)
+    );
+    return next.slice(0, PAGE_SIZE);
+  }, [exerciseCatalog, search, sortOrder]);
 
   const handleSortChange = (order: "asc" | "desc") => {
     setSortOrder(order);
@@ -76,26 +91,13 @@ export function ExerciseList() {
       return;
     }
     setCreateError("");
-    const id = await dataAccess.exercises.create({
+    await dataAccess.exercises.create({
       nameLower,
       displayName,
     });
     setCreateOpen(false);
     setCreateName("");
-    const now = new Date();
-    setExercises((prev) => {
-      const next = [
-        ...prev,
-        {
-          id,
-          nameLower,
-          displayName,
-          createdAt: now,
-          updatedAt: now,
-        },
-      ];
-      return [...next].sort((a, b) => a.nameLower.localeCompare(b.nameLower));
-    });
+    startTransition(() => void fetchExerciseCatalog());
   };
 
   const handleEdit = async () => {
@@ -109,14 +111,14 @@ export function ExerciseList() {
     await dataAccess.exercises.update(editId, { nameLower, displayName });
     setEditId(null);
     setEditName("");
-    startTransition(() => void fetchExercises());
+    startTransition(() => void fetchExerciseCatalog());
   };
 
   const handleDelete = async () => {
     if (!deleteId) return;
     await dataAccess.exercises.delete(deleteId);
     setDeleteId(null);
-    startTransition(() => void fetchExercises());
+    startTransition(() => void fetchExerciseCatalog());
   };
 
   return (

@@ -18,6 +18,7 @@ export interface TemplateCatalog {
 export interface ExercisesDataSlice {
   get(id: string): Promise<Exercise | null>;
   searchByNamePrefix(prefix: string, max?: number): Promise<Exercise[]>;
+  listAllForSearch(limit?: number): Promise<Array<Exercise & { id: string }>>;
   findByExactName(nameLower: string): Promise<Exercise | null>;
   create(input: { nameLower: string; displayName: string }): Promise<string>;
   update(

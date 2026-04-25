@@ -16,12 +16,19 @@ function wrapper({ children }: { children: ReactNode }) {
 }
 
 describe("useExercisePicker", () => {
-  it("loads search results when active and search is non-empty", async () => {
-    mockDataAccess.exercises.searchByNamePrefix.mockResolvedValue([
+  it("loads fuzzy search results from local exercise catalog", async () => {
+    mockDataAccess.exercises.listAllForSearch.mockResolvedValue([
       {
         id: "ex1",
         nameLower: "squat",
         displayName: "Squat",
+        createdAt: ts,
+        updatedAt: ts,
+      },
+      {
+        id: "ex2",
+        nameLower: "dumbbell bench press",
+        displayName: "Dumbbell Bench Press",
         createdAt: ts,
         updatedAt: ts,
       },
@@ -32,12 +39,39 @@ describe("useExercisePicker", () => {
     });
 
     act(() => {
-      result.current.setSearch("sq");
+      result.current.setSearch("bench");
     });
 
     await waitFor(() => {
-      expect(result.current.results).toHaveLength(1);
-      expect(result.current.results[0].displayName).toBe("Squat");
+      expect(result.current.results.map((r) => r.displayName)).toEqual([
+        "Dumbbell Bench Press",
+      ]);
+    });
+  });
+
+  it("shows create prompt when fuzzy matches exist but exact name does not", async () => {
+    mockDataAccess.exercises.listAllForSearch.mockResolvedValue([
+      {
+        id: "ex1",
+        nameLower: "bench press",
+        displayName: "Bench Press",
+        createdAt: ts,
+        updatedAt: ts,
+      },
+    ]);
+    const { result } = renderHook(() => useExercisePicker({ active: true }), {
+      wrapper,
+    });
+
+    act(() => {
+      result.current.setSearch("bench");
+    });
+
+    await waitFor(() => {
+      expect(result.current.showCreatePrompt).toBe(true);
+      expect(result.current.results.map((r) => r.displayName)).toEqual([
+        "Bench Press",
+      ]);
     });
   });
 

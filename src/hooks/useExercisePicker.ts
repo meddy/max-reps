@@ -1,9 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { useDataAccess } from "../contexts/DataAccessContext";
+import { searchExercises } from "../lib/exerciseSearch";
 import type { Exercise } from "../types";
 
 export function useExercisePicker(options: { active: boolean }) {
   const dataAccess = useDataAccess();
+  const [allExercises, setAllExercises] = useState<
+    Array<Exercise & { id: string }>
+  >([]);
   const [search, setSearch] = useState("");
   const [results, setResults] = useState<Array<Exercise & { id: string }>>([]);
   const [selected, setSelected] = useState<{
@@ -14,28 +18,30 @@ export function useExercisePicker(options: { active: boolean }) {
 
   useEffect(() => {
     if (!options.active) {
+      setAllExercises([]);
       setSearch("");
       setResults([]);
       setSelected(null);
       setCreateExerciseError("");
+      return;
     }
-  }, [options.active]);
+    let ignore = false;
+    void dataAccess.exercises.listAllForSearch().then((list) => {
+      if (ignore) return;
+      setAllExercises(list);
+    });
+    return () => {
+      ignore = true;
+    };
+  }, [dataAccess, options.active]);
 
   useEffect(() => {
     if (!options.active || !search.trim()) {
       setResults([]);
       return;
     }
-    let ignore = false;
-    const term = search.trim().toLowerCase();
-    void dataAccess.exercises.searchByNamePrefix(term, 20).then((list) => {
-      if (ignore) return;
-      setResults(list as Array<Exercise & { id: string }>);
-    });
-    return () => {
-      ignore = true;
-    };
-  }, [dataAccess, options.active, search]);
+    setResults(searchExercises(allExercises, search, 20));
+  }, [allExercises, options.active, search]);
 
   const selectExercise = useCallback((ex: Exercise & { id: string }) => {
     setSelected({ id: ex.id, displayName: ex.displayName });
@@ -60,6 +66,16 @@ export function useExercisePicker(options: { active: boolean }) {
       nameLower,
       displayName,
     });
+    setAllExercises((prev) => [
+      ...prev,
+      {
+        id: newId,
+        nameLower,
+        displayName,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    ]);
     setSelected({ id: newId, displayName });
     setSearch("");
   }, [dataAccess, search]);
@@ -71,10 +87,14 @@ export function useExercisePicker(options: { active: boolean }) {
     setCreateExerciseError("");
   }, []);
 
+  const hasExactMatch =
+    search.trim() !== "" &&
+    allExercises.some((ex) => ex.nameLower === search.trim().toLowerCase());
+
   const showCreatePrompt =
     options.active &&
     search.trim() !== "" &&
-    results.length === 0 &&
+    !hasExactMatch &&
     selected == null;
 
   return {

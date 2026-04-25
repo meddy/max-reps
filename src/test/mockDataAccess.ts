@@ -10,6 +10,7 @@ function buildMockDataAccess() {
   const exercises = {
     get: vi.fn(),
     searchByNamePrefix: vi.fn(),
+    listAllForSearch: vi.fn(),
     findByExactName: vi.fn(),
     create: vi.fn(),
     update: vi.fn(),
@@ -144,6 +145,7 @@ function seedDefaultResolvedValues(da: BuiltMockDataAccess): void {
 
   da.exercises.get.mockResolvedValue(null);
   da.exercises.searchByNamePrefix.mockResolvedValue([]);
+  da.exercises.listAllForSearch.mockResolvedValue([]);
   da.exercises.findByExactName.mockResolvedValue(null);
   da.exercises.create.mockResolvedValue("ex-new");
   da.exercises.update.mockResolvedValue(undefined);

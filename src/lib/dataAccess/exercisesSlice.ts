@@ -9,6 +9,8 @@ export function buildExercisesSlice(
   firestore: ExercisesSliceFirestorePort,
   saving: DataAccessDeps["saving"]
 ) {
+  const SEARCH_LIST_LIMIT = 1000;
+
   return {
     async get(id: string): Promise<Exercise | null> {
       const raw = await firestore.getDocument("exercises", id);
@@ -27,6 +29,14 @@ export function buildExercisesSlice(
       const raw = await firestore.queryExerciseByNameLowerEqual(nameLower);
       if (!raw) return null;
       return mapExerciseFromDoc(raw.id, raw.data);
+    },
+
+    async listAllForSearch(limit = SEARCH_LIST_LIMIT) {
+      const rows = await firestore.queryExercisesList({
+        sort: "asc",
+        limit,
+      });
+      return rows.map((d) => mapExerciseFromDoc(d.id, d.data));
     },
 
     async create(input: {
