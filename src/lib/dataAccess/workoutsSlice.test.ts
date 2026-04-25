@@ -4,6 +4,48 @@ import { createInMemoryFirestoreDataPort } from "../firestoreDataPort/inMemory";
 import { buildWorkoutsSlice } from "./workoutsSlice";
 
 describe("buildWorkoutsSlice", () => {
+  it("previousForDayBefore returns the latest prior workout on same day", async () => {
+    const firestore = createInMemoryFirestoreDataPort({
+      workouts: {
+        w1: {
+          date: new Date("2024-01-01T12:00:00.000Z"),
+          dayId: "d1",
+          dayNameSnapshot: "Push",
+          note: "",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        w2: {
+          date: new Date("2024-02-01T12:00:00.000Z"),
+          dayId: "d1",
+          dayNameSnapshot: "Push",
+          note: "",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        w3: {
+          date: new Date("2024-03-01T12:00:00.000Z"),
+          dayId: "d2",
+          dayNameSnapshot: "Pull",
+          note: "",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      },
+    });
+    const slice = buildWorkoutsSlice(firestore, {
+      start: vi.fn(),
+      end: vi.fn(),
+    });
+
+    const previous = await slice.previousForDayBefore(
+      "d1",
+      new Date("2024-04-01T00:00:00.000Z")
+    );
+
+    expect(previous?.id).toBe("w2");
+  });
+
   describe("update", () => {
     it("uses syncWorkoutDateAndSetsPerformedAt when patch includes date", async () => {
       const d0 = new Date("2024-01-01T12:00:00.000Z");

@@ -169,6 +169,55 @@ export function createFirebaseFirestoreDataPort(
       );
     },
 
+    async queryWorkoutsByDayBeforeDate(dayId, beforeDate, lim) {
+      const ref = collection(db, "workouts");
+      try {
+        const q = query(
+          ref,
+          where("dayId", "==", dayId),
+          where("date", "<", beforeDate),
+          orderBy("date", "desc"),
+          limit(lim)
+        );
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map((d) =>
+          toRawDoc(d.id, d.data() as Record<string, unknown>)
+        );
+      } catch (error: unknown) {
+        const code =
+          typeof error === "object" && error && "code" in error
+            ? String((error as { code?: unknown }).code)
+            : "";
+        if (code !== "failed-precondition") {
+          throw error;
+        }
+      }
+
+      // Fallback: use date-ordered query and filter in memory.
+      const fallback = query(ref, orderBy("date", "desc"), limit(500));
+      const snapshot = await getDocs(fallback);
+      const filtered = snapshot.docs
+        .filter((d) => {
+          const data = d.data() as Record<string, unknown>;
+          const date = data.date as Date | { toDate: () => Date } | undefined;
+          const dateValue =
+            date instanceof Date
+              ? date
+              : date && typeof date === "object" && "toDate" in date
+                ? (date as { toDate: () => Date }).toDate()
+                : null;
+          return (
+            data.dayId === dayId &&
+            dateValue != null &&
+            dateValue.getTime() < beforeDate.getTime()
+          );
+        })
+        .slice(0, lim);
+      return filtered.map((d) =>
+        toRawDoc(d.id, d.data() as Record<string, unknown>)
+      );
+    },
+
     async querySetsByWorkoutId(workoutId) {
       const setsSnap = await getDocs(
         query(collection(db, "sets"), where("workoutId", "==", workoutId))

@@ -47,6 +47,10 @@ export function createWorkoutDetailDataHandlers(
       );
     },
 
+    loadFillTemplateData(workoutId: string) {
+      return session.loadFillTemplateData(workoutId);
+    },
+
     deleteWorkoutWithSets(workoutId: string) {
       return session.deleteWorkoutWithSets(workoutId);
     },

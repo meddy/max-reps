@@ -1,5 +1,6 @@
 import type { EditorExerciseGroup } from "../workoutEditor/model";
 import type { Workout } from "../../types";
+import type { TemplateWithExerciseName } from "../../types";
 
 export type WorkoutDetailEditorSeed = {
   resetKey: string;
@@ -48,6 +49,17 @@ export interface WorkoutSessionApi {
   ): Promise<{
     sets: Array<{ reps: number; weight: number; note?: string }>;
     workoutId?: string;
+  }>;
+
+  loadFillTemplateData(workoutId: string): Promise<{
+    dayTemplates: TemplateWithExerciseName[];
+    sameDayPreviousByExercise: Record<
+      string,
+      {
+        sets: Array<{ reps: number; weight: number; note?: string }>;
+        workoutId: string;
+      }
+    >;
   }>;
 
   deleteWorkoutWithSets(workoutId: string): Promise<void>;

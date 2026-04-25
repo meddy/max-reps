@@ -48,6 +48,7 @@ function buildMockDataAccess() {
 
   const workouts = {
     get: vi.fn(),
+    previousForDayBefore: vi.fn(),
     getWithSets: vi.fn(),
     create: vi.fn(),
     update: vi.fn(),
@@ -89,6 +90,7 @@ function buildMockDataAccess() {
     updateWorkout: vi.fn(),
     editorPersistence: vi.fn(),
     lastPerformedGroupForExercise: vi.fn(),
+    loadFillTemplateData: vi.fn(),
     deleteWorkoutWithSets: vi.fn(),
   };
 
@@ -132,6 +134,9 @@ function wireWorkoutSession(da: BuiltMockDataAccess): void {
   da.workoutSession.lastPerformedGroupForExercise.mockImplementation(
     session.lastPerformedGroupForExercise.bind(session)
   );
+  da.workoutSession.loadFillTemplateData.mockImplementation(
+    session.loadFillTemplateData.bind(session)
+  );
   da.workoutSession.deleteWorkoutWithSets.mockImplementation(
     session.deleteWorkoutWithSets.bind(session)
   );
@@ -168,6 +173,7 @@ function seedDefaultResolvedValues(da: BuiltMockDataAccess): void {
   da.templates.delete.mockResolvedValue(undefined);
 
   da.workouts.get.mockResolvedValue(null);
+  da.workouts.previousForDayBefore.mockResolvedValue(null);
   da.workouts.getWithSets.mockResolvedValue(null);
   da.workouts.create.mockResolvedValue("w-new");
   da.workouts.deleteWithSets.mockResolvedValue(undefined);

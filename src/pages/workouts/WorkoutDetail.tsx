@@ -24,6 +24,7 @@ import { formatDate, toDatetimeLocalValue } from "../../lib/format";
 import {
   useWorkoutEditor,
   type EditorExerciseGroup,
+  mergeWorkoutGroupsWithDayTemplates,
 } from "../../lib/workoutEditor/useWorkoutEditor";
 import {
   createWorkoutDetailDataHandlers,
@@ -146,10 +147,53 @@ export function WorkoutDetail() {
   const [removeExerciseTemplateGroupKey, setRemoveExerciseTemplateGroupKey] =
     useState<string | null>(null);
   const [isDragGestureActive, setIsDragGestureActive] = useState(false);
+  const [fillTemplateLoading, setFillTemplateLoading] = useState(false);
+  const [fillTemplateData, setFillTemplateData] = useState<{
+    dayTemplates: Awaited<
+      ReturnType<typeof detailHandlers.loadFillTemplateData>
+    >["dayTemplates"];
+    sameDayPreviousByExercise: Awaited<
+      ReturnType<typeof detailHandlers.loadFillTemplateData>
+    >["sameDayPreviousByExercise"];
+  } | null>(null);
+  const fillTemplateDisabled =
+    fillTemplateLoading || (fillTemplateData?.dayTemplates.length ?? 0) === 0;
 
   useEffect(() => {
     if (workout) setDateInput(toDatetimeLocalValue(workout.date));
   }, [workout?.id, workout?.date]);
+
+  useEffect(() => {
+    if (!workoutId || !workout || isTemplateMode) {
+      setFillTemplateData(null);
+      return;
+    }
+    let cancelled = false;
+    setFillTemplateLoading(true);
+    void detailHandlers
+      .loadFillTemplateData(workoutId)
+      .then((result) => {
+        if (!cancelled) {
+          setFillTemplateData(result);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setFillTemplateData({
+            dayTemplates: [],
+            sameDayPreviousByExercise: {},
+          });
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setFillTemplateLoading(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [detailHandlers, isTemplateMode, workout, workoutId]);
 
   const persistence = useMemo(
     () => detailHandlers.createEditorPersistence(),
@@ -231,6 +275,26 @@ export function WorkoutDetail() {
     },
     [editor]
   );
+
+  const handleFillTemplate = useCallback(async () => {
+    if (!workoutId || isTemplateMode) return;
+    setFillTemplateLoading(true);
+    try {
+      const payload =
+        fillTemplateData ??
+        (await detailHandlers.loadFillTemplateData(workoutId));
+      setFillTemplateData(payload);
+      if (payload.dayTemplates.length === 0) return;
+      const merged = mergeWorkoutGroupsWithDayTemplates(
+        editor.groups,
+        payload.dayTemplates,
+        payload.sameDayPreviousByExercise
+      );
+      editor.applyLocalMerge(merged);
+    } finally {
+      setFillTemplateLoading(false);
+    }
+  }, [detailHandlers, editor, fillTemplateData, isTemplateMode, workoutId]);
 
   const handleAddExerciseTemplate = useCallback(
     async (exerciseId: string, exerciseName: string) => {
@@ -363,6 +427,72 @@ export function WorkoutDetail() {
     </div>
   );
 
+  const renderGroupMetadata = (group: EditorExerciseGroup) => {
+    const last = group.lastPerformed;
+    const lastFormatted =
+      last && last.sets.length > 0
+        ? last.sets.map((s) => `${s.weight}x${s.reps}`).join(", ") + " lbs"
+        : null;
+    const lastNotes =
+      last?.sets?.map((s) => s.note?.trim()).filter(Boolean) ?? [];
+    const notesText = lastNotes.length > 0 ? lastNotes.join(" • ") : null;
+    const meta = group.templateMeta;
+    const isAdHoc = meta?.isAdHoc;
+    const dayId = group.dayId ?? workout.dayId;
+
+    if (!isAdHoc && meta) {
+      return (
+        <div className="space-y-1">
+          <p className="text-sm text-gray-500">
+            <strong>Target:</strong>{" "}
+            <Link
+              to={`/days/${dayId}`}
+              className="text-indigo-600 hover:underline"
+            >
+              {meta.repsLower}–{meta.repsUpper} reps
+            </Link>
+            {lastFormatted && last?.workoutId && (
+              <span className="ml-2">
+                <strong>Last:</strong>{" "}
+                <Link
+                  to={`/workouts/${last.workoutId}`}
+                  className="text-indigo-600 hover:underline"
+                >
+                  {lastFormatted}
+                </Link>
+              </span>
+            )}
+          </p>
+          {notesText && (
+            <p className="text-sm text-gray-500">
+              <strong>Notes:</strong> {notesText}
+            </p>
+          )}
+        </div>
+      );
+    }
+
+    if (!lastFormatted || !last?.workoutId) return null;
+    return (
+      <div className="space-y-1">
+        <p className="text-sm text-gray-500">
+          Last:{" "}
+          <Link
+            to={`/workouts/${last.workoutId}`}
+            className="text-indigo-600 hover:underline"
+          >
+            {lastFormatted}
+          </Link>
+        </p>
+        {notesText && (
+          <p className="text-sm text-gray-500">
+            <strong>Notes:</strong> {notesText}
+          </p>
+        )}
+      </div>
+    );
+  };
+
   if (isTemplateMode) {
     return (
       <div className="flex flex-col gap-4">
@@ -391,71 +521,6 @@ export function WorkoutDetail() {
             strategy={verticalListSortingStrategy}
           >
             {editor.groups.map((group) => {
-              const last = group.lastPerformed;
-              const lastFormatted =
-                last && last.sets.length > 0
-                  ? last.sets.map((s) => `${s.weight}x${s.reps}`).join(", ") +
-                    " lbs"
-                  : null;
-              const lastNotes =
-                last?.sets?.map((s) => s.note?.trim()).filter(Boolean) ?? [];
-              const notesText =
-                lastNotes.length > 0 ? lastNotes.join(" • ") : null;
-              const meta = group.templateMeta;
-              const isAdHoc = meta?.isAdHoc;
-              const dayId = group.dayId ?? workout.dayId;
-
-              const metadata =
-                !isAdHoc && meta ? (
-                  <div className="space-y-1">
-                    <p className="text-sm text-gray-500">
-                      <strong>Target:</strong>{" "}
-                      <Link
-                        to={`/days/${dayId}`}
-                        className="text-indigo-600 hover:underline"
-                      >
-                        {meta.repsLower}–{meta.repsUpper} reps
-                      </Link>
-                      {lastFormatted && last?.workoutId && (
-                        <span className="ml-2">
-                          <strong>Last:</strong>{" "}
-                          <Link
-                            to={`/workouts/${last.workoutId}`}
-                            className="text-indigo-600 hover:underline"
-                          >
-                            {lastFormatted}
-                          </Link>
-                        </span>
-                      )}
-                    </p>
-                    {notesText && (
-                      <p className="text-sm text-gray-500">
-                        <strong>Notes:</strong> {notesText}
-                      </p>
-                    )}
-                  </div>
-                ) : (
-                  lastFormatted &&
-                  last?.workoutId && (
-                    <div className="space-y-1">
-                      <p className="text-sm text-gray-500">
-                        Last:{" "}
-                        <Link
-                          to={`/workouts/${last.workoutId}`}
-                          className="text-indigo-600 hover:underline"
-                        >
-                          {lastFormatted}
-                        </Link>
-                      </p>
-                      {notesText && (
-                        <p className="text-sm text-gray-500">
-                          <strong>Notes:</strong> {notesText}
-                        </p>
-                      )}
-                    </div>
-                  )
-                );
-
               return (
                 <SortableExerciseCard
                   key={group.groupKey}
@@ -466,7 +531,7 @@ export function WorkoutDetail() {
                   <ExerciseCard
                     exerciseName={group.exerciseName}
                     exerciseId={group.exerciseId}
-                    metadata={metadata}
+                    metadata={renderGroupMetadata(group)}
                     onRemove={() =>
                       setRemoveExerciseTemplateGroupKey(group.groupKey)
                     }
@@ -562,13 +627,23 @@ export function WorkoutDetail() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-2">
-        <button
-          type="button"
-          onClick={() => navigate("/workouts")}
-          className="min-h-[44px] rounded-xl border border-gray-300 bg-white px-3 text-sm font-medium text-gray-700"
-        >
-          Back to History
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => navigate("/workouts")}
+            className="min-h-[44px] rounded-xl border border-gray-300 bg-white px-3 text-sm font-medium text-gray-700"
+          >
+            Back to History
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleFillTemplate()}
+            disabled={fillTemplateDisabled}
+            className="min-h-[44px] rounded-xl border border-gray-300 bg-white px-3 text-sm font-medium text-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Fill Template
+          </button>
+        </div>
       </div>
 
       <div className="rounded-xl border-l-4 border-indigo-500 bg-white p-4 shadow-sm">
@@ -652,6 +727,7 @@ export function WorkoutDetail() {
               <ExerciseCard
                 exerciseName={group.exerciseName}
                 exerciseId={group.exerciseId}
+                metadata={renderGroupMetadata(group)}
                 onRemove={() => setRemoveExerciseGroupKey(group.groupKey)}
                 onAddSet={() => editor.addSet(group.groupKey)}
               >

@@ -205,6 +205,14 @@ export function createInMemoryFirestoreDataPort(
       return rows.slice(0, opts.limit);
     },
 
+    async queryWorkoutsByDayBeforeDate(dayId, beforeDate, lim) {
+      const cutoff = beforeDate.getTime();
+      return listCol("workouts")
+        .filter((d) => d.data.dayId === dayId && asNumber(d.data.date) < cutoff)
+        .sort((a, b) => asNumber(b.data.date) - asNumber(a.data.date))
+        .slice(0, lim);
+    },
+
     async querySetsByWorkoutId(workoutId) {
       return listCol("sets").filter((d) => d.data.workoutId === workoutId);
     },

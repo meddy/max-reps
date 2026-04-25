@@ -170,6 +170,152 @@ describe("WorkoutDetail", () => {
     });
     expect(screen.getByText(/target:/i)).toBeInTheDocument();
   });
+
+  it("fills template locally on workout mode and shows hybrid metadata", async () => {
+    const user = userEvent.setup();
+    const ts = new Date("2024-02-01T12:00:00");
+    const base = new Date("2024-01-01T12:00:00");
+    mockDataAccess.workouts.get.mockResolvedValue({
+      id: "w1",
+      date: ts,
+      dayId: "d1",
+      dayNameSnapshot: "Leg Day",
+      note: "",
+      createdAt: base,
+      updatedAt: base,
+    });
+    mockDataAccess.workouts.previousForDayBefore.mockResolvedValue({
+      id: "w0",
+      date: new Date("2024-01-01T12:00:00"),
+      dayId: "d1",
+      dayNameSnapshot: "Leg Day",
+      note: "",
+      createdAt: base,
+      updatedAt: base,
+    });
+    mockDataAccess.sets.listForWorkout.mockImplementation(async (workoutId) => {
+      if (workoutId === "w1") {
+        return [
+          {
+            id: "s1",
+            workoutId: "w1",
+            exerciseId: "e1",
+            exerciseNameSnapshot: "Squat",
+            reps: 5,
+            weight: 315,
+            unit: "lbs",
+            note: "",
+            performedAt: ts,
+            order: 0,
+            createdAt: base,
+          },
+        ];
+      }
+      return [
+        {
+          id: "s0",
+          workoutId: "w0",
+          exerciseId: "e1",
+          exerciseNameSnapshot: "Squat",
+          reps: 8,
+          weight: 275,
+          unit: "lbs",
+          note: "slow eccentric",
+          performedAt: new Date("2024-01-01T12:00:00"),
+          order: 0,
+          createdAt: base,
+        },
+      ];
+    });
+    mockDataAccess.templates.listForDayWithExerciseNames.mockResolvedValue([
+      {
+        id: "t1",
+        dayId: "d1",
+        exerciseId: "e1",
+        numSets: 2,
+        repsLower: 5,
+        repsUpper: 8,
+        order: 0,
+        createdAt: base,
+        updatedAt: base,
+        exerciseDisplayName: "Squat",
+      },
+      {
+        id: "t2",
+        dayId: "d1",
+        exerciseId: "e2",
+        numSets: 2,
+        repsLower: 8,
+        repsUpper: 12,
+        order: 1,
+        createdAt: base,
+        updatedAt: base,
+        exerciseDisplayName: "Romanian Deadlift",
+      },
+    ]);
+
+    renderWithProviders(
+      <Routes>
+        <Route path="/workouts/:id" element={<WorkoutDetail />} />
+      </Routes>,
+      { route: "/workouts/w1", authValue }
+    );
+
+    const fillButton = await screen.findByRole("button", {
+      name: /fill template/i,
+    });
+    await waitFor(() => expect(fillButton).toBeEnabled());
+    await user.click(fillButton);
+
+    await waitFor(() => {
+      expect(screen.getByText("Romanian Deadlift")).toBeInTheDocument();
+    });
+    expect(screen.getAllByText(/target:/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/notes:/i).length).toBeGreaterThan(0);
+    expect(mockDataAccess.sets.create).not.toHaveBeenCalled();
+  });
+
+  it("disables fill template when no corresponding day template exists", async () => {
+    const ts = new Date("2024-02-01T12:00:00");
+    const base = new Date("2024-01-01T12:00:00");
+    mockDataAccess.workouts.get.mockResolvedValue({
+      id: "w1",
+      date: ts,
+      dayId: "d1",
+      dayNameSnapshot: "Leg Day",
+      note: "",
+      createdAt: base,
+      updatedAt: base,
+    });
+    mockDataAccess.sets.listForWorkout.mockResolvedValue([
+      {
+        id: "s1",
+        workoutId: "w1",
+        exerciseId: "e1",
+        exerciseNameSnapshot: "Squat",
+        reps: 5,
+        weight: 315,
+        unit: "lbs",
+        note: "",
+        performedAt: ts,
+        order: 0,
+        createdAt: base,
+      },
+    ]);
+    mockDataAccess.templates.listForDayWithExerciseNames.mockResolvedValue([]);
+
+    renderWithProviders(
+      <Routes>
+        <Route path="/workouts/:id" element={<WorkoutDetail />} />
+      </Routes>,
+      { route: "/workouts/w1", authValue }
+    );
+
+    const fillButton = await screen.findByRole("button", {
+      name: /fill template/i,
+    });
+    await waitFor(() => expect(fillButton).toBeDisabled());
+  });
 });
 
 describe("workout reorder helpers", () => {

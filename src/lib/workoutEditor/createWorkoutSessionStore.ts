@@ -369,6 +369,13 @@ export function createWorkoutSessionStore(
       groups = cloneGroups(nextGroups);
       emit();
     },
+    applyLocalMerge(nextGroups) {
+      clearPersistTimers();
+      clearTemplateTimers();
+      groups = cloneGroups(nextGroups);
+      dirtyKeys = new Set();
+      emit();
+    },
     async removeExercise(groupKey) {
       const g = groups.find((x) => x.groupKey === groupKey);
       if (!g) return;

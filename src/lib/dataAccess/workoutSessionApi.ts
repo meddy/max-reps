@@ -20,7 +20,10 @@ export type {
 } from "./workoutSessionTypes";
 
 export type WorkoutSessionApiDeps = {
-  workouts: Pick<WorkoutsDataSlice, "get" | "update" | "deleteWithSets">;
+  workouts: Pick<
+    WorkoutsDataSlice,
+    "get" | "update" | "deleteWithSets" | "previousForDayBefore"
+  >;
   /** Load path uses list/last-performed; editor persistence uses create/update/delete. */
   sets: SetsDataSlice;
   templates: Pick<TemplatesDataSlice, "catalog">;
@@ -112,6 +115,54 @@ export function createWorkoutSessionApi(
         exerciseId,
         excludeWorkoutId
       );
+    },
+
+    async loadFillTemplateData(workoutId) {
+      const workout = await deps.workouts.get(workoutId);
+      if (!workout || !workout.dayId) {
+        return { dayTemplates: [], sameDayPreviousByExercise: {} };
+      }
+
+      const dayTemplates = await deps.templates.catalog.forDay(workout.dayId);
+      if (dayTemplates.length === 0) {
+        return { dayTemplates: [], sameDayPreviousByExercise: {} };
+      }
+
+      const previousWorkout = await deps.workouts.previousForDayBefore(
+        workout.dayId,
+        workout.date
+      );
+      if (!previousWorkout) {
+        return { dayTemplates, sameDayPreviousByExercise: {} };
+      }
+
+      const previousSets = await deps.sets.listForWorkout(previousWorkout.id);
+      const grouped = new Map<
+        string,
+        Array<{ reps: number; weight: number; note?: string }>
+      >();
+
+      for (const set of previousSets) {
+        const bucket = grouped.get(set.exerciseId) ?? [];
+        bucket.push({ reps: set.reps, weight: set.weight, note: set.note });
+        grouped.set(set.exerciseId, bucket);
+      }
+
+      const sameDayPreviousByExercise: Record<
+        string,
+        {
+          sets: Array<{ reps: number; weight: number; note?: string }>;
+          workoutId: string;
+        }
+      > = {};
+      for (const [exerciseId, sets] of grouped.entries()) {
+        sameDayPreviousByExercise[exerciseId] = {
+          sets,
+          workoutId: previousWorkout.id,
+        };
+      }
+
+      return { dayTemplates, sameDayPreviousByExercise };
     },
 
     deleteWorkoutWithSets(workoutId) {

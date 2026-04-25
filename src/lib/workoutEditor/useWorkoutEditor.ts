@@ -18,6 +18,7 @@ export type {
 export {
   editorGroupsFromDayTemplates,
   editorGroupsFromWorkoutSets,
+  mergeWorkoutGroupsWithDayTemplates,
   type TemplateWithName,
 } from "./editorSeedBuilders";
 
@@ -78,6 +79,7 @@ export function useWorkoutEditor(
       appendTemplateGroup: store.appendTemplateGroup.bind(store),
       reorderExerciseGroups: store.reorderExerciseGroups.bind(store),
       setGroups: store.setGroups.bind(store),
+      applyLocalMerge: store.applyLocalMerge.bind(store),
       removeExercise: store.removeExercise.bind(store),
       addSet: store.addSet.bind(store),
       removeSet: store.removeSet.bind(store),

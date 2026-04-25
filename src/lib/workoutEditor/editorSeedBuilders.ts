@@ -8,6 +8,12 @@ export type TemplateWithName = import("../../types").ExerciseSetTemplate & {
   isAdHoc?: boolean;
 };
 
+type TemplateMergeRow = import("../../types").ExerciseSetTemplate & {
+  id: string;
+  exerciseDisplayName?: string;
+  exerciseName?: string;
+};
+
 /** Build editor groups from persisted workout sets (workout mode). */
 export function editorGroupsFromWorkoutSets(
   sets: Array<WorkoutSet & { id: string }>
@@ -68,4 +74,79 @@ export function editorGroupsFromDayTemplates(
       : { repsLower: t.repsLower, repsUpper: t.repsUpper, isAdHoc: false },
     lastPerformed: lastPerformed[t.exerciseId],
   }));
+}
+
+export function mergeWorkoutGroupsWithDayTemplates(
+  workoutGroups: EditorExerciseGroup[],
+  templates: TemplateMergeRow[],
+  sameDayPreviousByExercise: Record<
+    string,
+    {
+      sets: Array<{ reps: number; weight: number; note?: string }>;
+      workoutId: string;
+    }
+  >
+): EditorExerciseGroup[] {
+  const templatesByExercise = new Map<string, TemplateMergeRow>();
+  for (const template of templates) {
+    if (!templatesByExercise.has(template.exerciseId)) {
+      templatesByExercise.set(template.exerciseId, template);
+    }
+  }
+
+  const merged: EditorExerciseGroup[] = workoutGroups.map((group) => {
+    const template = templatesByExercise.get(group.exerciseId);
+    if (!template)
+      return { ...group, rows: group.rows.map((row) => ({ ...row })) };
+
+    const rows = group.rows.map((row) => ({ ...row }));
+    const missingRows = Math.max(template.numSets - rows.length, 0);
+    for (let i = 0; i < missingRows; i += 1) {
+      rows.push({
+        id: crypto.randomUUID(),
+        reps: 0,
+        weight: 0,
+        note: "",
+      });
+    }
+
+    return {
+      ...group,
+      dayId: template.dayId,
+      rows,
+      templateMeta: {
+        repsLower: template.repsLower,
+        repsUpper: template.repsUpper,
+        isAdHoc: false,
+      },
+      lastPerformed: sameDayPreviousByExercise[group.exerciseId],
+    };
+  });
+
+  const existingExerciseIds = new Set(workoutGroups.map((g) => g.exerciseId));
+  const missingTemplateGroups = templates
+    .filter((template) => !existingExerciseIds.has(template.exerciseId))
+    .map((template) => ({
+      groupKey: template.exerciseId,
+      exerciseId: template.exerciseId,
+      exerciseName:
+        template.exerciseDisplayName ??
+        template.exerciseName ??
+        template.exerciseId,
+      dayId: template.dayId,
+      rows: Array.from({ length: template.numSets }, () => ({
+        id: crypto.randomUUID(),
+        reps: 0,
+        weight: 0,
+        note: "",
+      })),
+      templateMeta: {
+        repsLower: template.repsLower,
+        repsUpper: template.repsUpper,
+        isAdHoc: false,
+      },
+      lastPerformed: sameDayPreviousByExercise[template.exerciseId],
+    }));
+
+  return [...merged, ...missingTemplateGroups];
 }

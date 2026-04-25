@@ -31,6 +31,7 @@ function createSessionDeps(
   return {
     workouts: {
       get: vi.fn(reject),
+      previousForDayBefore: vi.fn(reject),
       getWithSets: vi.fn(reject),
       create: vi.fn(reject),
       update: vi.fn(reject),
@@ -223,5 +224,71 @@ describe("createWorkoutSessionApi", () => {
     );
     await api.deleteWorkoutWithSets("w9");
     expect(deleteWithSets).toHaveBeenCalledWith("w9");
+  });
+
+  it("loadFillTemplateData returns templates and previous same-day sets", async () => {
+    const workout: Workout & { id: string } = {
+      id: "w1",
+      date: new Date("2025-01-10T10:00:00Z"),
+      dayId: "d1",
+      dayNameSnapshot: "Push",
+      note: "",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    const previous: Workout & { id: string } = {
+      ...workout,
+      id: "w0",
+      date: new Date("2025-01-01T10:00:00Z"),
+    };
+    const get = vi.fn().mockResolvedValue(workout);
+    const previousForDayBefore = vi.fn().mockResolvedValue(previous);
+    const listForDayWithExerciseNames = vi.fn().mockResolvedValue([
+      {
+        id: "t1",
+        dayId: "d1",
+        exerciseId: "e1",
+        numSets: 3,
+        repsLower: 6,
+        repsUpper: 8,
+        order: 0,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        exerciseDisplayName: "Bench",
+      },
+    ]);
+    const listForWorkout = vi.fn().mockResolvedValue([
+      {
+        id: "s1",
+        workoutId: "w0",
+        exerciseId: "e1",
+        exerciseNameSnapshot: "Bench",
+        reps: 7,
+        weight: 185,
+        unit: "lbs",
+        note: "pause",
+        performedAt: new Date(),
+        order: 0,
+        createdAt: new Date(),
+      },
+    ]);
+
+    const api = createWorkoutSessionApi(
+      createSessionDeps({
+        workouts: { get, previousForDayBefore },
+        sets: { listForWorkout },
+        templates: { listForDayWithExerciseNames },
+      })
+    );
+
+    const out = await api.loadFillTemplateData("w1");
+
+    expect(previousForDayBefore).toHaveBeenCalledWith("d1", workout.date);
+    expect(listForWorkout).toHaveBeenCalledWith("w0");
+    expect(out.dayTemplates).toHaveLength(1);
+    expect(out.sameDayPreviousByExercise.e1).toEqual({
+      workoutId: "w0",
+      sets: [{ reps: 7, weight: 185, note: "pause" }],
+    });
   });
 });

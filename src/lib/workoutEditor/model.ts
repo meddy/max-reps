@@ -61,6 +61,7 @@ export type WorkoutSessionStore = {
   appendTemplateGroup: (group: EditorExerciseGroup) => void;
   reorderExerciseGroups: (activeGroupKey: string, overGroupKey: string) => void;
   setGroups: (groups: EditorExerciseGroup[]) => void;
+  applyLocalMerge: (groups: EditorExerciseGroup[]) => void;
   removeExercise: (groupKey: string) => Promise<void>;
   addSet: (groupKey: string) => void;
   removeSet: (rowId: EditorRowId) => Promise<void>;
@@ -87,6 +88,7 @@ export type UseWorkoutEditorResult = WorkoutSessionSnapshot &
     | "appendTemplateGroup"
     | "reorderExerciseGroups"
     | "setGroups"
+    | "applyLocalMerge"
     | "removeExercise"
     | "addSet"
     | "removeSet"

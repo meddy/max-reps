@@ -20,6 +20,17 @@ export function buildWorkoutsSlice(
       return mapWorkoutFromDoc(raw.id, raw.data);
     },
 
+    async previousForDayBefore(dayId: string, beforeDate: Date) {
+      const rows = await firestore.queryWorkoutsByDayBeforeDate(
+        dayId,
+        beforeDate,
+        1
+      );
+      if (rows.length === 0) return null;
+      const first = rows[0];
+      return mapWorkoutFromDoc(first.id, first.data);
+    },
+
     async getWithSets(id: string): Promise<{
       workout: Workout & { id: string };
       sets: WorkoutSet[];
