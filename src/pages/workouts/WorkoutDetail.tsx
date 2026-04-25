@@ -73,12 +73,14 @@ export function buildWorkoutSetOrderUpdates(
 type SortableExerciseCardProps = {
   group: EditorExerciseGroup;
   disabled: boolean;
+  isDragGestureActive: boolean;
   children: React.ReactNode;
 };
 
 function SortableExerciseCard({
   group,
   disabled,
+  isDragGestureActive,
   children,
 }: SortableExerciseCardProps) {
   const {
@@ -92,7 +94,12 @@ function SortableExerciseCard({
   return (
     <div
       ref={setNodeRef}
-      style={{ transform: CSS.Transform.toString(transform), transition }}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        userSelect: isDragGestureActive ? "none" : undefined,
+        WebkitUserSelect: isDragGestureActive ? "none" : undefined,
+      }}
       className={isDragging ? "opacity-80" : ""}
       {...attributes}
       {...listeners}
@@ -138,6 +145,7 @@ export function WorkoutDetail() {
     useState<string | null>(null);
   const [removeExerciseTemplateGroupKey, setRemoveExerciseTemplateGroupKey] =
     useState<string | null>(null);
+  const [isDragGestureActive, setIsDragGestureActive] = useState(false);
 
   useEffect(() => {
     if (workout) setDateInput(toDatetimeLocalValue(workout.date));
@@ -164,6 +172,7 @@ export function WorkoutDetail() {
   );
 
   const handleDragEnd = async (event: DragEndEvent) => {
+    setIsDragGestureActive(false);
     if (editor.isDirty) return;
     const activeGroupKey = String(event.active.id);
     const overGroupKey = event.over?.id ? String(event.over.id) : null;
@@ -372,6 +381,8 @@ export function WorkoutDetail() {
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
+          onDragStart={() => setIsDragGestureActive(true)}
+          onDragCancel={() => setIsDragGestureActive(false)}
           onDragEnd={(event) => void handleDragEnd(event)}
           autoScroll
         >
@@ -450,6 +461,7 @@ export function WorkoutDetail() {
                   key={group.groupKey}
                   group={group}
                   disabled={editor.isDirty}
+                  isDragGestureActive={isDragGestureActive}
                 >
                   <ExerciseCard
                     exerciseName={group.exerciseName}
@@ -621,6 +633,8 @@ export function WorkoutDetail() {
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
+        onDragStart={() => setIsDragGestureActive(true)}
+        onDragCancel={() => setIsDragGestureActive(false)}
         onDragEnd={(event) => void handleDragEnd(event)}
         autoScroll
       >
@@ -633,6 +647,7 @@ export function WorkoutDetail() {
               key={group.groupKey}
               group={group}
               disabled={editor.isDirty}
+              isDragGestureActive={isDragGestureActive}
             >
               <ExerciseCard
                 exerciseName={group.exerciseName}

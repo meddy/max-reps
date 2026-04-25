@@ -78,6 +78,7 @@ export function buildTemplateReorderResult(
 type SortableTemplateRowProps = {
   template: TemplateWithExerciseName;
   isEditing: boolean;
+  isDragGestureActive: boolean;
   onBeginEdit: (template: TemplateWithExerciseName) => void;
   onCancelEdit: () => void;
   onSaveEdit: () => void;
@@ -93,6 +94,7 @@ type SortableTemplateRowProps = {
 function SortableTemplateRow({
   template,
   isEditing,
+  isDragGestureActive,
   onBeginEdit,
   onCancelEdit,
   onSaveEdit,
@@ -119,7 +121,12 @@ function SortableTemplateRow({
   return (
     <li
       ref={setNodeRef}
-      style={{ transform: CSS.Transform.toString(transform), transition }}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        userSelect: isDragGestureActive ? "none" : undefined,
+        WebkitUserSelect: isDragGestureActive ? "none" : undefined,
+      }}
       className={`flex flex-wrap items-center justify-between gap-2 rounded-xl bg-white p-4 shadow-sm transition-colors hover:bg-gray-100 ${
         isDragging ? "opacity-80" : ""
       }`}
@@ -229,6 +236,7 @@ export function DayDetail() {
   const [editRepsLower, setEditRepsLower] = useState("");
   const [editRepsUpper, setEditRepsUpper] = useState("");
   const [deleteTemplateId, setDeleteTemplateId] = useState<string | null>(null);
+  const [isDragGestureActive, setIsDragGestureActive] = useState(false);
   const sensors = useSensors(
     useSensor(GuardedPointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(GuardedTouchSensor, {
@@ -310,6 +318,7 @@ export function DayDetail() {
   };
 
   const handleDragEnd = async (event: DragEndEvent) => {
+    setIsDragGestureActive(false);
     const activeId = String(event.active.id);
     const overId = event.over?.id ? String(event.over.id) : null;
     if (!overId || activeId === overId) return;
@@ -392,6 +401,8 @@ export function DayDetail() {
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
+          onDragStart={() => setIsDragGestureActive(true)}
+          onDragCancel={() => setIsDragGestureActive(false)}
           onDragEnd={(event) => void handleDragEnd(event)}
           autoScroll
         >
@@ -405,6 +416,7 @@ export function DayDetail() {
                   key={template.id}
                   template={template}
                   isEditing={editingTemplateId === template.id}
+                  isDragGestureActive={isDragGestureActive}
                   onBeginEdit={(t) => {
                     setEditingTemplateId(t.id);
                     setEditNumSets(String(t.numSets));

@@ -26,3 +26,10 @@ export class GuardedTouchSensor extends TouchSensor {
     },
   ];
 }
+
+export function shouldPreventSelectionDuringDrag(
+  isDragActive: boolean,
+  target: EventTarget | null
+): boolean {
+  return isDragActive && isDragStartAllowed(target);
+}
