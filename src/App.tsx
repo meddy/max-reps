@@ -5,6 +5,7 @@ import { DataAccessProvider } from "./contexts/DataAccessContext";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { Layout } from "./components/Layout";
 import { LoadingSpinner } from "./components/LoadingSpinner";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 
 const Login = lazy(() =>
   import("./pages/Login").then((m) => ({ default: m.Login }))
@@ -43,41 +44,43 @@ const SettingsPage = lazy(() =>
 
 function App() {
   return (
-    <AuthProvider>
-      <DataAccessProvider>
-        <BrowserRouter>
-          <Suspense
-            fallback={
-              <div className="flex min-h-screen items-center justify-center bg-gray-50">
-                <LoadingSpinner />
-              </div>
-            }
-          >
-            <Routes>
-              <Route path="/login" element={<Login />} />
-              <Route
-                path="/"
-                element={
-                  <ProtectedRoute>
-                    <Layout />
-                  </ProtectedRoute>
-                }
-              >
-                <Route index element={<Navigate to="/workouts" replace />} />
-                <Route path="workouts" element={<WorkoutHistory />} />
-                <Route path="workouts/:id" element={<WorkoutDetail />} />
-                <Route path="exercises" element={<ExerciseList />} />
-                <Route path="exercises/:id" element={<ExerciseDetail />} />
-                <Route path="days" element={<DayList />} />
-                <Route path="days/:id" element={<DayDetail />} />
-                <Route path="settings" element={<SettingsPage />} />
-              </Route>
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          </Suspense>
-        </BrowserRouter>
-      </DataAccessProvider>
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <DataAccessProvider>
+          <BrowserRouter>
+            <Suspense
+              fallback={
+                <div className="flex min-h-screen items-center justify-center bg-gray-50">
+                  <LoadingSpinner />
+                </div>
+              }
+            >
+              <Routes>
+                <Route path="/login" element={<Login />} />
+                <Route
+                  path="/"
+                  element={
+                    <ProtectedRoute>
+                      <Layout />
+                    </ProtectedRoute>
+                  }
+                >
+                  <Route index element={<Navigate to="/workouts" replace />} />
+                  <Route path="workouts" element={<WorkoutHistory />} />
+                  <Route path="workouts/:id" element={<WorkoutDetail />} />
+                  <Route path="exercises" element={<ExerciseList />} />
+                  <Route path="exercises/:id" element={<ExerciseDetail />} />
+                  <Route path="days" element={<DayList />} />
+                  <Route path="days/:id" element={<DayDetail />} />
+                  <Route path="settings" element={<SettingsPage />} />
+                </Route>
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </Suspense>
+          </BrowserRouter>
+        </DataAccessProvider>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
 
