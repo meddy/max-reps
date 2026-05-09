@@ -13,6 +13,7 @@ function parseNumberInput(s: string): number {
 }
 
 export interface SetRowProps {
+  setNumber: number;
   reps: number;
   weight: number;
   note: string;
@@ -25,6 +26,7 @@ export interface SetRowProps {
 }
 
 export function SetRow({
+  setNumber,
   reps,
   weight,
   note,
@@ -67,8 +69,14 @@ export function SetRow({
   };
 
   return (
-    <li className="flex flex-wrap items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-gray-100">
+    <li className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-gray-100 sm:flex sm:flex-wrap">
       <div className="flex min-w-0 flex-1 basis-full items-center gap-2 sm:basis-auto sm:flex-initial">
+        <span
+          className="hidden w-5 shrink-0 text-center text-sm text-gray-500 tabular-nums sm:inline-block"
+          aria-hidden="true"
+        >
+          {setNumber}
+        </span>
         <input
           type="number"
           min={0}
@@ -90,15 +98,21 @@ export function SetRow({
           className="min-w-0 flex-1 rounded-lg border border-gray-300 px-2 py-1.5 text-sm sm:w-20 sm:min-w-[5rem] sm:flex-none"
         />
       </div>
+      <span
+        className="w-9 text-center text-sm text-gray-500 tabular-nums sm:hidden"
+        aria-hidden="true"
+      >
+        {setNumber}
+      </span>
       <input
         type="text"
         placeholder="Add a note (optional)"
         value={note}
         onChange={(e) => onNoteChange(e.target.value)}
         onBlur={onBlur}
-        className="min-w-0 basis-full rounded-lg border border-gray-300 px-2 py-1.5 text-sm sm:basis-auto sm:flex-1 sm:min-w-[80px]"
+        className="min-w-0 flex-1 rounded-lg border border-gray-300 px-2 py-1.5 text-sm sm:min-w-[80px]"
       />
-      <div className="flex min-w-0 flex-1 basis-full gap-2 sm:basis-auto sm:flex-initial">
+      <div className="flex shrink-0 gap-2">
         <button
           type="button"
           onClick={onDelete}

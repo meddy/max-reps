@@ -537,11 +537,12 @@ export function WorkoutDetail() {
                     }
                     onAddSet={() => editor.addSet(group.groupKey)}
                   >
-                    {group.rows.map((row) => {
+                    {group.rows.map((row, index) => {
                       const api = editor.getRowApi(row.id);
                       return (
                         <SetRow
                           key={row.id}
+                          setNumber={index + 1}
                           reps={row.reps}
                           weight={row.weight}
                           note={row.note}
@@ -731,11 +732,12 @@ export function WorkoutDetail() {
                 onRemove={() => setRemoveExerciseGroupKey(group.groupKey)}
                 onAddSet={() => editor.addSet(group.groupKey)}
               >
-                {group.rows.map((row) => {
+                {group.rows.map((row, index) => {
                   const api = editor.getRowApi(row.id);
                   return (
                     <SetRow
                       key={row.id}
+                      setNumber={index + 1}
                       reps={row.reps}
                       weight={row.weight}
                       note={row.note}

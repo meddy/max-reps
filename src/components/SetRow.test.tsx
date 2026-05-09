@@ -10,6 +10,7 @@ describe("SetRow", () => {
     const onRepsChange = vi.fn();
     renderWithProviders(
       <SetRow
+        setNumber={1}
         reps={0}
         weight={0}
         note=""
@@ -23,5 +24,21 @@ describe("SetRow", () => {
     await user.clear(reps);
     await user.type(reps, "10");
     expect(onRepsChange).toHaveBeenCalled();
+  });
+
+  it("renders the set number", () => {
+    renderWithProviders(
+      <SetRow
+        setNumber={3}
+        reps={0}
+        weight={0}
+        note=""
+        onRepsChange={vi.fn()}
+        onWeightChange={vi.fn()}
+        onNoteChange={vi.fn()}
+        onDelete={vi.fn()}
+      />
+    );
+    expect(screen.getAllByText("3").length).toBeGreaterThan(0);
   });
 });
