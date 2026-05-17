@@ -1,6 +1,8 @@
 # Max Reps
 
-A mobile-first workout tracking single-page app built with React, TypeScript, Vite, and Firebase (Auth, Firestore, Hosting). Single-user app gated by a whitelisted Firebase UID.
+A mobile-first workout tracking single-page app built with React, TypeScript, Vite, and Firebase (Auth, Firestore, Hosting).
+
+**Domain language and design rationale live in [`CONTEXT.md`](./CONTEXT.md) and [`docs/adr/`](./docs/adr/). Read them before touching domain code.**
 
 ## Tech Stack
 
@@ -13,7 +15,7 @@ A mobile-first workout tracking single-page app built with React, TypeScript, Vi
 
 - All source code lives in `src/`.
 - Shared types in `src/types/index.ts`.
-- Firebase initialization in `src/lib/firebase.ts`. Firestore access for the app goes through `FirestoreDataPort` in `src/lib/firestoreDataPort/` (Firebase adapter + optional in-memory fake for tests); document writes and cascades use `src/lib/firestorePersistence.ts`. `createDataAccess` in `src/lib/dataAccess/` composes slices on top of the port.
+- Firestore access goes through `FirestoreDataPort` (`src/lib/firestoreDataPort/`) — never import `firebase/firestore` directly from slices, components, or pages. See [ADR-0003](./docs/adr/0003-firestore-data-port.md). `createDataAccess` (`src/lib/dataAccess/`) composes CRUD slices on top of the port; cascading writes use `src/lib/firestorePersistence.ts`.
 - Page components in `src/pages/`, shared components in `src/components/`, hooks in `src/hooks/` (feature hooks may live under `src/lib/<feature>/`), context providers in `src/contexts/`.
 - Environment variables prefixed with `VITE_` (Vite convention) and stored in `.env` (gitignored). A `.env.example` template is committed.
 
@@ -29,14 +31,13 @@ Before submitting any changes, ensure:
 
 ## Firestore Data Model
 
-Five top-level collections: `exercises`, `days`, `exerciseSetTemplates`, `workouts`, `sets`.
-All documents include `createdAt` (timestamp). All except `sets` include `updatedAt` (timestamp).
-`sets` is a top-level collection (not a subcollection of workouts).
+Five top-level collections: `exercises`, `days`, `exerciseSetTemplates`, `workouts`, `sets`. All documents carry `createdAt`; all except `sets` also carry `updatedAt`. `sets` is top-level, not nested under workouts. The `exerciseSetTemplates` collection holds **Set Targets** (see CONTEXT.md) — the collection name is legacy.
 
-## Key Design Decisions
+## Guard Rails
 
-- `unit` field on sets is always `"lbs"` (no UI toggle).
-- `performedAt` on sets is derived from the parent workout's `date` field.
-- Deletion cascades: day -> its templates; workout -> its sets. Exercise deletion does NOT cascade to historical sets.
-- No offline support. Always-online assumption.
-- Single-user app: Firestore security rules restrict all reads/writes to one whitelisted UID.
+Things where forgetting the rule causes silent breakage. Read the linked rationale before changing related code.
+
+- **Single-Owner architecture** — one whitelisted Firebase UID has access; no `userId` on documents, no per-user query scoping. See [ADR-0002](./docs/adr/0002-single-owner-architecture.md) and the *Owner* entry in CONTEXT.md.
+- **`performedAt` is denormalized** — Sets carry a `performedAt` mirror of `Workout.date` for query performance. Updates to `Workout.date` must propagate to child Sets. See [ADR-0001](./docs/adr/0001-denormalize-performed-at-onto-set.md).
+- **Cascades** — Day deletion cascades to its **Set Targets**; Workout deletion cascades to its Sets. Exercise deletion does **not** cascade either direction (historical Sets stay readable via `exerciseNameSnapshot`; dangling Set Targets are deliberate). Spec in `src/lib/dataAccess/cascadePolicy.ts`.
+- **No offline support** — always-online assumption; no offline persistence configured.
