@@ -129,7 +129,7 @@ describe("WorkoutDetail", () => {
     });
   });
 
-  it("renders template mode when the workout has no sets but has templates", async () => {
+  it("renders Unlogged Workout when no sets exist but Set Targets do", async () => {
     const ts = new Date("2024-02-01T12:00:00");
     const base = new Date("2024-01-01T12:00:00");
     mockDataAccess.workouts.get.mockResolvedValue({
@@ -171,7 +171,7 @@ describe("WorkoutDetail", () => {
     expect(screen.getByText(/target:/i)).toBeInTheDocument();
   });
 
-  it("fills template locally on workout mode and shows hybrid metadata", async () => {
+  it("Fill from Day merges locally into a logged Workout and shows hybrid metadata", async () => {
     const user = userEvent.setup();
     const ts = new Date("2024-02-01T12:00:00");
     const base = new Date("2024-01-01T12:00:00");
@@ -262,7 +262,7 @@ describe("WorkoutDetail", () => {
     );
 
     const fillButton = await screen.findByRole("button", {
-      name: /fill template/i,
+      name: /fill from day/i,
     });
     await waitFor(() => expect(fillButton).toBeEnabled());
     await user.click(fillButton);
@@ -275,7 +275,7 @@ describe("WorkoutDetail", () => {
     expect(mockDataAccess.sets.create).not.toHaveBeenCalled();
   });
 
-  it("disables fill template when no corresponding day template exists", async () => {
+  it("disables Fill from Day when the parent Day has no Set Targets", async () => {
     const ts = new Date("2024-02-01T12:00:00");
     const base = new Date("2024-01-01T12:00:00");
     mockDataAccess.workouts.get.mockResolvedValue({
@@ -312,7 +312,7 @@ describe("WorkoutDetail", () => {
     );
 
     const fillButton = await screen.findByRole("button", {
-      name: /fill template/i,
+      name: /fill from day/i,
     });
     await waitFor(() => expect(fillButton).toBeDisabled());
   });

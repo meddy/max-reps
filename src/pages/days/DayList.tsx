@@ -102,7 +102,7 @@ export function DayList() {
     }
     const existing = await dataAccess.days.findByExactName(nameLower);
     if (existing) {
-      setCreateError("A day with this name already exists");
+      setCreateError("A Day with this name already exists");
       return;
     }
     setCreateError("");
@@ -171,8 +171,8 @@ export function DayList() {
             setCreateName("");
           }}
           className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-          aria-label="Add day"
-          title="Add day"
+          aria-label="Add Day"
+          title="Add Day"
         >
           <IconPlus className="size-6" />
         </button>
@@ -185,14 +185,14 @@ export function DayList() {
       ) : days.length === 0 ? (
         <EmptyState
           title="No days"
-          description="Add a day template to get started."
+          description="Add a Day to get started."
           action={
             <button
               type="button"
               onClick={() => setCreateOpen(true)}
               className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
             >
-              Add day
+              Add Day
             </button>
           }
         />
@@ -260,7 +260,7 @@ export function DayList() {
           setCreateOpen(false);
           setCreateError("");
         }}
-        title="New day"
+        title="New Day"
       >
         <input
           type="text"
@@ -300,7 +300,7 @@ export function DayList() {
           setEditId(null);
           setEditName("");
         }}
-        title="Edit day"
+        title="Edit Day"
       >
         <input
           type="text"
@@ -332,8 +332,8 @@ export function DayList() {
 
       <ConfirmDialog
         open={deleteId != null}
-        title="Delete day"
-        message="This will delete all templates for this day. Continue?"
+        title="Delete Day"
+        message="This will delete all Set Targets for this Day. Continue?"
         confirmLabel="Delete"
         cancelLabel="Cancel"
         variant="danger"

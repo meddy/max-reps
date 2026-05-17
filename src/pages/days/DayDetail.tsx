@@ -197,8 +197,8 @@ function SortableTemplateRow({
               type="button"
               onClick={() => onBeginEdit(template)}
               className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-gray-500 hover:bg-gray-200"
-              aria-label="Edit template"
-              title="Edit template"
+              aria-label="Edit Set Target"
+              title="Edit Set Target"
             >
               <IconPencil className="size-6" />
             </button>
@@ -206,8 +206,8 @@ function SortableTemplateRow({
               type="button"
               onClick={() => onDelete(template.id)}
               className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-red-600 hover:bg-red-100"
-              aria-label="Delete template"
-              title="Delete template"
+              aria-label="Delete Set Target"
+              title="Delete Set Target"
             >
               <IconTrash className="size-6" />
             </button>
@@ -385,8 +385,8 @@ export function DayDetail() {
 
       {templates.length === 0 ? (
         <EmptyState
-          title="No exercises in this day"
-          description="Add exercises to build your template."
+          title="No exercises in this Day"
+          description="Add Set Targets to build this Day."
           action={
             <button
               type="button"
@@ -442,12 +442,12 @@ export function DayDetail() {
       <Modal
         open={addOpen}
         onClose={() => setAddOpen(false)}
-        title="Add exercise to day"
+        title="Add Set Target"
       >
         <ExercisePicker
           active={addOpen}
           flow="staged"
-          stagedConfirmLabel="Add template"
+          stagedConfirmLabel="Add Set Target"
           onStagedCancel={() => setAddOpen(false)}
           onCommit={(ex) => void handleAddTemplate(ex.id)}
           renderStagedAccessory={() => (
@@ -498,7 +498,7 @@ export function DayDetail() {
       <ConfirmDialog
         open={deleteTemplateId != null}
         title="Remove exercise"
-        message="Remove this exercise from the day template?"
+        message="Remove this Set Target?"
         confirmLabel="Remove"
         cancelLabel="Cancel"
         variant="danger"

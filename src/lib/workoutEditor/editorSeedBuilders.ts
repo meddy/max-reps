@@ -47,7 +47,7 @@ export function editorGroupsFromWorkoutSets(
   return groups;
 }
 
-/** Build editor groups for template mode from day templates + last-performed map. */
+/** Build editor groups for an Unlogged Workout from its Day's Set Targets + last-performed map. */
 export function editorGroupsFromDayTemplates(
   templates: TemplateWithName[],
   lastPerformed: Record<

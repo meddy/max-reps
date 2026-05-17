@@ -1,6 +1,6 @@
 # Max Reps
 
-A mobile-first workout tracking single-page app. Log exercises, build day templates, record sets, and view history. Built with React, TypeScript, Vite, and Firebase (Auth, Firestore, Hosting). Access is restricted to a single whitelisted Firebase user.
+A mobile-first workout tracking single-page app. Log exercises, build Days, record sets, and view history. Built with React, TypeScript, Vite, and Firebase (Auth, Firestore, Hosting). Access is restricted to a single whitelisted Firebase user.
 
 ## Notes
 

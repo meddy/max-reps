@@ -37,7 +37,7 @@ Five top-level collections: `exercises`, `days`, `exerciseSetTemplates`, `workou
 
 Things where forgetting the rule causes silent breakage. Read the linked rationale before changing related code.
 
-- **Single-Owner architecture** — one whitelisted Firebase UID has access; no `userId` on documents, no per-user query scoping. See [ADR-0002](./docs/adr/0002-single-owner-architecture.md) and the *Owner* entry in CONTEXT.md.
+- **Single-Owner architecture** — one whitelisted Firebase UID has access; no `userId` on documents, no per-user query scoping. See [ADR-0002](./docs/adr/0002-single-owner-architecture.md) and the _Owner_ entry in CONTEXT.md.
 - **`performedAt` is denormalized** — Sets carry a `performedAt` mirror of `Workout.date` for query performance. Updates to `Workout.date` must propagate to child Sets. See [ADR-0001](./docs/adr/0001-denormalize-performed-at-onto-set.md).
 - **Cascades** — Day deletion cascades to its **Set Targets**; Workout deletion cascades to its Sets. Exercise deletion does **not** cascade either direction (historical Sets stay readable via `exerciseNameSnapshot`; dangling Set Targets are deliberate). Spec in `src/lib/dataAccess/cascadePolicy.ts`.
 - **No offline support** — always-online assumption; no offline persistence configured.

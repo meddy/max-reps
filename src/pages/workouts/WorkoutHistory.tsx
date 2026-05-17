@@ -249,10 +249,10 @@ export function WorkoutHistory() {
           />
         </div>
         <label className="mt-4 block text-sm text-gray-600">
-          Day template
+          Day
           <input
             type="search"
-            placeholder="Search days..."
+            placeholder="Search Days..."
             value={daySearch}
             onChange={(e) => setDaySearch(e.target.value)}
             className="mt-1 min-h-[44px] w-full rounded-xl border border-gray-300 bg-white px-4 text-gray-900 placeholder-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
@@ -295,7 +295,7 @@ export function WorkoutHistory() {
         </ul>
         {daySearch.trim() && dayResults.length === 0 && (
           <p className="mt-2 text-sm text-gray-500">
-            No days match. Create a day from the Days tab.
+            No Days match. Create a Day from the Days tab.
           </p>
         )}
         <div className="mt-4 flex gap-2">

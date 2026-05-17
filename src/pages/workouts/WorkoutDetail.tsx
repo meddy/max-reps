@@ -642,7 +642,7 @@ export function WorkoutDetail() {
             disabled={fillTemplateDisabled}
             className="min-h-[44px] rounded-xl border border-gray-300 bg-white px-3 text-sm font-medium text-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            Fill Template
+            Fill from Day
           </button>
         </div>
       </div>

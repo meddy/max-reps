@@ -9,11 +9,11 @@ A reusable, named workout template — the targets for one workout's worth of tr
 _Avoid_: plan, routine, split (these imply multi-day patterns Max Reps doesn't model).
 
 **Set Target**:
-One row of a **Day**: a target of *N* sets of an **Exercise** at a rep range of *L–U*. Ordered within its Day.
+One row of a **Day**: a target of _N_ sets of an **Exercise** at a rep range of _L–U_. Ordered within its Day.
 _Avoid_: template, template row, day exercise, exercise set template, prescription.
 
 **Unlogged Workout**:
-A **Workout** that has been created but has zero logged **Sets**. The editor renders the parent **Day**'s **Set Targets** as empty input rows; saving any Set transitions the workout to *logged*.
+A **Workout** that has been created but has zero logged **Sets**. The editor renders the parent **Day**'s **Set Targets** as empty input rows; saving any Set transitions the workout to _logged_.
 _Avoid_: template mode, template variant, day preview.
 
 **Fill from Day**:
@@ -59,8 +59,9 @@ _Avoid_: user, account.
 ## Conventions
 
 - **`nameLower` / `displayName`** — Both **Exercise** and **Day** carry this pair: `nameLower` is the case-insensitive uniqueness key (lookups and de-duplication), `displayName` is the rendered casing chosen at creation. Convention is `nameLower = displayName.toLowerCase().trim()`.
-- **Display Snapshot fields (`*NameSnapshot`)** — A **Workout** captures `dayNameSnapshot`; a **Set** captures `exerciseNameSnapshot`. Denormalized copies of the referenced entity's `displayName`, written once at creation and never re-derived. Job: keep historical views readable if the referenced entity is later renamed or deleted. Renaming an entity intentionally leaves historical snapshots untouched — they preserve what the workout/set *was called when performed*. Source of truth for editing surfaces remains the referenced entity itself; snapshots only show up in historical read paths.
-- **"Session" is reserved for auth** — The word *session* refers exclusively to the user's authenticated session (`authSessionController`). A **Workout** is never a "session"; the in-memory editor is the **Workout Editor**, not a "workout session".
+- **Day is a proper noun in UI** — In user-facing copy, always capitalize **Day** (`"Add a Day to get started."`, not `"Add a day..."`) to disambiguate from a calendar day. "Day template" is never used in UI copy; reword sentences so the bare noun **Day** stands.
+- **Display Snapshot fields (`*NameSnapshot`)** — A **Workout** captures `dayNameSnapshot`; a **Set** captures `exerciseNameSnapshot`. Denormalized copies of the referenced entity's `displayName`, written once at creation and never re-derived. Job: keep historical views readable if the referenced entity is later renamed or deleted. Renaming an entity intentionally leaves historical snapshots untouched — they preserve what the workout/set _was called when performed_. Source of truth for editing surfaces remains the referenced entity itself; snapshots only show up in historical read paths.
+- **"Session" is reserved for auth** — The word _session_ refers exclusively to the user's authenticated session (`authSessionController`). A **Workout** is never a "session"; the in-memory editor is the **Workout Editor**, not a "workout session".
 
 ## Relationships
 
@@ -68,14 +69,13 @@ _Avoid_: user, account.
 - A **Set Target** belongs to exactly one **Day** and references one **Exercise**
 - A **Workout** currently references exactly one **Day** (see Flagged ambiguities)
 - A **Workout** owns zero or more **Sets**
-- A **Workout** is **Unlogged** until its first **Set** is saved, then *logged*
+- A **Workout** is **Unlogged** until its first **Set** is saved, then _logged_
 - **Sets** are ordered workout-wide via `order` (a single sequence across the whole Workout). The user reorders **exercises**, not individual Sets — moving an exercise carries its Sets along while preserving their relative order within the exercise.
 - A **Set Target** and a **Set** both reference an **Exercise**. Deleting an Exercise leaves historical Sets readable (via `exerciseNameSnapshot`) but leaves dangling Set Targets (see Flagged ambiguities).
 
 ## Flagged ambiguities
 
-- **"Day template" in UI copy** — Some UI strings ("Day template" in the workout-creation modal, "Remove this exercise from the day template?") qualify the term with "template" for scope clarity. Canonical noun is **Day**; "Day template" is acceptable as a UI-only descriptor where extra scope is helpful, but code and docs should use **Day**.
-- **"Day" vs. calendar day** — "Day" is *not* a calendar date. A [Workout](#) carries its own `date`; the `Day` it references is a named template, not the date it was performed.
+- **"Day" vs. calendar day** — "Day" is _not_ a calendar date. A [Workout](#) carries its own `date`; the `Day` it references is a named template, not the date it was performed.
 - **`exerciseSetTemplates` collection name** — Legacy from before we settled on **Set Target**. Renaming the Firestore collection is invasive; reads/writes still use the old name. New code and docs should refer to the entity as a **Set Target**.
 - **`templateMeta` field on `EditorExerciseGroup`** — Carries `repsLower`/`repsUpper` from the **Set Target** for display. Field name is legacy; the data it carries is the Set Target's rep range, not "template metadata".
 - **Workout-without-a-Day** — Currently every **Workout** must reference a **Day** (UI requires picking one; `dayId` is non-optional). A planned change would let workouts exist without a Day. Defensive code in `loadWorkoutDetail` (`!w.dayId` branch) already anticipates that future state.
