@@ -313,7 +313,6 @@ export function WorkoutDetail() {
             note: "",
           },
         ],
-        templateMeta: { repsLower: 0, repsUpper: 0, isAdHoc: true },
       };
       editor.appendTemplateGroup(virtualGroup);
       const result = await detailHandlers.lastPerformedGroupForExercise(
@@ -436,11 +435,10 @@ export function WorkoutDetail() {
     const lastNotes =
       last?.sets?.map((s) => s.note?.trim()).filter(Boolean) ?? [];
     const notesText = lastNotes.length > 0 ? lastNotes.join(" • ") : null;
-    const meta = group.templateMeta;
-    const isAdHoc = meta?.isAdHoc;
+    const setTarget = group.setTarget;
     const dayId = group.dayId ?? workout.dayId;
 
-    if (!isAdHoc && meta) {
+    if (setTarget) {
       return (
         <div className="space-y-1">
           <p className="text-sm text-gray-500">
@@ -449,7 +447,7 @@ export function WorkoutDetail() {
               to={`/days/${dayId}`}
               className="text-indigo-600 hover:underline"
             >
-              {meta.repsLower}–{meta.repsUpper} reps
+              {setTarget.repsLower}–{setTarget.repsUpper} reps
             </Link>
             {lastFormatted && last?.workoutId && (
               <span className="ml-2">

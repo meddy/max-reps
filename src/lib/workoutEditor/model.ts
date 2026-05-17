@@ -15,10 +15,9 @@ export interface EditorExerciseGroup {
   /** Present for day-template groups (link to day detail). */
   dayId?: string;
   rows: EditorSetRow[];
-  templateMeta?: {
+  setTarget?: {
     repsLower: number;
     repsUpper: number;
-    isAdHoc?: boolean;
   };
   lastPerformed?: {
     sets: Array<{ reps: number; weight: number; note?: string }>;

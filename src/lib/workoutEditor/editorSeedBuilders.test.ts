@@ -18,7 +18,6 @@ function template(input: Partial<TemplateWithName>): TemplateWithName {
     order: input.order ?? 0,
     createdAt: input.createdAt ?? new Date(),
     updatedAt: input.updatedAt ?? new Date(),
-    isAdHoc: input.isAdHoc,
   };
 }
 
@@ -29,7 +28,7 @@ function group(input: Partial<EditorExerciseGroup>): EditorExerciseGroup {
     exerciseName: input.exerciseName ?? "Bench",
     dayId: input.dayId,
     rows: input.rows ?? [{ id: "r1", reps: 5, weight: 135, note: "" }],
-    templateMeta: input.templateMeta,
+    setTarget: input.setTarget,
     lastPerformed: input.lastPerformed,
   };
 }
@@ -56,10 +55,9 @@ describe("mergeWorkoutGroupsWithDayTemplates", () => {
     expect(merged).toHaveLength(1);
     expect(merged[0].rows).toHaveLength(3);
     expect(merged[0].rows[0].id).toBe("r1");
-    expect(merged[0].templateMeta).toEqual({
+    expect(merged[0].setTarget).toEqual({
       repsLower: 6,
       repsUpper: 10,
-      isAdHoc: false,
     });
     expect(merged[0].lastPerformed).toEqual(previous.e1);
   });

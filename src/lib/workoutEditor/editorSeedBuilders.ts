@@ -5,7 +5,6 @@ export type TemplateWithName = import("../../types").ExerciseSetTemplate & {
   id: string;
   exerciseName: string;
   exerciseDisplayName?: string;
-  isAdHoc?: boolean;
 };
 
 type TemplateMergeRow = import("../../types").ExerciseSetTemplate & {
@@ -69,9 +68,7 @@ export function editorGroupsFromDayTemplates(
       weight: 0,
       note: "",
     })),
-    templateMeta: t.isAdHoc
-      ? { repsLower: 0, repsUpper: 0, isAdHoc: true }
-      : { repsLower: t.repsLower, repsUpper: t.repsUpper, isAdHoc: false },
+    setTarget: { repsLower: t.repsLower, repsUpper: t.repsUpper },
     lastPerformed: lastPerformed[t.exerciseId],
   }));
 }
@@ -114,10 +111,9 @@ export function mergeWorkoutGroupsWithDayTemplates(
       ...group,
       dayId: template.dayId,
       rows,
-      templateMeta: {
+      setTarget: {
         repsLower: template.repsLower,
         repsUpper: template.repsUpper,
-        isAdHoc: false,
       },
       lastPerformed: sameDayPreviousByExercise[group.exerciseId],
     };
@@ -140,10 +136,9 @@ export function mergeWorkoutGroupsWithDayTemplates(
         weight: 0,
         note: "",
       })),
-      templateMeta: {
+      setTarget: {
         repsLower: template.repsLower,
         repsUpper: template.repsUpper,
-        isAdHoc: false,
       },
       lastPerformed: sameDayPreviousByExercise[template.exerciseId],
     }));
