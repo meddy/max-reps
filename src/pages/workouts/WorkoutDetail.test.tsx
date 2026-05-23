@@ -2,6 +2,7 @@ import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Route, Routes } from "react-router-dom";
 import { describe, expect, it } from "vitest";
+import { formatDate } from "../../lib/format";
 import { mockDataAccess } from "../../test/mockDataAccess";
 import { renderWithProviders } from "../../test/renderWithProviders";
 import {
@@ -125,6 +126,57 @@ describe("WorkoutDetail", () => {
       expect(mockDataAccess.workoutSession.updateWorkout).toHaveBeenCalledWith(
         "w1",
         { note: "Leg focus" }
+      );
+    });
+  });
+
+  it("persists date on save via workoutSession.updateWorkout", async () => {
+    const user = userEvent.setup();
+    const ts = new Date("2024-02-01T12:00:00");
+    const base = new Date("2024-01-01T12:00:00");
+    const newDateInput = "2024-06-15T12:00";
+    mockDataAccess.workouts.get.mockResolvedValue({
+      id: "w1",
+      date: ts,
+      dayId: "d1",
+      dayNameSnapshot: "Leg Day",
+      note: "",
+      createdAt: base,
+      updatedAt: base,
+    });
+    mockDataAccess.sets.listForWorkout.mockResolvedValue([
+      {
+        id: "s1",
+        workoutId: "w1",
+        exerciseId: "e1",
+        exerciseNameSnapshot: "Squat",
+        reps: 5,
+        weight: 315,
+        unit: "lbs",
+        note: "",
+        performedAt: ts,
+        order: 0,
+        createdAt: base,
+      },
+    ]);
+    renderWithProviders(
+      <Routes>
+        <Route path="/workouts/:id" element={<WorkoutDetail />} />
+      </Routes>,
+      { route: "/workouts/w1", authValue }
+    );
+    await waitFor(() => {
+      expect(screen.getByText("Leg Day")).toBeInTheDocument();
+    });
+    await user.click(screen.getByRole("button", { name: formatDate(ts) }));
+    const dateInput = screen.getByDisplayValue(ts.toISOString().slice(0, 16));
+    await user.clear(dateInput);
+    await user.type(dateInput, newDateInput);
+    await user.click(screen.getByRole("button", { name: /^save$/i }));
+    await waitFor(() => {
+      expect(mockDataAccess.workoutSession.updateWorkout).toHaveBeenCalledWith(
+        "w1",
+        { date: new Date(newDateInput) }
       );
     });
   });
