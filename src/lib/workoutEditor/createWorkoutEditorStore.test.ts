@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Workout } from "../../types";
-import { createWorkoutSessionStore } from "./createWorkoutSessionStore";
+import { createWorkoutEditorStore } from "./createWorkoutEditorStore";
 import type { EditorExerciseGroup } from "./model";
 
 function workoutFixture(): Workout {
@@ -14,7 +14,7 @@ function workoutFixture(): Workout {
   };
 }
 
-describe("createWorkoutSessionStore", () => {
+describe("createWorkoutEditorStore", () => {
   const persistence = {
     saveSet: vi.fn().mockResolvedValue("set-new"),
     updateSet: vi.fn().mockResolvedValue(undefined),
@@ -28,7 +28,7 @@ describe("createWorkoutSessionStore", () => {
 
   it("applyReset replaces groups and notifies subscribers", () => {
     let w: Workout | null = workoutFixture();
-    const store = createWorkoutSessionStore({
+    const store = createWorkoutEditorStore({
       variant: "workout",
       workoutId: "w1",
       persistence,
@@ -53,7 +53,7 @@ describe("createWorkoutSessionStore", () => {
 
   it("workout mode flush persists new set when reps positive", async () => {
     let w: Workout | null = workoutFixture();
-    const store = createWorkoutSessionStore({
+    const store = createWorkoutEditorStore({
       variant: "workout",
       workoutId: "w1",
       persistence,
@@ -87,7 +87,7 @@ describe("createWorkoutSessionStore", () => {
 
   it("addExercise appends a group", () => {
     let w: Workout | null = workoutFixture();
-    const store = createWorkoutSessionStore({
+    const store = createWorkoutEditorStore({
       variant: "workout",
       workoutId: "w1",
       persistence,
@@ -102,7 +102,7 @@ describe("createWorkoutSessionStore", () => {
 
   it("reorderExerciseGroups moves groups by key", () => {
     let w: Workout | null = workoutFixture();
-    const store = createWorkoutSessionStore({
+    const store = createWorkoutEditorStore({
       variant: "workout",
       workoutId: "w1",
       persistence,
@@ -134,7 +134,7 @@ describe("createWorkoutSessionStore", () => {
   it("debounces workout persist until delay elapses", async () => {
     vi.useFakeTimers();
     let w: Workout | null = workoutFixture();
-    const store = createWorkoutSessionStore({
+    const store = createWorkoutEditorStore({
       variant: "workout",
       workoutId: "w1",
       persistence,
@@ -158,7 +158,7 @@ describe("createWorkoutSessionStore", () => {
 
   it("no-ops persist when workout is null", async () => {
     let w: Workout | null = null;
-    const store = createWorkoutSessionStore({
+    const store = createWorkoutEditorStore({
       variant: "workout",
       workoutId: "w1",
       persistence,

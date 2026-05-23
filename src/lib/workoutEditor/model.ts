@@ -38,7 +38,7 @@ export interface UseWorkoutEditorOptions {
   debounceMs?: number;
 }
 
-export type WorkoutSessionSnapshot = {
+export type WorkoutEditorSnapshot = {
   groups: EditorExerciseGroup[];
   isDirty: boolean;
   variant: "workout" | "template";
@@ -50,9 +50,9 @@ export type WorkoutRowApi = {
   flush(): Promise<void>;
 };
 
-export type WorkoutSessionStore = {
+export type WorkoutEditorStore = {
   subscribe: (listener: () => void) => () => void;
-  getSnapshot: () => WorkoutSessionSnapshot;
+  getSnapshot: () => WorkoutEditorSnapshot;
   dispose: () => void;
   applyReset: (initialGroups: EditorExerciseGroup[]) => void;
   getRowApi: (rowId: EditorRowId) => WorkoutRowApi;
@@ -71,7 +71,7 @@ export type WorkoutSessionStore = {
   ) => void;
 };
 
-export type WorkoutSessionStoreConfig = {
+export type WorkoutEditorStoreConfig = {
   variant: "workout" | "template";
   workoutId: string;
   persistence: WorkoutEditorPersistence;
@@ -79,9 +79,9 @@ export type WorkoutSessionStoreConfig = {
   getWorkout: () => Workout | null;
 };
 
-export type UseWorkoutEditorResult = WorkoutSessionSnapshot &
+export type UseWorkoutEditorResult = WorkoutEditorSnapshot &
   Pick<
-    WorkoutSessionStore,
+    WorkoutEditorStore,
     | "getRowApi"
     | "addExercise"
     | "appendTemplateGroup"

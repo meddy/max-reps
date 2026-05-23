@@ -8,14 +8,14 @@ export type WorkoutDetailEditorSeed = {
   variant: "workout" | "template";
 };
 
-export type WorkoutDetailSessionCallbacks = {
+export type WorkoutDetailCallbacks = {
   onTemplateLoadingChange?: (loading: boolean) => void;
 };
 
-export interface WorkoutSessionApi {
+export interface WorkoutDetailApi {
   loadWorkoutDetail(
     workoutId: string,
-    callbacks?: WorkoutDetailSessionCallbacks
+    callbacks?: WorkoutDetailCallbacks
   ): Promise<{
     workout: (Workout & { id: string }) | null;
     editorSeed: WorkoutDetailEditorSeed | null;

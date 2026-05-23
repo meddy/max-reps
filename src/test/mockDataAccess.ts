@@ -1,7 +1,7 @@
 import { vi } from "vitest";
 import { createDataAccess } from "../lib/dataAccess/createDataAccess";
 import { buildWorkoutsSlice } from "../lib/dataAccess/workoutsSlice";
-import { createWorkoutSessionApi } from "../lib/dataAccess/workoutSessionApi";
+import { createWorkoutDetailApi } from "../lib/dataAccess/workoutDetailApi";
 import type { DataAccess } from "../lib/dataAccess/types";
 import { createInMemoryFirestoreDataPort } from "../lib/firestoreDataPort/inMemory";
 import { createWorkoutEditorPersistence } from "../lib/workoutEditor/persistence";
@@ -84,7 +84,7 @@ function buildMockDataAccess() {
     ),
   };
 
-  const workoutSession = {
+  const workoutDetail = {
     loadWorkoutDetail: vi.fn(),
     updateWorkout: vi.fn(),
     editorPersistence: vi.fn(),
@@ -102,50 +102,47 @@ function buildMockDataAccess() {
     sets,
     resolveExerciseNames: vi.fn(),
     exportForBackup,
-    workoutSession,
+    workoutDetail,
   } satisfies DataAccess;
 }
 
 type BuiltMockDataAccess = ReturnType<typeof buildMockDataAccess>;
 
-const sessionFirestore = createInMemoryFirestoreDataPort();
-const sessionSaving = { start: () => {}, end: () => {} };
-const sessionWorkoutsSlice = buildWorkoutsSlice(
-  sessionFirestore,
-  sessionSaving
-);
+const detailFirestore = createInMemoryFirestoreDataPort();
+const detailSaving = { start: () => {}, end: () => {} };
+const detailWorkoutsSlice = buildWorkoutsSlice(detailFirestore, detailSaving);
 
-function wireWorkoutSession(da: BuiltMockDataAccess): void {
-  const session = createWorkoutSessionApi({
+function wireWorkoutDetail(da: BuiltMockDataAccess): void {
+  const detailApi = createWorkoutDetailApi({
     workouts: da.workouts,
     sets: da.sets,
     templates: da.templates,
   });
-  da.workoutSession.loadWorkoutDetail.mockImplementation(
-    session.loadWorkoutDetail.bind(session)
+  da.workoutDetail.loadWorkoutDetail.mockImplementation(
+    detailApi.loadWorkoutDetail.bind(detailApi)
   );
-  da.workoutSession.updateWorkout.mockImplementation(
-    session.updateWorkout.bind(session)
+  da.workoutDetail.updateWorkout.mockImplementation(
+    detailApi.updateWorkout.bind(detailApi)
   );
-  da.workoutSession.editorPersistence.mockImplementation((getPerformedAt) =>
+  da.workoutDetail.editorPersistence.mockImplementation((getPerformedAt) =>
     createWorkoutEditorPersistence({ sets: da.sets, getPerformedAt })
   );
-  da.workoutSession.lastPerformedGroupForExercise.mockImplementation(
-    session.lastPerformedGroupForExercise.bind(session)
+  da.workoutDetail.lastPerformedGroupForExercise.mockImplementation(
+    detailApi.lastPerformedGroupForExercise.bind(detailApi)
   );
-  da.workoutSession.loadFillTemplateData.mockImplementation(
-    session.loadFillTemplateData.bind(session)
+  da.workoutDetail.loadFillTemplateData.mockImplementation(
+    detailApi.loadFillTemplateData.bind(detailApi)
   );
-  da.workoutSession.deleteWorkoutWithSets.mockImplementation(
-    session.deleteWorkoutWithSets.bind(session)
+  da.workoutDetail.deleteWorkoutWithSets.mockImplementation(
+    detailApi.deleteWorkoutWithSets.bind(detailApi)
   );
   da.workouts.update.mockImplementation((id, patch) =>
-    sessionWorkoutsSlice.update(id, patch)
+    detailWorkoutsSlice.update(id, patch)
   );
 }
 
 function seedDefaultResolvedValues(da: BuiltMockDataAccess): void {
-  wireWorkoutSession(da);
+  wireWorkoutDetail(da);
 
   da.exercises.get.mockResolvedValue(null);
   da.exercises.searchByNamePrefix.mockResolvedValue([]);
@@ -235,8 +232,8 @@ export function createTestDataAccess(
   if (overrides.exportForBackup) {
     Object.assign(da.exportForBackup, overrides.exportForBackup);
   }
-  if (overrides.workoutSession) {
-    Object.assign(da.workoutSession, overrides.workoutSession);
+  if (overrides.workoutDetail) {
+    Object.assign(da.workoutDetail, overrides.workoutDetail);
   }
   if (overrides.catalog) {
     Object.assign(da.catalog, overrides.catalog);

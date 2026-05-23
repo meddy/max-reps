@@ -1,34 +1,31 @@
 import type { Workout } from "../../types";
 import type {
-  WorkoutDetailSessionCallbacks,
-  WorkoutSessionApi,
-} from "../dataAccess/workoutSessionTypes";
+  WorkoutDetailCallbacks,
+  WorkoutDetailApi,
+} from "../dataAccess/workoutDetailTypes";
 
 /**
- * Workout detail route: bundles `WorkoutSessionApi` so the page and hook do not
- * reach through `DataAccess` for session-shaped operations.
+ * Workout detail route: bundles `WorkoutDetailApi` so the page and hook do not
+ * reach through `DataAccess` for workout-detail operations.
  */
 export function createWorkoutDetailDataHandlers(
-  session: WorkoutSessionApi,
+  workoutDetail: WorkoutDetailApi,
   getWorkout: () => (Workout & { id: string }) | null
 ) {
   return {
-    loadWorkoutDetail(
-      workoutId: string,
-      callbacks?: WorkoutDetailSessionCallbacks
-    ) {
-      return session.loadWorkoutDetail(workoutId, callbacks);
+    loadWorkoutDetail(workoutId: string, callbacks?: WorkoutDetailCallbacks) {
+      return workoutDetail.loadWorkoutDetail(workoutId, callbacks);
     },
 
     updateWorkout(
       workoutId: string,
       patch: Partial<Pick<Workout, "date" | "note">>
     ) {
-      return session.updateWorkout(workoutId, patch);
+      return workoutDetail.updateWorkout(workoutId, patch);
     },
 
     createEditorPersistence() {
-      return session.editorPersistence(() => {
+      return workoutDetail.editorPersistence(() => {
         const w = getWorkout();
         if (!w) {
           throw new Error("Workout must be loaded before persisting sets");
@@ -41,18 +38,18 @@ export function createWorkoutDetailDataHandlers(
       exerciseId: string,
       excludeWorkoutId?: string
     ) {
-      return session.lastPerformedGroupForExercise(
+      return workoutDetail.lastPerformedGroupForExercise(
         exerciseId,
         excludeWorkoutId
       );
     },
 
     loadFillTemplateData(workoutId: string) {
-      return session.loadFillTemplateData(workoutId);
+      return workoutDetail.loadFillTemplateData(workoutId);
     },
 
     deleteWorkoutWithSets(workoutId: string) {
-      return session.deleteWorkoutWithSets(workoutId);
+      return workoutDetail.deleteWorkoutWithSets(workoutId);
     },
   };
 }

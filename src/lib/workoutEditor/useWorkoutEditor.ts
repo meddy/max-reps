@@ -1,5 +1,5 @@
 import { useLayoutEffect, useMemo, useRef, useSyncExternalStore } from "react";
-import { createWorkoutSessionStore } from "./createWorkoutSessionStore";
+import { createWorkoutEditorStore } from "./createWorkoutEditorStore";
 import {
   DEFAULT_DEBOUNCE_MS,
   type UseWorkoutEditorOptions,
@@ -42,7 +42,7 @@ export function useWorkoutEditor(
 
   const store = useMemo(
     () =>
-      createWorkoutSessionStore({
+      createWorkoutEditorStore({
         variant,
         workoutId,
         persistence,

@@ -79,7 +79,7 @@ describe("WorkoutDetail", () => {
     ).toBeInTheDocument();
   });
 
-  it("persists note on blur via workoutSession.updateWorkout", async () => {
+  it("persists note on blur via workoutDetail.updateWorkout", async () => {
     const user = userEvent.setup();
     const ts = new Date("2024-02-01T12:00:00");
     const base = new Date("2024-01-01T12:00:00");
@@ -123,14 +123,14 @@ describe("WorkoutDetail", () => {
     await user.type(workoutNoteInput, "Leg focus");
     await user.tab();
     await waitFor(() => {
-      expect(mockDataAccess.workoutSession.updateWorkout).toHaveBeenCalledWith(
+      expect(mockDataAccess.workoutDetail.updateWorkout).toHaveBeenCalledWith(
         "w1",
         { note: "Leg focus" }
       );
     });
   });
 
-  it("persists date on save via workoutSession.updateWorkout", async () => {
+  it("persists date on save via workoutDetail.updateWorkout", async () => {
     const user = userEvent.setup();
     const ts = new Date("2024-02-01T12:00:00");
     const base = new Date("2024-01-01T12:00:00");
@@ -174,7 +174,7 @@ describe("WorkoutDetail", () => {
     await user.type(dateInput, newDateInput);
     await user.click(screen.getByRole("button", { name: /^save$/i }));
     await waitFor(() => {
-      expect(mockDataAccess.workoutSession.updateWorkout).toHaveBeenCalledWith(
+      expect(mockDataAccess.workoutDetail.updateWorkout).toHaveBeenCalledWith(
         "w1",
         { date: new Date(newDateInput) }
       );

@@ -5,9 +5,9 @@ import {
   persistableFields,
   type EditorExerciseGroup,
   type WorkoutRowApi,
-  type WorkoutSessionSnapshot,
-  type WorkoutSessionStore,
-  type WorkoutSessionStoreConfig,
+  type WorkoutEditorSnapshot,
+  type WorkoutEditorStore,
+  type WorkoutEditorStoreConfig,
 } from "./model";
 
 function moveItem<T>(items: T[], from: number, to: number): T[] {
@@ -37,7 +37,7 @@ function makeSnapshot(
   groups: EditorExerciseGroup[],
   dirtyKeys: Set<string>,
   variant: "workout" | "template"
-): WorkoutSessionSnapshot {
+): WorkoutEditorSnapshot {
   return {
     groups: cloneGroups(groups),
     isDirty: dirtyKeys.size > 0,
@@ -45,9 +45,9 @@ function makeSnapshot(
   };
 }
 
-export function createWorkoutSessionStore(
-  config: WorkoutSessionStoreConfig
-): WorkoutSessionStore {
+export function createWorkoutEditorStore(
+  config: WorkoutEditorStoreConfig
+): WorkoutEditorStore {
   const { variant, workoutId, persistence, debounceMs } = config;
   const getWorkout = config.getWorkout;
 

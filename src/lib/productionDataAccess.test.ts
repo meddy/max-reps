@@ -26,7 +26,7 @@ describe("getDefaultDataAccess", () => {
     const { getDefaultDataAccess } = await import("./productionDataAccess");
     const a = getDefaultDataAccess();
     expect(getDefaultDataAccess()).toBe(a);
-    expect(a.workoutSession).toMatchObject({
+    expect(a.workoutDetail).toMatchObject({
       loadWorkoutDetail: expect.any(Function),
       updateWorkout: expect.any(Function),
       lastPerformedGroupForExercise: expect.any(Function),

@@ -1,6 +1,6 @@
 import type { FirestoreDataPort } from "../firestoreDataPort/types";
 import type { DataAccessSlices } from "./dataAccessSlices";
-import type { WorkoutSessionApi } from "./workoutSessionTypes";
+import type { WorkoutDetailApi } from "./workoutDetailTypes";
 
 export type {
   DataAccessSlices,
@@ -19,7 +19,7 @@ export interface DataAccessDeps {
 }
 
 export interface DataAccess extends DataAccessSlices {
-  workoutSession: WorkoutSessionApi;
+  workoutDetail: WorkoutDetailApi;
 }
 
 export type CatalogDataPort = Pick<DataAccessSlices, "exercises" | "days">;
@@ -33,4 +33,4 @@ export type WorkoutDataPort = Pick<
 >;
 
 /** Workout detail route: everything needed from `DataAccess` for that screen. */
-export type WorkoutDetailDataAccessPort = Pick<DataAccess, "workoutSession">;
+export type WorkoutDetailDataAccessPort = Pick<DataAccess, "workoutDetail">;

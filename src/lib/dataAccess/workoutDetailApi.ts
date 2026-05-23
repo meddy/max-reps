@@ -12,23 +12,23 @@ import {
   rollupLastPerformedMap,
   toTemplateWithNameRows,
 } from "./workoutDetailSeedHelpers";
-import type { WorkoutSessionApi } from "./workoutSessionTypes";
+import type { WorkoutDetailApi } from "./workoutDetailTypes";
 
 export type {
   WorkoutDetailEditorSeed,
-  WorkoutDetailSessionCallbacks,
-} from "./workoutSessionTypes";
+  WorkoutDetailCallbacks,
+} from "./workoutDetailTypes";
 
-export type WorkoutSessionApiDeps = {
+export type WorkoutDetailApiDeps = {
   workouts: Pick<WorkoutsDataSlice, "get" | "update" | "deleteWithSets">;
   /** Load path uses list/last-performed; editor persistence uses create/update/delete. */
   sets: SetsDataSlice;
   templates: Pick<TemplatesDataSlice, "catalog">;
 };
 
-export function createWorkoutSessionApi(
-  deps: WorkoutSessionApiDeps
-): WorkoutSessionApi {
+export function createWorkoutDetailApi(
+  deps: WorkoutDetailApiDeps
+): WorkoutDetailApi {
   return {
     async loadWorkoutDetail(workoutId, callbacks) {
       if (!workoutId) {

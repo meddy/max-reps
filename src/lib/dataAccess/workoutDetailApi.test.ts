@@ -5,17 +5,17 @@ import type {
   WorkoutsDataSlice,
 } from "./dataAccessSlices";
 import type { Workout } from "../../types";
-import { createWorkoutSessionApi } from "./workoutSessionApi";
+import { createWorkoutDetailApi } from "./workoutDetailApi";
 
-type SessionDepsMockOptions = {
+type DetailApiDepsMockOptions = {
   templates?: Partial<TemplatesDataSlice>;
   workouts?: Partial<WorkoutsDataSlice>;
   sets?: Partial<SetsDataSlice>;
 };
 
-function createSessionDeps(
-  partial: SessionDepsMockOptions = {}
-): Parameters<typeof createWorkoutSessionApi>[0] {
+function createDetailApiDeps(
+  partial: DetailApiDepsMockOptions = {}
+): Parameters<typeof createWorkoutDetailApi>[0] {
   const reject = (): never => {
     throw new Error("not implemented");
   };
@@ -56,9 +56,9 @@ function createSessionDeps(
   };
 }
 
-describe("createWorkoutSessionApi", () => {
+describe("createWorkoutDetailApi", () => {
   it("loadWorkoutDetail returns nulls when workoutId is empty", async () => {
-    const api = createWorkoutSessionApi(createSessionDeps());
+    const api = createWorkoutDetailApi(createDetailApiDeps());
     const out = await api.loadWorkoutDetail("");
     expect(out.workout).toBeNull();
     expect(out.editorSeed).toBeNull();
@@ -67,8 +67,8 @@ describe("createWorkoutSessionApi", () => {
 
   it("loadWorkoutDetail returns nulls when workout missing", async () => {
     const get = vi.fn().mockResolvedValue(null);
-    const api = createWorkoutSessionApi(
-      createSessionDeps({ workouts: { get } })
+    const api = createWorkoutDetailApi(
+      createDetailApiDeps({ workouts: { get } })
     );
     const out = await api.loadWorkoutDetail("w1");
     expect(get).toHaveBeenCalledWith("w1");
@@ -102,8 +102,8 @@ describe("createWorkoutSessionApi", () => {
       updatedAt: new Date(),
     };
     const get = vi.fn().mockResolvedValue(workout);
-    const api = createWorkoutSessionApi(
-      createSessionDeps({
+    const api = createWorkoutDetailApi(
+      createDetailApiDeps({
         workouts: { get },
         sets: { listForWorkout },
       })
@@ -149,8 +149,8 @@ describe("createWorkoutSessionApi", () => {
     };
     const get = vi.fn().mockResolvedValue(workout);
 
-    const api = createWorkoutSessionApi(
-      createSessionDeps({
+    const api = createWorkoutDetailApi(
+      createDetailApiDeps({
         workouts: { get },
         sets: { listForWorkout, lastPerformedGroupForExercise },
         templates: { listForDayWithExerciseNames },
@@ -183,8 +183,8 @@ describe("createWorkoutSessionApi", () => {
       updatedAt: new Date(),
     };
     const get = vi.fn().mockResolvedValue(workout);
-    const api = createWorkoutSessionApi(
-      createSessionDeps({ workouts: { get }, sets: { listForWorkout } })
+    const api = createWorkoutDetailApi(
+      createDetailApiDeps({ workouts: { get }, sets: { listForWorkout } })
     );
 
     const out = await api.loadWorkoutDetail("w1");
@@ -197,8 +197,8 @@ describe("createWorkoutSessionApi", () => {
 
   it("updateWorkout delegates to workouts.update", async () => {
     const update = vi.fn().mockResolvedValue(undefined);
-    const api = createWorkoutSessionApi(
-      createSessionDeps({ workouts: { update } })
+    const api = createWorkoutDetailApi(
+      createDetailApiDeps({ workouts: { update } })
     );
     const d = new Date("2025-06-15T12:00:00Z");
     await api.updateWorkout("w1", { date: d });
@@ -209,8 +209,8 @@ describe("createWorkoutSessionApi", () => {
     const lastPerformedGroupForExercise = vi
       .fn()
       .mockResolvedValue({ sets: [], workoutId: "w0" });
-    const api = createWorkoutSessionApi(
-      createSessionDeps({ sets: { lastPerformedGroupForExercise } })
+    const api = createWorkoutDetailApi(
+      createDetailApiDeps({ sets: { lastPerformedGroupForExercise } })
     );
     await api.lastPerformedGroupForExercise("e1", "w2");
     expect(lastPerformedGroupForExercise).toHaveBeenCalledWith("e1", "w2");
@@ -218,8 +218,8 @@ describe("createWorkoutSessionApi", () => {
 
   it("deleteWorkoutWithSets delegates to workouts.deleteWithSets", async () => {
     const deleteWithSets = vi.fn().mockResolvedValue(undefined);
-    const api = createWorkoutSessionApi(
-      createSessionDeps({ workouts: { deleteWithSets } })
+    const api = createWorkoutDetailApi(
+      createDetailApiDeps({ workouts: { deleteWithSets } })
     );
     await api.deleteWorkoutWithSets("w9");
     expect(deleteWithSets).toHaveBeenCalledWith("w9");
@@ -255,8 +255,8 @@ describe("createWorkoutSessionApi", () => {
       sets: [{ reps: 7, weight: 185, note: "pause" }],
     });
 
-    const api = createWorkoutSessionApi(
-      createSessionDeps({
+    const api = createWorkoutDetailApi(
+      createDetailApiDeps({
         workouts: { get },
         sets: { lastPerformedGroupForExercise },
         templates: { listForDayWithExerciseNames },
@@ -322,8 +322,8 @@ describe("createWorkoutSessionApi", () => {
         return { sets: [] };
       });
 
-    const api = createWorkoutSessionApi(
-      createSessionDeps({
+    const api = createWorkoutDetailApi(
+      createDetailApiDeps({
         workouts: { get },
         sets: { lastPerformedGroupForExercise },
         templates: { listForDayWithExerciseNames },

@@ -122,16 +122,15 @@ export function WorkoutDetail() {
     isTemplateMode,
     templateModeLoading,
     editorSeed,
-  } = useWorkoutDetailModel(workoutId, dataAccess.workoutSession);
+  } = useWorkoutDetailModel(workoutId, dataAccess.workoutDetail);
 
   const workoutRef = useRef(workout);
   workoutRef.current = workout;
   const getWorkout = useCallback(() => workoutRef.current, []);
 
   const detailHandlers = useMemo(
-    () =>
-      createWorkoutDetailDataHandlers(dataAccess.workoutSession, getWorkout),
-    [dataAccess.workoutSession, getWorkout]
+    () => createWorkoutDetailDataHandlers(dataAccess.workoutDetail, getWorkout),
+    [dataAccess.workoutDetail, getWorkout]
   );
 
   const [editingDate, setEditingDate] = useState(false);

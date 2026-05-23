@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
 import type {
   WorkoutDetailEditorSeed,
-  WorkoutSessionApi,
-} from "../dataAccess/workoutSessionTypes";
+  WorkoutDetailApi,
+} from "../dataAccess/workoutDetailTypes";
 import type { Workout } from "../../types";
 
 export function useWorkoutDetailModel(
   workoutId: string | undefined,
-  session: WorkoutSessionApi
+  workoutDetail: WorkoutDetailApi
 ) {
   const [workout, setWorkout] = useState<(Workout & { id: string }) | null>(
     null
@@ -39,14 +39,14 @@ export function useWorkoutDetailModel(
       workout: w,
       editorSeed: seed,
       isTemplateMode: templateMode,
-    } = await session.loadWorkoutDetail(workoutId, {
+    } = await workoutDetail.loadWorkoutDetail(workoutId, {
       onTemplateLoadingChange: setTemplateModeLoading,
     });
     setWorkout(w);
     setEditorSeed(seed);
     setIsTemplateMode(templateMode);
     setLoading(false);
-  }, [session, workoutId]);
+  }, [workoutDetail, workoutId]);
 
   useEffect(() => {
     void loadDetail();

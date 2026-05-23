@@ -13,5 +13,5 @@ export type {
 
 export type {
   WorkoutDetailEditorSeed,
-  WorkoutDetailSessionCallbacks,
-} from "./workoutSessionTypes";
+  WorkoutDetailCallbacks,
+} from "./workoutDetailTypes";
