@@ -209,6 +209,14 @@ export function createInMemoryFirestoreDataPort(
       return listCol("sets").filter((d) => d.data.workoutId === workoutId);
     },
 
+    async querySetsByWorkoutIds(workoutIds) {
+      const idSet = new Set(workoutIds);
+      if (idSet.size === 0) return [];
+      return listCol("sets").filter((d) =>
+        idSet.has(d.data.workoutId as string)
+      );
+    },
+
     async querySetsByExercisePerformedAtDesc(exerciseId, lim) {
       return listCol("sets")
         .filter((d) => d.data.exerciseId === exerciseId)

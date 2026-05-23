@@ -86,18 +86,23 @@ export function buildWorkoutsSlice(
       return notes;
     },
 
-    async listWithStats(opts: {
+    async listRecent(opts: {
       sort: "asc" | "desc";
       limit?: number;
-    }): Promise<WorkoutListItem[]> {
+    }): Promise<Array<Workout & { id: string }>> {
       const lim = opts.limit ?? DEFAULT_PAGE;
       const workoutRows = await firestore.queryWorkoutsByDate({
         sort: opts.sort,
         limit: lim,
       });
-      const list = workoutRows.map((d) => mapWorkoutFromDoc(d.id, d.data));
+      return workoutRows.map((d) => mapWorkoutFromDoc(d.id, d.data));
+    },
+
+    async attachSetStats(
+      workouts: Array<Workout & { id: string }>
+    ): Promise<WorkoutListItem[]> {
       const withCounts = await Promise.all(
-        list.map(async (w) => {
+        workouts.map(async (w) => {
           const setRows = await firestore.querySetsByWorkoutId(w.id);
           const exerciseIds = new Set<string>();
           let totalLoad = 0;
@@ -116,6 +121,14 @@ export function buildWorkoutsSlice(
         })
       );
       return withCounts;
+    },
+
+    async listWithStats(opts: {
+      sort: "asc" | "desc";
+      limit?: number;
+    }): Promise<WorkoutListItem[]> {
+      const list = await this.listRecent(opts);
+      return this.attachSetStats(list);
     },
   };
 }

@@ -11,6 +11,10 @@ import type { User } from "firebase/auth";
 import { auth } from "../lib/firebase";
 import { createFirebaseAuthClientPort } from "../lib/auth/firebaseAuthAdapter";
 import { AuthSessionController } from "../lib/auth/authSessionController";
+import {
+  clearAuthSessionCached,
+  writeAuthSessionCached,
+} from "../lib/auth/authSessionCache";
 import { getAllowedUid } from "../lib/appConfig";
 
 export type AuthContextValue = {
@@ -38,12 +42,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const state = useSyncExternalStore(
     (onStoreChange) => controller.subscribe(onStoreChange),
-    () => controller.getSnapshot(),
-    () => ({ user: null, loading: true, error: null })
+    () => controller.getSnapshot()
   );
 
+  useEffect(() => {
+    if (state.user) writeAuthSessionCached();
+    else if (!state.loading) clearAuthSessionCached();
+  }, [state.user, state.loading]);
+
   const signIn = useCallback(() => controller.signIn(), [controller]);
-  const signOut = useCallback(() => controller.signOut(), [controller]);
+  const signOut = useCallback(() => {
+    clearAuthSessionCached();
+    return controller.signOut();
+  }, [controller]);
   const clearError = useCallback(() => controller.clearError(), [controller]);
 
   const value: AuthContextValue = {

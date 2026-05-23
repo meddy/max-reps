@@ -18,7 +18,8 @@ const authValue = {
 describe("WorkoutHistory", () => {
   it("shows empty state when there are no workouts", async () => {
     const dataAccess = createTestDataAccess();
-    dataAccess.workouts.listWithStats.mockResolvedValue([]);
+    dataAccess.workouts.listRecent.mockResolvedValue([]);
+    dataAccess.workouts.attachSetStats.mockResolvedValue([]);
     renderWithProviders(<WorkoutHistory />, {
       route: "/workouts",
       authValue,
@@ -33,19 +34,18 @@ describe("WorkoutHistory", () => {
     const ts = new Date("2024-01-10T12:00:00");
     const base = new Date("2024-01-01T12:00:00");
     const dataAccess = createTestDataAccess();
-    dataAccess.workouts.listWithStats.mockResolvedValue([
-      {
-        id: "w1",
-        date: ts,
-        dayId: "d1",
-        dayNameSnapshot: "Push Day",
-        note: "",
-        createdAt: base,
-        updatedAt: base,
-        setCount: 3,
-        exerciseCount: 2,
-        totalLoad: 1000,
-      },
+    const row = {
+      id: "w1",
+      date: ts,
+      dayId: "d1",
+      dayNameSnapshot: "Push Day",
+      note: "",
+      createdAt: base,
+      updatedAt: base,
+    };
+    dataAccess.workouts.listRecent.mockResolvedValue([row]);
+    dataAccess.workouts.attachSetStats.mockResolvedValue([
+      { ...row, setCount: 3, exerciseCount: 2, totalLoad: 1000 },
     ]);
     renderWithProviders(<WorkoutHistory />, {
       route: "/workouts",

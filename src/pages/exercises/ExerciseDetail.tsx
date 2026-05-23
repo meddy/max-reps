@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useDataAccess } from "../../contexts/DataAccessContext";
 import type { Exercise, WorkoutSet } from "../../types";
+import { LoadErrorPanel } from "../../components/LoadErrorPanel";
 import { LoadingSpinner } from "../../components/LoadingSpinner";
+import { useRemoteLoad } from "../../hooks/useRemoteLoad";
 import { TopSetChart } from "../../components/TopSetChart";
 import { formatDateShort } from "../../lib/format";
 import {
@@ -25,35 +27,45 @@ export function ExerciseDetail() {
     Record<string, string>
   >({});
   const [prSet, setPrSet] = useState<SetWithId | null>(null);
-  const [loading, setLoading] = useState(true);
+  const exerciseRef = useRef(exercise);
+  exerciseRef.current = exercise;
 
-  const load = useCallback(async () => {
-    if (!id) return;
-    const ex = await dataAccess.exercises.get(id);
-    if (!ex) {
-      setExercise(null);
-      setLoading(false);
-      return;
-    }
-    setExercise(ex as Exercise & { id: string });
+  const load = useCallback(
+    async ({ isStale }: { isStale: () => boolean }) => {
+      if (!id) return;
+      const ex = await dataAccess.exercises.get(id);
+      if (isStale()) return;
+      if (!ex) {
+        setExercise(null);
+        setSets([]);
+        setPrSet(null);
+        setWorkoutNotesByWorkoutId({});
+        return;
+      }
+      setExercise(ex as Exercise & { id: string });
 
-    const [setsList, pr] = await Promise.all([
-      dataAccess.sets.listForExercise(id, { limit: 100 }),
-      dataAccess.sets.prForExercise(id),
-    ]);
-    setSets(setsList);
-    setPrSet(pr);
+      const [setsList, pr] = await Promise.all([
+        dataAccess.sets.listForExercise(id, { limit: 100 }),
+        dataAccess.sets.prForExercise(id),
+      ]);
+      if (isStale()) return;
+      setSets(setsList);
+      setPrSet(pr);
 
-    const workoutIds = [...new Set(setsList.map((s) => s.workoutId))];
-    const notes = await dataAccess.workouts.getNotesByWorkoutIds(workoutIds);
-    setWorkoutNotesByWorkoutId(notes);
+      const workoutIds = [...new Set(setsList.map((s) => s.workoutId))];
+      const notes = await dataAccess.workouts.getNotesByWorkoutIds(workoutIds);
+      if (isStale()) return;
+      setWorkoutNotesByWorkoutId(notes);
+    },
+    [dataAccess, id]
+  );
 
-    setLoading(false);
-  }, [dataAccess, id]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
+  const { loading, loadError, reload } = useRemoteLoad({
+    load,
+    deps: [id],
+    refetchOnVisibility: true,
+    hasData: () => exerciseRef.current != null,
+  });
 
   const setNumberBySetId = useMemo(() => buildSetNumberBySetId(sets), [sets]);
 
@@ -71,6 +83,25 @@ export function ExerciseDetail() {
     return (
       <div className="flex justify-center py-8">
         <LoadingSpinner />
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div>
+        <LoadErrorPanel
+          title="Could not load exercise."
+          message={loadError}
+          onRetry={() => void reload()}
+        />
+        <button
+          type="button"
+          onClick={() => navigate("/exercises")}
+          className="mt-2 text-indigo-600 hover:underline"
+        >
+          Back to exercises
+        </button>
       </div>
     );
   }

@@ -1,12 +1,14 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useDataAccess } from "../../contexts/DataAccessContext";
 import type { Day, WorkoutListItem } from "../../types";
 import { EmptyState } from "../../components/EmptyState";
 import { IconPlus } from "../../components/Icons";
+import { LoadErrorPanel } from "../../components/LoadErrorPanel";
 import { LoadingSpinner } from "../../components/LoadingSpinner";
 import { Modal } from "../../components/Modal";
 import { SortToggleButton } from "../../components/SortToggleButton";
+import { useRemoteLoad } from "../../hooks/useRemoteLoad";
 import { formatDate } from "../../lib/format";
 
 const PAGE_SIZE = 100;
@@ -41,7 +43,9 @@ export function WorkoutHistory() {
   const dataAccess = useDataAccess();
   const navigate = useNavigate();
   const [workouts, setWorkouts] = useState<WorkoutListItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [statsLoading, setStatsLoading] = useState(false);
+  const workoutsRef = useRef(workouts);
+  workoutsRef.current = workouts;
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">(() =>
     getStoredSortOrder()
   );
@@ -58,19 +62,55 @@ export function WorkoutHistory() {
   );
   const [creating, setCreating] = useState(false);
 
-  const fetchWorkouts = useCallback(async () => {
-    setLoading(true);
-    const withCounts = await dataAccess.workouts.listWithStats({
-      sort: sortOrder,
-      limit: PAGE_SIZE,
-    });
-    setWorkouts(withCounts);
-    setLoading(false);
-  }, [dataAccess, sortOrder]);
+  const fetchWorkouts = useCallback(
+    async ({
+      background,
+      isStale,
+      setForegroundLoading,
+    }: {
+      background: boolean;
+      isStale: () => boolean;
+      setForegroundLoading: (loading: boolean) => void;
+    }) => {
+      const listOpts = { sort: sortOrder, limit: PAGE_SIZE };
+      const recent = await dataAccess.workouts.listRecent(listOpts);
+      if (isStale()) return;
 
-  useEffect(() => {
-    void fetchWorkouts();
-  }, [fetchWorkouts]);
+      const placeholders: WorkoutListItem[] = recent.map((w) => ({
+        ...w,
+        setCount: 0,
+        exerciseCount: 0,
+        totalLoad: 0,
+      }));
+      setWorkouts(placeholders);
+      if (!background) {
+        setForegroundLoading(false);
+      }
+      setStatsLoading(true);
+
+      try {
+        const withCounts = await dataAccess.workouts.attachSetStats(recent);
+        if (isStale()) return;
+        setWorkouts(withCounts);
+      } finally {
+        if (!isStale()) {
+          setStatsLoading(false);
+        }
+      }
+    },
+    [dataAccess, sortOrder]
+  );
+
+  const {
+    loading,
+    loadError,
+    reload: reloadWorkouts,
+  } = useRemoteLoad({
+    load: fetchWorkouts,
+    deps: [sortOrder],
+    refetchOnVisibility: true,
+    hasData: () => workoutsRef.current.length > 0,
+  });
 
   const handleSortChange = (order: "asc" | "desc") => {
     setSortOrder(order);
@@ -186,6 +226,12 @@ export function WorkoutHistory() {
         <div className="flex justify-center py-8">
           <LoadingSpinner />
         </div>
+      ) : loadError ? (
+        <LoadErrorPanel
+          title="Could not load workouts."
+          message={loadError}
+          onRetry={() => void reloadWorkouts()}
+        />
       ) : workouts.length === 0 ? (
         <EmptyState
           title="No workouts yet"
@@ -213,10 +259,16 @@ export function WorkoutHistory() {
                   {formatDate(w.date, { weekday: true })}
                 </p>
                 <p className="text-sm text-gray-500">
-                  {w.exerciseCount ?? 0} exercises - {w.setCount ?? 0} sets
-                  {w.totalLoad != null &&
-                    w.totalLoad > 0 &&
-                    ` - ${w.totalLoad.toLocaleString()} lbs`}
+                  {statsLoading ? (
+                    "Loading stats…"
+                  ) : (
+                    <>
+                      {w.exerciseCount ?? 0} exercises - {w.setCount ?? 0} sets
+                      {w.totalLoad != null &&
+                        w.totalLoad > 0 &&
+                        ` - ${w.totalLoad.toLocaleString()} lbs`}
+                    </>
+                  )}
                 </p>
                 {w.note?.trim() && (
                   <p className="mt-1 text-sm text-gray-500 line-clamp-2">

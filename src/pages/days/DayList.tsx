@@ -1,13 +1,15 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useDataAccess } from "../../contexts/DataAccessContext";
 import type { Day } from "../../types";
 import { EmptyState } from "../../components/EmptyState";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { IconPencil, IconPlus, IconTrash } from "../../components/Icons";
+import { LoadErrorPanel } from "../../components/LoadErrorPanel";
 import { SortToggleButton } from "../../components/SortToggleButton";
 import { LoadingSpinner } from "../../components/LoadingSpinner";
 import { Modal } from "../../components/Modal";
+import { useRemoteLoad } from "../../hooks/useRemoteLoad";
 
 const PAGE_SIZE = 100;
 const SORT_STORAGE_KEY = "max-reps-day-sort";
@@ -45,7 +47,8 @@ export function DayList() {
   const [summariesByDayId, setSummariesByDayId] = useState<
     Record<string, DaySummaryItem[]>
   >({});
-  const [loading, setLoading] = useState(true);
+  const daysRef = useRef(days);
+  daysRef.current = days;
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">(() =>
     getStoredSortOrder()
   );
@@ -57,41 +60,60 @@ export function DayList() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const fetchDays = useCallback(async () => {
-    setLoading(true);
     const list = await dataAccess.days.list({
       sort: sortOrder,
       limit: PAGE_SIZE,
     });
     setDays(list);
-    setLoading(false);
-  }, [sortOrder]);
+  }, [dataAccess, sortOrder]);
 
-  const fetchSummaries = useCallback(async (dayIds: string[]) => {
-    if (dayIds.length === 0) {
-      setSummariesByDayId({});
-      return;
-    }
-    const byDayMap =
-      await dataAccess.templates.listForDaysWithExerciseNames(dayIds);
-    const byDay: Record<string, DaySummaryItem[]> = {};
-    for (const [dayId, templates] of byDayMap) {
-      byDay[dayId] = templates.map((t) => ({
-        exerciseName: t.exerciseDisplayName,
-        numSets: t.numSets,
-        repsLower: t.repsLower,
-        repsUpper: t.repsUpper,
-      }));
-    }
-    setSummariesByDayId(byDay);
-  }, []);
+  const {
+    loading,
+    loadError,
+    reload: reloadDays,
+  } = useRemoteLoad({
+    load: fetchDays,
+    deps: [sortOrder],
+    refetchOnVisibility: true,
+    hasData: () => daysRef.current.length > 0,
+  });
 
-  useEffect(() => {
-    void fetchDays();
-  }, [fetchDays]);
+  const dayIdsKey = useMemo(() => days.map((d) => d.id).join(","), [days]);
 
-  useEffect(() => {
-    void fetchSummaries(days.map((d) => d.id));
-  }, [days, fetchSummaries]);
+  const loadSummaries = useCallback(
+    async ({ isStale }: { isStale: () => boolean }) => {
+      if (days.length === 0) {
+        setSummariesByDayId({});
+        return;
+      }
+      try {
+        const byDayMap =
+          await dataAccess.templates.listForDaysWithExerciseNames(
+            days.map((d) => d.id)
+          );
+        if (isStale()) return;
+        const byDay: Record<string, DaySummaryItem[]> = {};
+        for (const [dayId, templates] of byDayMap) {
+          byDay[dayId] = templates.map((t) => ({
+            exerciseName: t.exerciseDisplayName,
+            numSets: t.numSets,
+            repsLower: t.repsLower,
+            repsUpper: t.repsUpper,
+          }));
+        }
+        setSummariesByDayId(byDay);
+      } catch (err) {
+        console.error("Failed to load Day summaries", err);
+      }
+    },
+    [dataAccess, days]
+  );
+
+  useRemoteLoad({
+    load: loadSummaries,
+    enabled: days.length > 0,
+    deps: [dayIdsKey],
+  });
 
   const handleCreate = async () => {
     const displayName = createName.trim();
@@ -136,14 +158,14 @@ export function DayList() {
     await dataAccess.days.update(editId, { nameLower, displayName });
     setEditId(null);
     setEditName("");
-    void fetchDays();
+    void reloadDays();
   };
 
   const handleDelete = async () => {
     if (!deleteId) return;
     await dataAccess.days.deleteWithTemplates(deleteId);
     setDeleteId(null);
-    void fetchDays();
+    void reloadDays();
   };
 
   const handleSortChange = (order: "asc" | "desc") => {
@@ -182,6 +204,12 @@ export function DayList() {
         <div className="flex justify-center py-8">
           <LoadingSpinner />
         </div>
+      ) : loadError ? (
+        <LoadErrorPanel
+          title="Could not load Days."
+          message={loadError}
+          onRetry={() => void reloadDays()}
+        />
       ) : days.length === 0 ? (
         <EmptyState
           title="No days"

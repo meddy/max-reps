@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import {
   DndContext,
   closestCenter,
@@ -20,7 +20,9 @@ import { ExercisePicker } from "../../components/ExercisePicker";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { EmptyState } from "../../components/EmptyState";
 import { IconPencil, IconTrash } from "../../components/Icons";
+import { LoadErrorPanel } from "../../components/LoadErrorPanel";
 import { LoadingSpinner } from "../../components/LoadingSpinner";
+import { useRemoteLoad } from "../../hooks/useRemoteLoad";
 import { Modal } from "../../components/Modal";
 import {
   GuardedPointerSensor,
@@ -224,7 +226,8 @@ export function DayDetail() {
   const navigate = useNavigate();
   const [day, setDay] = useState<(Day & { id: string }) | null>(null);
   const [templates, setTemplates] = useState<TemplateWithExerciseName[]>([]);
-  const [loading, setLoading] = useState(true);
+  const dayRef = useRef(day);
+  dayRef.current = day;
   const [addOpen, setAddOpen] = useState(false);
   const [newNumSets, setNewNumSets] = useState("3");
   const [newRepsLower, setNewRepsLower] = useState("8");
@@ -244,31 +247,36 @@ export function DayDetail() {
     })
   );
 
-  const loadDay = useCallback(async () => {
-    if (!id) return;
-    const d = await dataAccess.days.get(id);
-    if (!d) {
-      setDay(null);
-      setLoading(false);
-      return;
-    }
-    setDay(d as Day & { id: string });
-    setLoading(false);
-  }, [dataAccess, id]);
-
   const loadTemplates = useCallback(async () => {
     if (!id) return;
     const list = await dataAccess.templates.listForDayWithExerciseNames(id);
     setTemplates(list);
   }, [dataAccess, id]);
 
-  useEffect(() => {
-    void loadDay();
-  }, [loadDay]);
+  const loadInitial = useCallback(
+    async ({ isStale }: { isStale: () => boolean }) => {
+      if (!id) return;
+      const d = await dataAccess.days.get(id);
+      if (isStale()) return;
+      if (!d) {
+        setDay(null);
+        setTemplates([]);
+        return;
+      }
+      setDay(d as Day & { id: string });
+      const list = await dataAccess.templates.listForDayWithExerciseNames(id);
+      if (isStale()) return;
+      setTemplates(list);
+    },
+    [dataAccess, id]
+  );
 
-  useEffect(() => {
-    void loadTemplates();
-  }, [loadTemplates]);
+  const { loading, loadError, reload } = useRemoteLoad({
+    load: loadInitial,
+    deps: [id],
+    refetchOnVisibility: true,
+    hasData: () => dayRef.current != null,
+  });
 
   const handleAddTemplate = async (exerciseId: string) => {
     if (!id) return;
@@ -339,6 +347,25 @@ export function DayDetail() {
     return (
       <div className="flex justify-center py-8">
         <LoadingSpinner />
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div>
+        <LoadErrorPanel
+          title="Could not load Day."
+          message={loadError}
+          onRetry={() => void reload()}
+        />
+        <button
+          type="button"
+          onClick={() => navigate("/days")}
+          className="mt-2 text-indigo-600 hover:underline"
+        >
+          Back to Days
+        </button>
       </div>
     );
   }

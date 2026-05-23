@@ -1,7 +1,36 @@
 import { renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
+import { AuthTestProvider } from "../../contexts/AuthContext";
 import { createTestDataAccess } from "../../test/mockDataAccess";
 import { useWorkoutDetailModel } from "../../lib/workoutDetail";
+
+const authedUser = { uid: "test-user" } as import("firebase/auth").User;
+
+function renderDetailHook(
+  workoutId: string | undefined,
+  dataAccess: ReturnType<typeof createTestDataAccess>
+) {
+  return renderHook(
+    () => useWorkoutDetailModel(workoutId, dataAccess.workoutDetail),
+    {
+      wrapper: ({ children }) => (
+        <AuthTestProvider
+          value={{
+            user: authedUser,
+            loading: false,
+            error: null,
+            allowedUid: "test-user",
+            signIn: async () => {},
+            signOut: async () => {},
+            clearError: () => {},
+          }}
+        >
+          {children}
+        </AuthTestProvider>
+      ),
+    }
+  );
+}
 
 const baseDate = new Date("2024-01-01T12:00:00.000Z");
 
@@ -20,9 +49,7 @@ function minimalWorkout(id: string) {
 describe("useWorkoutDetailModel", () => {
   it("when workoutId is undefined, stays idle without fetching", async () => {
     const dataAccess = createTestDataAccess();
-    const { result } = renderHook(() =>
-      useWorkoutDetailModel(undefined, dataAccess.workoutDetail)
-    );
+    const { result } = renderDetailHook(undefined, dataAccess);
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.workout).toBeNull();
     expect(dataAccess.workouts.get).not.toHaveBeenCalled();
@@ -47,9 +74,7 @@ describe("useWorkoutDetailModel", () => {
       },
     ]);
 
-    const { result } = renderHook(() =>
-      useWorkoutDetailModel("w1", dataAccess.workoutDetail)
-    );
+    const { result } = renderDetailHook("w1", dataAccess);
 
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.workout?.id).toBe("w1");

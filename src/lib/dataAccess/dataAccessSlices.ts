@@ -89,6 +89,13 @@ export interface WorkoutsDataSlice {
   ): Promise<void>;
   deleteWithSets(id: string): Promise<void>;
   getNotesByWorkoutIds(ids: string[]): Promise<Record<string, string>>;
+  listRecent(opts: {
+    sort: "asc" | "desc";
+    limit?: number;
+  }): Promise<Array<Workout & { id: string }>>;
+  attachSetStats(
+    workouts: Array<Workout & { id: string }>
+  ): Promise<WorkoutListItem[]>;
   listWithStats(opts: {
     sort: "asc" | "desc";
     limit?: number;

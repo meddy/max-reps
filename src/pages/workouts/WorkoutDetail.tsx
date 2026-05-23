@@ -14,6 +14,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useDataAccess } from "../../contexts/DataAccessContext";
+import { LoadErrorPanel } from "../../components/LoadErrorPanel";
 import { LoadingSpinner } from "../../components/LoadingSpinner";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { IconTrash } from "../../components/Icons";
@@ -21,6 +22,7 @@ import { ExerciseCard } from "../../components/ExerciseCard";
 import { SetRow } from "../../components/SetRow";
 import { AddExerciseModal } from "../../components/AddExerciseModal";
 import { formatDate, toDatetimeLocalValue } from "../../lib/format";
+import { randomId } from "../../lib/randomId";
 import { formatSetSummary } from "../../lib/setSummary/formatSetSummary";
 import {
   useWorkoutEditor,
@@ -119,6 +121,8 @@ export function WorkoutDetail() {
     workout,
     setWorkout,
     loading,
+    loadError,
+    reload,
     isTemplateMode,
     templateModeLoading,
     editorSeed,
@@ -299,7 +303,7 @@ export function WorkoutDetail() {
   const handleAddExerciseTemplate = useCallback(
     async (exerciseId: string, exerciseName: string) => {
       if (!workout || !workoutId) return;
-      const syntheticId = `adhoc-${crypto.randomUUID()}`;
+      const syntheticId = `adhoc-${randomId()}`;
       const virtualGroup: EditorExerciseGroup = {
         groupKey: syntheticId,
         exerciseId,
@@ -307,7 +311,7 @@ export function WorkoutDetail() {
         dayId: workout.dayId,
         rows: [
           {
-            id: crypto.randomUUID(),
+            id: randomId(),
             reps: 0,
             weight: 0,
             note: "",
@@ -385,7 +389,15 @@ export function WorkoutDetail() {
   if (!workout) {
     return (
       <div>
-        <p className="text-gray-500">Workout not found.</p>
+        {loadError ? (
+          <LoadErrorPanel
+            title="Could not load workout."
+            message={loadError}
+            onRetry={() => void reload()}
+          />
+        ) : (
+          <p className="text-gray-500">Workout not found.</p>
+        )}
         <button
           type="button"
           onClick={() => navigate("/workouts")}

@@ -1,4 +1,5 @@
 import type { WorkoutSet } from "../../types";
+import { randomId } from "../randomId";
 import type { EditorExerciseGroup, EditorSetRow } from "./model";
 
 export type TemplateWithName = import("../../types").ExerciseSetTemplate & {
@@ -63,7 +64,7 @@ export function editorGroupsFromDayTemplates(
     exerciseName: t.exerciseName,
     dayId: t.dayId,
     rows: Array.from({ length: t.numSets }, () => ({
-      id: crypto.randomUUID(),
+      id: randomId(),
       reps: 0,
       weight: 0,
       note: "",
@@ -100,7 +101,7 @@ export function mergeWorkoutGroupsWithDayTemplates(
     const missingRows = Math.max(template.numSets - rows.length, 0);
     for (let i = 0; i < missingRows; i += 1) {
       rows.push({
-        id: crypto.randomUUID(),
+        id: randomId(),
         reps: 0,
         weight: 0,
         note: "",
@@ -131,7 +132,7 @@ export function mergeWorkoutGroupsWithDayTemplates(
         template.exerciseId,
       dayId: template.dayId,
       rows: Array.from({ length: template.numSets }, () => ({
-        id: crypto.randomUUID(),
+        id: randomId(),
         reps: 0,
         weight: 0,
         note: "",

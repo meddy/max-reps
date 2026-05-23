@@ -84,6 +84,9 @@ export interface FirestoreWorkoutSetQueryPort {
 
   querySetsByWorkoutId(workoutId: string): Promise<RawDoc[]>;
 
+  /** Batched `workoutId in` reads (max 10 ids per Firestore query). */
+  querySetsByWorkoutIds(workoutIds: string[]): Promise<RawDoc[]>;
+
   querySetsByExercisePerformedAtDesc(
     exerciseId: string,
     limit: number

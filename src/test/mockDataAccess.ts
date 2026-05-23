@@ -53,6 +53,8 @@ function buildMockDataAccess() {
     update: vi.fn(),
     deleteWithSets: vi.fn(),
     getNotesByWorkoutIds: vi.fn(),
+    listRecent: vi.fn(),
+    attachSetStats: vi.fn(),
     listWithStats: vi.fn(),
   };
 
@@ -173,6 +175,8 @@ function seedDefaultResolvedValues(da: BuiltMockDataAccess): void {
   da.workouts.create.mockResolvedValue("w-new");
   da.workouts.deleteWithSets.mockResolvedValue(undefined);
   da.workouts.getNotesByWorkoutIds.mockResolvedValue({});
+  da.workouts.listRecent.mockResolvedValue([]);
+  da.workouts.attachSetStats.mockResolvedValue([]);
   da.workouts.listWithStats.mockResolvedValue([]);
 
   da.sets.listForWorkout.mockResolvedValue([]);

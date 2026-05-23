@@ -1,4 +1,5 @@
 import type { EditorRowId, EditorSetRow } from "./persistence";
+import { randomId } from "../randomId";
 import {
   cloneGroups,
   findRowLocation,
@@ -334,7 +335,7 @@ export function createWorkoutEditorStore(
     addExercise(exerciseId, name) {
       setGroupsFromUpdater((prev) => {
         if (prev.some((g) => g.exerciseId === exerciseId)) return prev;
-        const rowId = crypto.randomUUID();
+        const rowId = randomId();
         return [
           ...prev,
           {
@@ -408,7 +409,7 @@ export function createWorkoutEditorStore(
           rows: [
             ...next[gi].rows,
             {
-              id: crypto.randomUUID(),
+              id: randomId(),
               reps: 0,
               weight: 0,
               note: "",

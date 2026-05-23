@@ -1,10 +1,4 @@
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-  useTransition,
-} from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useDataAccess } from "../../contexts/DataAccessContext";
 import { searchExercises } from "../../lib/exerciseSearch";
@@ -12,9 +6,11 @@ import type { Exercise } from "../../types";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { EmptyState } from "../../components/EmptyState";
 import { IconPencil, IconPlus, IconTrash } from "../../components/Icons";
+import { LoadErrorPanel } from "../../components/LoadErrorPanel";
 import { SortToggleButton } from "../../components/SortToggleButton";
 import { LoadingSpinner } from "../../components/LoadingSpinner";
 import { Modal } from "../../components/Modal";
+import { useRemoteLoad } from "../../hooks/useRemoteLoad";
 
 const PAGE_SIZE = 100;
 const SORT_STORAGE_KEY = "max-reps-exercise-sort";
@@ -34,7 +30,8 @@ export function ExerciseList() {
   const [exerciseCatalog, setExerciseCatalog] = useState<
     Array<Exercise & { id: string }>
   >([]);
-  const [isPending, startTransition] = useTransition();
+  const catalogRef = useRef(exerciseCatalog);
+  catalogRef.current = exerciseCatalog;
   const [search, setSearch] = useState("");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">(() =>
     getStoredSortOrder()
@@ -51,11 +48,15 @@ export function ExerciseList() {
     setExerciseCatalog(list);
   }, [dataAccess]);
 
-  useEffect(() => {
-    startTransition(() => {
-      void fetchExerciseCatalog();
-    });
-  }, [fetchExerciseCatalog, startTransition]);
+  const {
+    loading,
+    loadError,
+    reload: reloadCatalog,
+  } = useRemoteLoad({
+    load: fetchExerciseCatalog,
+    refetchOnVisibility: true,
+    hasData: () => catalogRef.current.length > 0,
+  });
 
   const exercises = useMemo(() => {
     const query = search.trim();
@@ -97,7 +98,7 @@ export function ExerciseList() {
     });
     setCreateOpen(false);
     setCreateName("");
-    startTransition(() => void fetchExerciseCatalog());
+    void reloadCatalog();
   };
 
   const handleEdit = async () => {
@@ -111,14 +112,14 @@ export function ExerciseList() {
     await dataAccess.exercises.update(editId, { nameLower, displayName });
     setEditId(null);
     setEditName("");
-    startTransition(() => void fetchExerciseCatalog());
+    void reloadCatalog();
   };
 
   const handleDelete = async () => {
     if (!deleteId) return;
     await dataAccess.exercises.delete(deleteId);
     setDeleteId(null);
-    startTransition(() => void fetchExerciseCatalog());
+    void reloadCatalog();
   };
 
   return (
@@ -151,10 +152,16 @@ export function ExerciseList() {
         </button>
       </div>
 
-      {isPending ? (
+      {loading ? (
         <div className="flex justify-center py-8">
           <LoadingSpinner />
         </div>
+      ) : loadError ? (
+        <LoadErrorPanel
+          title="Could not load exercises."
+          message={loadError}
+          onRetry={() => void reloadCatalog()}
+        />
       ) : exercises.length === 0 ? (
         <EmptyState
           title="No exercises"
