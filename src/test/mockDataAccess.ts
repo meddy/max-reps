@@ -48,7 +48,6 @@ function buildMockDataAccess() {
 
   const workouts = {
     get: vi.fn(),
-    previousForDayBefore: vi.fn(),
     getWithSets: vi.fn(),
     create: vi.fn(),
     update: vi.fn(),
@@ -173,7 +172,6 @@ function seedDefaultResolvedValues(da: BuiltMockDataAccess): void {
   da.templates.delete.mockResolvedValue(undefined);
 
   da.workouts.get.mockResolvedValue(null);
-  da.workouts.previousForDayBefore.mockResolvedValue(null);
   da.workouts.getWithSets.mockResolvedValue(null);
   da.workouts.create.mockResolvedValue("w-new");
   da.workouts.deleteWithSets.mockResolvedValue(undefined);

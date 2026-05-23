@@ -153,9 +153,9 @@ export function WorkoutDetail() {
     dayTemplates: Awaited<
       ReturnType<typeof detailHandlers.loadFillTemplateData>
     >["dayTemplates"];
-    sameDayPreviousByExercise: Awaited<
+    lastPerformedByExercise: Awaited<
       ReturnType<typeof detailHandlers.loadFillTemplateData>
-    >["sameDayPreviousByExercise"];
+    >["lastPerformedByExercise"];
   } | null>(null);
   const fillTemplateDisabled =
     fillTemplateLoading || (fillTemplateData?.dayTemplates.length ?? 0) === 0;
@@ -182,7 +182,7 @@ export function WorkoutDetail() {
         if (!cancelled) {
           setFillTemplateData({
             dayTemplates: [],
-            sameDayPreviousByExercise: {},
+            lastPerformedByExercise: {},
           });
         }
       })
@@ -289,7 +289,7 @@ export function WorkoutDetail() {
       const merged = mergeWorkoutGroupsWithDayTemplates(
         editor.groups,
         payload.dayTemplates,
-        payload.sameDayPreviousByExercise
+        payload.lastPerformedByExercise
       );
       editor.applyLocalMerge(merged);
     } finally {

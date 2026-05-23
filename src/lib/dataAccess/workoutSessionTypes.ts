@@ -53,7 +53,7 @@ export interface WorkoutSessionApi {
 
   loadFillTemplateData(workoutId: string): Promise<{
     dayTemplates: TemplateWithExerciseName[];
-    sameDayPreviousByExercise: Record<
+    lastPerformedByExercise: Record<
       string,
       {
         sets: Array<{ reps: number; weight: number; note?: string }>;

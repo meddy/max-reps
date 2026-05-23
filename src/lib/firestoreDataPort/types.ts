@@ -82,12 +82,6 @@ export interface FirestoreWorkoutSetQueryPort {
     limit: number;
   }): Promise<RawDoc[]>;
 
-  queryWorkoutsByDayBeforeDate(
-    dayId: string,
-    beforeDate: Date,
-    limit: number
-  ): Promise<RawDoc[]>;
-
   querySetsByWorkoutId(workoutId: string): Promise<RawDoc[]>;
 
   querySetsByExercisePerformedAtDesc(

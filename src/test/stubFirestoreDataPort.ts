@@ -26,7 +26,6 @@ export function createStubFirestoreDataPort(
     queryDaysList: vi.fn(reject),
     querySetsForWorkoutOrdered: vi.fn(reject),
     queryWorkoutsByDate: vi.fn(reject),
-    queryWorkoutsByDayBeforeDate: vi.fn(reject),
     querySetsByWorkoutId: vi.fn(reject),
     querySetsByExercisePerformedAtDesc: vi.fn(reject),
     querySetsPrForExercise: vi.fn(reject),

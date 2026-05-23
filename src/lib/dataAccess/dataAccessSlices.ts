@@ -73,10 +73,6 @@ export interface TemplatesDataSlice extends TemplateCatalog {
 
 export interface WorkoutsDataSlice {
   get(id: string): Promise<(Workout & { id: string }) | null>;
-  previousForDayBefore(
-    dayId: string,
-    beforeDate: Date
-  ): Promise<(Workout & { id: string }) | null>;
   getWithSets(id: string): Promise<{
     workout: Workout & { id: string };
     sets: WorkoutSet[];

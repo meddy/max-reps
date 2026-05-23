@@ -76,7 +76,7 @@ export function editorGroupsFromDayTemplates(
 export function mergeWorkoutGroupsWithDayTemplates(
   workoutGroups: EditorExerciseGroup[],
   templates: TemplateMergeRow[],
-  sameDayPreviousByExercise: Record<
+  lastPerformedByExercise: Record<
     string,
     {
       sets: Array<{ reps: number; weight: number; note?: string }>;
@@ -115,7 +115,7 @@ export function mergeWorkoutGroupsWithDayTemplates(
         repsLower: template.repsLower,
         repsUpper: template.repsUpper,
       },
-      lastPerformed: sameDayPreviousByExercise[group.exerciseId],
+      lastPerformed: lastPerformedByExercise[group.exerciseId],
     };
   });
 
@@ -140,7 +140,7 @@ export function mergeWorkoutGroupsWithDayTemplates(
         repsLower: template.repsLower,
         repsUpper: template.repsUpper,
       },
-      lastPerformed: sameDayPreviousByExercise[template.exerciseId],
+      lastPerformed: lastPerformedByExercise[template.exerciseId],
     }));
 
   return [...merged, ...missingTemplateGroups];

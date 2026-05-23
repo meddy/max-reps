@@ -236,49 +236,32 @@ describe("WorkoutDetail", () => {
       createdAt: base,
       updatedAt: base,
     });
-    mockDataAccess.workouts.previousForDayBefore.mockResolvedValue({
-      id: "w0",
-      date: new Date("2024-01-01T12:00:00"),
-      dayId: "d1",
-      dayNameSnapshot: "Leg Day",
-      note: "",
-      createdAt: base,
-      updatedAt: base,
-    });
-    mockDataAccess.sets.listForWorkout.mockImplementation(async (workoutId) => {
-      if (workoutId === "w1") {
-        return [
-          {
-            id: "s1",
-            workoutId: "w1",
-            exerciseId: "e1",
-            exerciseNameSnapshot: "Squat",
-            reps: 5,
-            weight: 315,
-            unit: "lbs",
-            note: "",
-            performedAt: ts,
-            order: 0,
-            createdAt: base,
-          },
-        ];
+    mockDataAccess.sets.listForWorkout.mockResolvedValue([
+      {
+        id: "s1",
+        workoutId: "w1",
+        exerciseId: "e1",
+        exerciseNameSnapshot: "Squat",
+        reps: 5,
+        weight: 315,
+        unit: "lbs",
+        note: "",
+        performedAt: ts,
+        order: 0,
+        createdAt: base,
+      },
+    ]);
+    mockDataAccess.sets.lastPerformedGroupForExercise.mockImplementation(
+      async (exerciseId: string) => {
+        if (exerciseId === "e1") {
+          return {
+            workoutId: "w0",
+            sets: [{ reps: 8, weight: 275, note: "slow eccentric" }],
+          };
+        }
+        return { sets: [] };
       }
-      return [
-        {
-          id: "s0",
-          workoutId: "w0",
-          exerciseId: "e1",
-          exerciseNameSnapshot: "Squat",
-          reps: 8,
-          weight: 275,
-          unit: "lbs",
-          note: "slow eccentric",
-          performedAt: new Date("2024-01-01T12:00:00"),
-          order: 0,
-          createdAt: base,
-        },
-      ];
-    });
+    );
     mockDataAccess.templates.listForDayWithExerciseNames.mockResolvedValue([
       {
         id: "t1",

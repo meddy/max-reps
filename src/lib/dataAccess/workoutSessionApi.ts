@@ -20,10 +20,7 @@ export type {
 } from "./workoutSessionTypes";
 
 export type WorkoutSessionApiDeps = {
-  workouts: Pick<
-    WorkoutsDataSlice,
-    "get" | "update" | "deleteWithSets" | "previousForDayBefore"
-  >;
+  workouts: Pick<WorkoutsDataSlice, "get" | "update" | "deleteWithSets">;
   /** Load path uses list/last-performed; editor persistence uses create/update/delete. */
   sets: SetsDataSlice;
   templates: Pick<TemplatesDataSlice, "catalog">;
@@ -120,49 +117,27 @@ export function createWorkoutSessionApi(
     async loadFillTemplateData(workoutId) {
       const workout = await deps.workouts.get(workoutId);
       if (!workout || !workout.dayId) {
-        return { dayTemplates: [], sameDayPreviousByExercise: {} };
+        return { dayTemplates: [], lastPerformedByExercise: {} };
       }
 
       const dayTemplates = await deps.templates.catalog.forDay(workout.dayId);
       if (dayTemplates.length === 0) {
-        return { dayTemplates: [], sameDayPreviousByExercise: {} };
+        return { dayTemplates: [], lastPerformedByExercise: {} };
       }
 
-      const previousWorkout = await deps.workouts.previousForDayBefore(
-        workout.dayId,
-        workout.date
+      const exerciseIds = [...new Set(dayTemplates.map((t) => t.exerciseId))];
+      const lastResults = await Promise.all(
+        exerciseIds.map(async (exerciseId) => {
+          const result = await deps.sets.lastPerformedGroupForExercise(
+            exerciseId,
+            workoutId
+          );
+          return [exerciseId, result] as const;
+        })
       );
-      if (!previousWorkout) {
-        return { dayTemplates, sameDayPreviousByExercise: {} };
-      }
+      const lastPerformedByExercise = rollupLastPerformedMap(lastResults);
 
-      const previousSets = await deps.sets.listForWorkout(previousWorkout.id);
-      const grouped = new Map<
-        string,
-        Array<{ reps: number; weight: number; note?: string }>
-      >();
-
-      for (const set of previousSets) {
-        const bucket = grouped.get(set.exerciseId) ?? [];
-        bucket.push({ reps: set.reps, weight: set.weight, note: set.note });
-        grouped.set(set.exerciseId, bucket);
-      }
-
-      const sameDayPreviousByExercise: Record<
-        string,
-        {
-          sets: Array<{ reps: number; weight: number; note?: string }>;
-          workoutId: string;
-        }
-      > = {};
-      for (const [exerciseId, sets] of grouped.entries()) {
-        sameDayPreviousByExercise[exerciseId] = {
-          sets,
-          workoutId: previousWorkout.id,
-        };
-      }
-
-      return { dayTemplates, sameDayPreviousByExercise };
+      return { dayTemplates, lastPerformedByExercise };
     },
 
     deleteWorkoutWithSets(workoutId) {
