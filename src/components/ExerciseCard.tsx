@@ -5,6 +5,8 @@ export interface ExerciseCardProps {
   exerciseName: string;
   exerciseId?: string;
   metadata?: React.ReactNode;
+  /** Segments only, e.g. "150x5, 130x18". Hidden when null/undefined. */
+  setSummary?: string | null;
   onRemove: () => void;
   onAddSet: () => void;
   children: React.ReactNode;
@@ -14,6 +16,7 @@ export function ExerciseCard({
   exerciseName,
   exerciseId,
   metadata,
+  setSummary,
   onRemove,
   onAddSet,
   children,
@@ -51,6 +54,11 @@ export function ExerciseCard({
       >
         + Add set
       </button>
+      {setSummary != null && (
+        <p className="mt-2 text-sm text-gray-500">
+          <strong>Summary:</strong> {setSummary}
+        </p>
+      )}
     </div>
   );
 }

@@ -22,4 +22,33 @@ describe("ExerciseCard", () => {
     );
     expect(screen.getByText("Child block")).toBeInTheDocument();
   });
+
+  it("shows set summary when setSummary is provided", () => {
+    renderWithProviders(
+      <ExerciseCard
+        exerciseName="Squat"
+        setSummary="150x5, 130x18"
+        onRemove={vi.fn()}
+        onAddSet={vi.fn()}
+      >
+        <p>Child block</p>
+      </ExerciseCard>
+    );
+    expect(screen.getByText("Summary:").tagName).toBe("STRONG");
+    expect(screen.getByText("150x5, 130x18")).toBeInTheDocument();
+  });
+
+  it("hides set summary when setSummary is null", () => {
+    renderWithProviders(
+      <ExerciseCard
+        exerciseName="Squat"
+        setSummary={null}
+        onRemove={vi.fn()}
+        onAddSet={vi.fn()}
+      >
+        <p>Child block</p>
+      </ExerciseCard>
+    );
+    expect(screen.queryByText("Summary:")).not.toBeInTheDocument();
+  });
 });

@@ -44,6 +44,10 @@ _Avoid_: top working set, working top, heaviest set.
 The training-volume total for a **Workout**: the sum of `weight × reps` across every **Set** in the Workout.
 _Avoid_: total load, tonnage, work.
 
+**Set Summary**:
+A per-exercise, read-only condensation of the exercise's **Sets** in the **Workout Editor**: consecutive runs at the same `weight` with reps summed per run, rendered as `weight×totalReps` segments (e.g. `150x5, 130x18`). Shown below the set list when at least one row has `reps > 0`. Distinct from **Volume**.
+_Avoid_: set group summary, exercise summary (too vague).
+
 **Last Performed Set**:
 For an **Exercise**, the **Sets** from the most recent **Workout** (regardless of **Day**) that included this Exercise. The single canonical "what did I do last time?" hint, used wherever last-performed is surfaced — seeding rows in an **Unlogged Workout**, **Fill from Day**, and adding an ad-hoc exercise mid-workout.
 _Avoid_: last performed group, lastPerformed, previous same-day workout, same-day previous.

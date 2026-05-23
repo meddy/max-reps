@@ -21,6 +21,7 @@ import { ExerciseCard } from "../../components/ExerciseCard";
 import { SetRow } from "../../components/SetRow";
 import { AddExerciseModal } from "../../components/AddExerciseModal";
 import { formatDate, toDatetimeLocalValue } from "../../lib/format";
+import { formatSetSummary } from "../../lib/setSummary/formatSetSummary";
 import {
   useWorkoutEditor,
   type EditorExerciseGroup,
@@ -530,6 +531,7 @@ export function WorkoutDetail() {
                     exerciseName={group.exerciseName}
                     exerciseId={group.exerciseId}
                     metadata={renderGroupMetadata(group)}
+                    setSummary={formatSetSummary(group.rows)}
                     onRemove={() =>
                       setRemoveExerciseTemplateGroupKey(group.groupKey)
                     }
@@ -727,6 +729,7 @@ export function WorkoutDetail() {
                 exerciseName={group.exerciseName}
                 exerciseId={group.exerciseId}
                 metadata={renderGroupMetadata(group)}
+                setSummary={formatSetSummary(group.rows)}
                 onRemove={() => setRemoveExerciseGroupKey(group.groupKey)}
                 onAddSet={() => editor.addSet(group.groupKey)}
               >
