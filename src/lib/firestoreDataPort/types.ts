@@ -80,6 +80,7 @@ export interface FirestoreWorkoutSetQueryPort {
   queryWorkoutsByDate(opts: {
     sort: "asc" | "desc";
     limit: number;
+    startAfter?: { date: Date; id: string };
   }): Promise<RawDoc[]>;
 
   querySetsByWorkoutId(workoutId: string): Promise<RawDoc[]>;

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useDataAccess } from "../../contexts/DataAccessContext";
-import type { Day, WorkoutListItem } from "../../types";
+import type { Day, Workout, WorkoutListItem } from "../../types";
 import { EmptyState } from "../../components/EmptyState";
 import { IconPlus } from "../../components/Icons";
 import { LoadErrorPanel } from "../../components/LoadErrorPanel";
@@ -11,7 +11,8 @@ import { SortToggleButton } from "../../components/SortToggleButton";
 import { useRemoteLoad } from "../../hooks/useRemoteLoad";
 import { formatDate } from "../../lib/format";
 
-const PAGE_SIZE = 100;
+/** Smaller pages reduce Firestore read bursts on iOS Safari (stats are batched). */
+const PAGE_SIZE = 25;
 const SORT_STORAGE_KEY = "max-reps-workout-sort";
 const IS_IOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
 
@@ -21,6 +22,8 @@ type DaySummaryItem = {
   repsLower: number;
   repsUpper: number;
 };
+
+type WorkoutCursor = { date: Date; id: string };
 
 function getStoredSortOrder(): "asc" | "desc" {
   try {
@@ -39,13 +42,48 @@ function getLocalDateString(date: Date = new Date()): string {
   return `${year}-${month}-${day}`;
 }
 
+function toCursor(w: Workout & { id: string }): WorkoutCursor {
+  return { date: w.date, id: w.id };
+}
+
+function placeholdersFor(
+  workouts: Array<Workout & { id: string }>
+): WorkoutListItem[] {
+  return workouts.map((w) => ({
+    ...w,
+    setCount: 0,
+    exerciseCount: 0,
+    totalLoad: 0,
+  }));
+}
+
+/** Replace page-1 rows on visibility refetch; keep workouts from Load more. */
+function mergePageOneIntoList(
+  prev: WorkoutListItem[],
+  pageOne: WorkoutListItem[]
+): WorkoutListItem[] {
+  const pageOneIds = new Set(pageOne.map((w) => w.id));
+  return [...pageOne, ...prev.filter((w) => !pageOneIds.has(w.id))];
+}
+
+function mergeStatsIntoList(
+  prev: WorkoutListItem[],
+  withStats: WorkoutListItem[]
+): WorkoutListItem[] {
+  const byId = new Map(withStats.map((w) => [w.id, w]));
+  return prev.map((w) => byId.get(w.id) ?? w);
+}
+
 export function WorkoutHistory() {
   const dataAccess = useDataAccess();
   const navigate = useNavigate();
   const [workouts, setWorkouts] = useState<WorkoutListItem[]>([]);
   const [statsLoading, setStatsLoading] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const workoutsRef = useRef(workouts);
   workoutsRef.current = workouts;
+  const cursorRef = useRef<WorkoutCursor | null>(null);
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">(() =>
     getStoredSortOrder()
   );
@@ -76,24 +114,37 @@ export function WorkoutHistory() {
       const recent = await dataAccess.workouts.listRecent(listOpts);
       if (isStale()) return;
 
-      const placeholders: WorkoutListItem[] = recent.map((w) => ({
-        ...w,
-        setCount: 0,
-        exerciseCount: 0,
-        totalLoad: 0,
-      }));
-      setWorkouts(placeholders);
-      if (!background) {
+      const placeholders = placeholdersFor(recent);
+      const nextHasMore = recent.length === PAGE_SIZE;
+      const nextCursor =
+        recent.length > 0 ? toCursor(recent[recent.length - 1]!) : null;
+
+      if (background) {
+        // Visibility refetch: page 1 only; appended pages stay as-is.
+        setWorkouts((prev) => mergePageOneIntoList(prev, placeholders));
+      } else {
+        setWorkouts(placeholders);
+        setHasMore(nextHasMore);
+        cursorRef.current = nextCursor;
         setForegroundLoading(false);
       }
-      setStatsLoading(true);
+
+      if (!background) {
+        setStatsLoading(true);
+      }
 
       try {
         const withCounts = await dataAccess.workouts.attachSetStats(recent);
         if (isStale()) return;
-        setWorkouts(withCounts);
+        if (background) {
+          setWorkouts((prev) => mergePageOneIntoList(prev, withCounts));
+        } else {
+          setWorkouts(withCounts);
+          setHasMore(nextHasMore);
+          cursorRef.current = nextCursor;
+        }
       } finally {
-        if (!isStale()) {
+        if (!isStale() && !background) {
           setStatsLoading(false);
         }
       }
@@ -112,7 +163,38 @@ export function WorkoutHistory() {
     hasData: () => workoutsRef.current.length > 0,
   });
 
+  const loadMore = useCallback(async () => {
+    const cursor = cursorRef.current;
+    if (!cursor || !hasMore || loadingMore || loading) return;
+
+    setLoadingMore(true);
+    try {
+      const recent = await dataAccess.workouts.listRecent({
+        sort: sortOrder,
+        limit: PAGE_SIZE,
+        startAfter: cursor,
+      });
+      if (recent.length === 0) {
+        setHasMore(false);
+        return;
+      }
+
+      setWorkouts((prev) => [...prev, ...placeholdersFor(recent)]);
+
+      const withCounts = await dataAccess.workouts.attachSetStats(recent);
+      setWorkouts((prev) => mergeStatsIntoList(prev, withCounts));
+
+      cursorRef.current = toCursor(recent[recent.length - 1]!);
+      setHasMore(recent.length === PAGE_SIZE);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [dataAccess, sortOrder, hasMore, loadingMore, loading]);
+
   const handleSortChange = (order: "asc" | "desc") => {
+    cursorRef.current = null;
+    setHasMore(false);
+    setWorkouts([]);
     setSortOrder(order);
     try {
       localStorage.setItem(SORT_STORAGE_KEY, order);
@@ -247,38 +329,53 @@ export function WorkoutHistory() {
           }
         />
       ) : (
-        <ul className="flex flex-col gap-2">
-          {workouts.map((w) => (
-            <li key={w.id}>
-              <Link
-                to={`/workouts/${w.id}`}
-                className="block min-h-[44px] rounded-xl bg-white p-4 shadow-sm transition-colors hover:bg-gray-100"
-              >
-                <p className="font-medium text-gray-900">{w.dayNameSnapshot}</p>
-                <p className="text-sm text-gray-500">
-                  {formatDate(w.date, { weekday: true })}
-                </p>
-                <p className="text-sm text-gray-500">
-                  {statsLoading ? (
-                    "Loading stats…"
-                  ) : (
-                    <>
-                      {w.exerciseCount ?? 0} exercises - {w.setCount ?? 0} sets
-                      {w.totalLoad != null &&
-                        w.totalLoad > 0 &&
-                        ` - ${w.totalLoad.toLocaleString()} lbs`}
-                    </>
-                  )}
-                </p>
-                {w.note?.trim() && (
-                  <p className="mt-1 text-sm text-gray-500 line-clamp-2">
-                    {w.note.trim()}
+        <>
+          <ul className="flex flex-col gap-2">
+            {workouts.map((w) => (
+              <li key={w.id}>
+                <Link
+                  to={`/workouts/${w.id}`}
+                  className="block min-h-[44px] rounded-xl bg-white p-4 shadow-sm transition-colors hover:bg-gray-100"
+                >
+                  <p className="font-medium text-gray-900">
+                    {w.dayNameSnapshot}
                   </p>
-                )}
-              </Link>
-            </li>
-          ))}
-        </ul>
+                  <p className="text-sm text-gray-500">
+                    {formatDate(w.date, { weekday: true })}
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    {statsLoading ? (
+                      "Loading stats…"
+                    ) : (
+                      <>
+                        {w.exerciseCount ?? 0} exercises - {w.setCount ?? 0}{" "}
+                        sets
+                        {w.totalLoad != null &&
+                          w.totalLoad > 0 &&
+                          ` - ${w.totalLoad.toLocaleString()} lbs`}
+                      </>
+                    )}
+                  </p>
+                  {w.note?.trim() && (
+                    <p className="mt-1 text-sm text-gray-500 line-clamp-2">
+                      {w.note.trim()}
+                    </p>
+                  )}
+                </Link>
+              </li>
+            ))}
+          </ul>
+          {hasMore && (
+            <button
+              type="button"
+              onClick={() => void loadMore()}
+              disabled={loadingMore || loading}
+              className="min-h-[44px] w-full rounded-xl border border-indigo-200 bg-white text-sm font-medium text-indigo-700 hover:bg-indigo-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {loadingMore ? "Loading…" : "Load more"}
+            </button>
+          )}
+        </>
       )}
 
       <Modal

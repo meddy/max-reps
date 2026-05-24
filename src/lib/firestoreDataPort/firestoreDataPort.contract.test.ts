@@ -199,6 +199,44 @@ describe("FirestoreDataPort contract (in-memory)", () => {
     });
   });
 
+  it("queryWorkoutsByDate paginates with startAfter", async () => {
+    const sameDate = new Date("2024-03-15T12:00:00");
+    const port = createInMemoryFirestoreDataPort({
+      workouts: {
+        w_a: {
+          date: sameDate,
+          dayId: "d1",
+          dayNameSnapshot: "A",
+          note: "",
+        },
+        w_b: {
+          date: sameDate,
+          dayId: "d1",
+          dayNameSnapshot: "B",
+          note: "",
+        },
+        w_c: {
+          date: new Date("2024-01-01"),
+          dayId: "d1",
+          dayNameSnapshot: "C",
+          note: "",
+        },
+      },
+    });
+    const page1 = await port.queryWorkoutsByDate({ sort: "desc", limit: 1 });
+    expect(page1).toHaveLength(1);
+    const page2 = await port.queryWorkoutsByDate({
+      sort: "desc",
+      limit: 10,
+      startAfter: {
+        date: new Date(page1[0]!.data.date as Date),
+        id: page1[0]!.id,
+      },
+    });
+    expect(page2.map((r) => r.id)).not.toContain(page1[0]!.id);
+    expect(page2.length).toBeGreaterThan(0);
+  });
+
   describe.each([
     {
       sort: "asc" as const,

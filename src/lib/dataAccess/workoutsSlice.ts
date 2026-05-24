@@ -89,11 +89,13 @@ export function buildWorkoutsSlice(
     async listRecent(opts: {
       sort: "asc" | "desc";
       limit?: number;
+      startAfter?: { date: Date; id: string };
     }): Promise<Array<Workout & { id: string }>> {
       const lim = opts.limit ?? DEFAULT_PAGE;
       const workoutRows = await firestore.queryWorkoutsByDate({
         sort: opts.sort,
         limit: lim,
+        startAfter: opts.startAfter,
       });
       return workoutRows.map((d) => mapWorkoutFromDoc(d.id, d.data));
     },
@@ -101,26 +103,39 @@ export function buildWorkoutsSlice(
     async attachSetStats(
       workouts: Array<Workout & { id: string }>
     ): Promise<WorkoutListItem[]> {
-      const withCounts = await Promise.all(
-        workouts.map(async (w) => {
-          const setRows = await firestore.querySetsByWorkoutId(w.id);
-          const exerciseIds = new Set<string>();
-          let totalLoad = 0;
-          for (const d of setRows) {
-            const data = d.data;
-            exerciseIds.add(data.exerciseId as string);
-            totalLoad +=
-              ((data.reps as number) ?? 0) * ((data.weight as number) ?? 0);
-          }
-          return {
-            ...w,
-            setCount: setRows.length,
-            exerciseCount: exerciseIds.size,
-            totalLoad,
-          } as WorkoutListItem;
-        })
+      if (workouts.length === 0) return [];
+
+      const setRows = await firestore.querySetsByWorkoutIds(
+        workouts.map((w) => w.id)
       );
-      return withCounts;
+      const setsByWorkoutId = new Map<string, typeof setRows>();
+      for (const d of setRows) {
+        const workoutId = d.data.workoutId as string;
+        const existing = setsByWorkoutId.get(workoutId);
+        if (existing) {
+          existing.push(d);
+        } else {
+          setsByWorkoutId.set(workoutId, [d]);
+        }
+      }
+
+      return workouts.map((w) => {
+        const rows = setsByWorkoutId.get(w.id) ?? [];
+        const exerciseIds = new Set<string>();
+        let totalLoad = 0;
+        for (const d of rows) {
+          const data = d.data;
+          exerciseIds.add(data.exerciseId as string);
+          totalLoad +=
+            ((data.reps as number) ?? 0) * ((data.weight as number) ?? 0);
+        }
+        return {
+          ...w,
+          setCount: rows.length,
+          exerciseCount: exerciseIds.size,
+          totalLoad,
+        } as WorkoutListItem;
+      });
     },
 
     async listWithStats(opts: {

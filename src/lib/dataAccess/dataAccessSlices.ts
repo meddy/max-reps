@@ -92,6 +92,7 @@ export interface WorkoutsDataSlice {
   listRecent(opts: {
     sort: "asc" | "desc";
     limit?: number;
+    startAfter?: { date: Date; id: string };
   }): Promise<Array<Workout & { id: string }>>;
   attachSetStats(
     workouts: Array<Workout & { id: string }>

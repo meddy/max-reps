@@ -8,6 +8,7 @@ import {
   limit,
   orderBy,
   query,
+  startAfter,
   where,
 } from "firebase/firestore";
 import {
@@ -172,7 +173,20 @@ export function createFirebaseFirestoreDataPort(
 
     async queryWorkoutsByDate(opts) {
       const ref = collection(db, "workouts");
-      const q = query(ref, orderBy("date", opts.sort), limit(opts.limit));
+      const q = opts.startAfter
+        ? query(
+            ref,
+            orderBy("date", opts.sort),
+            orderBy(documentId(), opts.sort),
+            startAfter(opts.startAfter.date, opts.startAfter.id),
+            limit(opts.limit)
+          )
+        : query(
+            ref,
+            orderBy("date", opts.sort),
+            orderBy(documentId(), opts.sort),
+            limit(opts.limit)
+          );
       const snapshot = await read("queryWorkoutsByDate", () => getDocs(q));
       return snapshot.docs.map((d) =>
         toRawDoc(d.id, d.data() as Record<string, unknown>)

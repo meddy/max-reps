@@ -200,9 +200,20 @@ export function createInMemoryFirestoreDataPort(
       const rows = listCol("workouts").sort((a, b) => {
         const ta = asNumber(a.data.date);
         const tb = asNumber(b.data.date);
-        return opts.sort === "asc" ? ta - tb : tb - ta;
+        const dateCmp = opts.sort === "asc" ? ta - tb : tb - ta;
+        if (dateCmp !== 0) return dateCmp;
+        return opts.sort === "asc" ? cmpStr(a.id, b.id) : cmpStr(b.id, a.id);
       });
-      return rows.slice(0, opts.limit);
+      let start = 0;
+      if (opts.startAfter) {
+        const cursorTime = opts.startAfter.date.getTime();
+        const idx = rows.findIndex(
+          (r) =>
+            r.id === opts.startAfter!.id && asNumber(r.data.date) === cursorTime
+        );
+        start = idx >= 0 ? idx + 1 : 0;
+      }
+      return rows.slice(start, start + opts.limit);
     },
 
     async querySetsByWorkoutId(workoutId) {
