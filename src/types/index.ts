@@ -62,14 +62,6 @@ export interface TemplateWithExerciseName extends ExerciseSetTemplate {
   exerciseDisplayName: string;
 }
 
-/** Workout list row with aggregated set stats. */
-export type WorkoutListItem = Workout & {
-  id: string;
-  setCount: number;
-  exerciseCount: number;
-  totalLoad: number;
-};
-
 /** Point for exercise top-set-per-workout chart (read model). */
 export interface TopSetChartPoint {
   dateMs: number;

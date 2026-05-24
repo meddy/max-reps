@@ -126,6 +126,7 @@ export function WorkoutDetail() {
     isTemplateMode,
     templateModeLoading,
     editorSeed,
+    detailLoadEpoch,
   } = useWorkoutDetailModel(workoutId, dataAccess.workoutDetail);
 
   const workoutRef = useRef(workout);
@@ -152,6 +153,7 @@ export function WorkoutDetail() {
     useState<string | null>(null);
   const [isDragGestureActive, setIsDragGestureActive] = useState(false);
   const [fillTemplateLoading, setFillTemplateLoading] = useState(false);
+  const [fillFromDayError, setFillFromDayError] = useState<string | null>(null);
   const [fillTemplateData, setFillTemplateData] = useState<{
     dayTemplates: Awaited<
       ReturnType<typeof detailHandlers.loadFillTemplateData>
@@ -160,44 +162,20 @@ export function WorkoutDetail() {
       ReturnType<typeof detailHandlers.loadFillTemplateData>
     >["lastPerformedByExercise"];
   } | null>(null);
+
+  const showFillFromDay = Boolean(workout?.dayId);
   const fillTemplateDisabled =
-    fillTemplateLoading || (fillTemplateData?.dayTemplates.length ?? 0) === 0;
+    fillTemplateLoading ||
+    (fillTemplateData !== null && fillTemplateData.dayTemplates.length === 0);
 
   useEffect(() => {
     if (workout) setDateInput(toDatetimeLocalValue(workout.date));
   }, [workout?.id, workout?.date]);
 
   useEffect(() => {
-    if (!workoutId || !workout || isTemplateMode) {
-      setFillTemplateData(null);
-      return;
-    }
-    let cancelled = false;
-    setFillTemplateLoading(true);
-    void detailHandlers
-      .loadFillTemplateData(workoutId)
-      .then((result) => {
-        if (!cancelled) {
-          setFillTemplateData(result);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setFillTemplateData({
-            dayTemplates: [],
-            lastPerformedByExercise: {},
-          });
-        }
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setFillTemplateLoading(false);
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [detailHandlers, isTemplateMode, workout, workoutId]);
+    setFillTemplateData(null);
+    setFillFromDayError(null);
+  }, [detailLoadEpoch]);
 
   const persistence = useMemo(
     () => detailHandlers.createEditorPersistence(),
@@ -282,6 +260,7 @@ export function WorkoutDetail() {
 
   const handleFillTemplate = useCallback(async () => {
     if (!workoutId || isTemplateMode) return;
+    setFillFromDayError(null);
     setFillTemplateLoading(true);
     try {
       const payload =
@@ -295,6 +274,9 @@ export function WorkoutDetail() {
         payload.lastPerformedByExercise
       );
       editor.applyLocalMerge(merged);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      setFillFromDayError(message);
     } finally {
       setFillTemplateLoading(false);
     }
@@ -650,14 +632,23 @@ export function WorkoutDetail() {
           >
             Back to History
           </button>
-          <button
-            type="button"
-            onClick={() => void handleFillTemplate()}
-            disabled={fillTemplateDisabled}
-            className="min-h-[44px] rounded-xl border border-gray-300 bg-white px-3 text-sm font-medium text-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            Fill from Day
-          </button>
+          {showFillFromDay ? (
+            <div className="flex flex-col gap-1">
+              <button
+                type="button"
+                onClick={() => void handleFillTemplate()}
+                disabled={fillTemplateDisabled}
+                className="min-h-[44px] rounded-xl border border-gray-300 bg-white px-3 text-sm font-medium text-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {fillTemplateLoading ? "Loading…" : "Fill from Day"}
+              </button>
+              {fillFromDayError ? (
+                <p role="alert" className="text-sm text-red-600">
+                  {fillFromDayError}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       </div>
 

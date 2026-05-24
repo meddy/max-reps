@@ -18,6 +18,7 @@ export function useWorkoutDetailModel(
   const [editorSeed, setEditorSeed] = useState<WorkoutDetailEditorSeed | null>(
     null
   );
+  const [detailLoadEpoch, setDetailLoadEpoch] = useState(0);
   const workoutRef = useRef(workout);
   workoutRef.current = workout;
 
@@ -26,6 +27,7 @@ export function useWorkoutDetailModel(
     setWorkout(null);
     setIsTemplateMode(false);
     setTemplateModeLoading(false);
+    setDetailLoadEpoch(0);
   }, [workoutId]);
 
   const loadDetail = useCallback(
@@ -57,6 +59,7 @@ export function useWorkoutDetailModel(
       setWorkout(w);
       setEditorSeed(seed);
       setIsTemplateMode(templateMode);
+      setDetailLoadEpoch((epoch) => epoch + 1);
     },
     [workoutDetail, workoutId]
   );
@@ -83,5 +86,6 @@ export function useWorkoutDetailModel(
     isTemplateMode,
     templateModeLoading,
     editorSeed,
+    detailLoadEpoch,
   };
 }

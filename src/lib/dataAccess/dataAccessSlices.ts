@@ -5,7 +5,6 @@ import type {
   ExerciseSetTemplate,
   TemplateWithExerciseName,
   Workout,
-  WorkoutListItem,
   WorkoutSet,
 } from "../../types";
 
@@ -94,13 +93,6 @@ export interface WorkoutsDataSlice {
     limit?: number;
     startAfter?: { date: Date; id: string };
   }): Promise<Array<Workout & { id: string }>>;
-  attachSetStats(
-    workouts: Array<Workout & { id: string }>
-  ): Promise<WorkoutListItem[]>;
-  listWithStats(opts: {
-    sort: "asc" | "desc";
-    limit?: number;
-  }): Promise<WorkoutListItem[]>;
 }
 
 export interface SetsDataSlice {

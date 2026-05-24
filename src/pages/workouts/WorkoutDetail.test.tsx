@@ -280,6 +280,49 @@ describe("WorkoutDetail", () => {
     expect(screen.getByText("275x8").closest("a")).toBeNull();
   });
 
+  it("does not load Fill from Day data on mount for a logged Workout", async () => {
+    const ts = new Date("2024-02-01T12:00:00");
+    const base = new Date("2024-01-01T12:00:00");
+    mockDataAccess.workouts.get.mockResolvedValue({
+      id: "w1",
+      date: ts,
+      dayId: "d1",
+      dayNameSnapshot: "Leg Day",
+      note: "",
+      createdAt: base,
+      updatedAt: base,
+    });
+    mockDataAccess.sets.listForWorkout.mockResolvedValue([
+      {
+        id: "s1",
+        workoutId: "w1",
+        exerciseId: "e1",
+        exerciseNameSnapshot: "Squat",
+        reps: 5,
+        weight: 315,
+        unit: "lbs",
+        note: "",
+        performedAt: ts,
+        order: 0,
+        createdAt: base,
+      },
+    ]);
+
+    renderWithProviders(
+      <Routes>
+        <Route path="/workouts/:id" element={<WorkoutDetail />} />
+      </Routes>,
+      { route: "/workouts/w1", authValue }
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Leg Day")).toBeInTheDocument();
+    });
+    expect(
+      mockDataAccess.workoutDetail.loadFillTemplateData
+    ).not.toHaveBeenCalled();
+  });
+
   it("Fill from Day merges locally into a logged Workout and shows hybrid metadata", async () => {
     const user = userEvent.setup();
     const ts = new Date("2024-02-01T12:00:00");
@@ -356,8 +399,16 @@ describe("WorkoutDetail", () => {
     const fillButton = await screen.findByRole("button", {
       name: /fill from day/i,
     });
-    await waitFor(() => expect(fillButton).toBeEnabled());
+    expect(fillButton).toBeEnabled();
+    expect(
+      mockDataAccess.workoutDetail.loadFillTemplateData
+    ).not.toHaveBeenCalled();
     await user.click(fillButton);
+    await waitFor(() =>
+      expect(
+        mockDataAccess.workoutDetail.loadFillTemplateData
+      ).toHaveBeenCalledTimes(1)
+    );
 
     await waitFor(() => {
       expect(screen.getByText("Romanian Deadlift")).toBeInTheDocument();
@@ -368,6 +419,7 @@ describe("WorkoutDetail", () => {
   });
 
   it("disables Fill from Day when the parent Day has no Set Targets", async () => {
+    const user = userEvent.setup();
     const ts = new Date("2024-02-01T12:00:00");
     const base = new Date("2024-01-01T12:00:00");
     mockDataAccess.workouts.get.mockResolvedValue({
@@ -405,6 +457,66 @@ describe("WorkoutDetail", () => {
 
     const fillButton = await screen.findByRole("button", {
       name: /fill from day/i,
+    });
+    expect(fillButton).toBeEnabled();
+    await user.click(fillButton);
+    await waitFor(() => expect(fillButton).toBeDisabled());
+  });
+
+  it("shows an inline error when Fill from Day fetch fails and clears it on retry", async () => {
+    const user = userEvent.setup();
+    const ts = new Date("2024-02-01T12:00:00");
+    const base = new Date("2024-01-01T12:00:00");
+    mockDataAccess.workouts.get.mockResolvedValue({
+      id: "w1",
+      date: ts,
+      dayId: "d1",
+      dayNameSnapshot: "Leg Day",
+      note: "",
+      createdAt: base,
+      updatedAt: base,
+    });
+    mockDataAccess.sets.listForWorkout.mockResolvedValue([
+      {
+        id: "s1",
+        workoutId: "w1",
+        exerciseId: "e1",
+        exerciseNameSnapshot: "Squat",
+        reps: 5,
+        weight: 315,
+        unit: "lbs",
+        note: "",
+        performedAt: ts,
+        order: 0,
+        createdAt: base,
+      },
+    ]);
+    mockDataAccess.workoutDetail.loadFillTemplateData
+      .mockRejectedValueOnce(new Error("Network failed"))
+      .mockResolvedValueOnce({
+        dayTemplates: [],
+        lastPerformedByExercise: {},
+      });
+
+    renderWithProviders(
+      <Routes>
+        <Route path="/workouts/:id" element={<WorkoutDetail />} />
+      </Routes>,
+      { route: "/workouts/w1", authValue }
+    );
+
+    const fillButton = await screen.findByRole("button", {
+      name: /fill from day/i,
+    });
+    await user.click(fillButton);
+    await waitFor(() => {
+      expect(screen.getByRole("alert")).toHaveTextContent("Network failed");
+    });
+    expect(fillButton).toBeEnabled();
+
+    await user.click(fillButton);
+    await waitFor(() => {
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     });
     await waitFor(() => expect(fillButton).toBeDisabled());
   });

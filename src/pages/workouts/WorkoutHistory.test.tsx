@@ -20,7 +20,6 @@ describe("WorkoutHistory", () => {
   it("shows empty state when there are no workouts", async () => {
     const dataAccess = createTestDataAccess();
     dataAccess.workouts.listRecent.mockResolvedValue([]);
-    dataAccess.workouts.attachSetStats.mockResolvedValue([]);
     renderWithProviders(<WorkoutHistory />, {
       route: "/workouts",
       authValue,
@@ -45,9 +44,6 @@ describe("WorkoutHistory", () => {
       updatedAt: base,
     };
     dataAccess.workouts.listRecent.mockResolvedValue([row]);
-    dataAccess.workouts.attachSetStats.mockResolvedValue([
-      { ...row, setCount: 3, exerciseCount: 2, totalLoad: 1000 },
-    ]);
     renderWithProviders(<WorkoutHistory />, {
       route: "/workouts",
       authValue,
@@ -63,6 +59,8 @@ describe("WorkoutHistory", () => {
       "href",
       "/workouts/w1"
     );
+    expect(screen.queryByText(/exercises/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Loading stats/)).not.toBeInTheDocument();
   });
 
   it("loads more workouts with cursor and appends rows", async () => {
@@ -90,15 +88,6 @@ describe("WorkoutHistory", () => {
     dataAccess.workouts.listRecent
       .mockResolvedValueOnce(page1)
       .mockResolvedValueOnce([page2Row]);
-    dataAccess.workouts.attachSetStats.mockImplementation(
-      async (workouts: typeof page1) =>
-        workouts.map((w) => ({
-          ...w,
-          setCount: 1,
-          exerciseCount: 1,
-          totalLoad: 100,
-        }))
-    );
 
     const user = userEvent.setup();
     renderWithProviders(<WorkoutHistory />, {
@@ -140,9 +129,6 @@ describe("WorkoutHistory", () => {
       updatedAt: base,
     };
     dataAccess.workouts.listRecent.mockResolvedValue([row]);
-    dataAccess.workouts.attachSetStats.mockResolvedValue([
-      { ...row, setCount: 0, exerciseCount: 0, totalLoad: 0 },
-    ]);
 
     renderWithProviders(<WorkoutHistory />, {
       route: "/workouts",

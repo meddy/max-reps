@@ -1,4 +1,4 @@
-import type { Workout, WorkoutListItem, WorkoutSet } from "../../types";
+import type { Workout, WorkoutSet } from "../../types";
 import type { WorkoutsSliceFirestorePort } from "../firestoreDataPort/types";
 import {
   mapWorkoutFromDoc,
@@ -98,52 +98,6 @@ export function buildWorkoutsSlice(
         startAfter: opts.startAfter,
       });
       return workoutRows.map((d) => mapWorkoutFromDoc(d.id, d.data));
-    },
-
-    async attachSetStats(
-      workouts: Array<Workout & { id: string }>
-    ): Promise<WorkoutListItem[]> {
-      if (workouts.length === 0) return [];
-
-      const setRows = await firestore.querySetsByWorkoutIds(
-        workouts.map((w) => w.id)
-      );
-      const setsByWorkoutId = new Map<string, typeof setRows>();
-      for (const d of setRows) {
-        const workoutId = d.data.workoutId as string;
-        const existing = setsByWorkoutId.get(workoutId);
-        if (existing) {
-          existing.push(d);
-        } else {
-          setsByWorkoutId.set(workoutId, [d]);
-        }
-      }
-
-      return workouts.map((w) => {
-        const rows = setsByWorkoutId.get(w.id) ?? [];
-        const exerciseIds = new Set<string>();
-        let totalLoad = 0;
-        for (const d of rows) {
-          const data = d.data;
-          exerciseIds.add(data.exerciseId as string);
-          totalLoad +=
-            ((data.reps as number) ?? 0) * ((data.weight as number) ?? 0);
-        }
-        return {
-          ...w,
-          setCount: rows.length,
-          exerciseCount: exerciseIds.size,
-          totalLoad,
-        } as WorkoutListItem;
-      });
-    },
-
-    async listWithStats(opts: {
-      sort: "asc" | "desc";
-      limit?: number;
-    }): Promise<WorkoutListItem[]> {
-      const list = await this.listRecent(opts);
-      return this.attachSetStats(list);
     },
   };
 }

@@ -85,4 +85,30 @@ describe("useWorkoutDetailModel", () => {
     expect(result.current.editorSeed?.groups).toHaveLength(1);
     expect(result.current.editorSeed?.groups[0]?.exerciseName).toBe("Bench");
   });
+
+  it("increments detailLoadEpoch after each successful load", async () => {
+    const dataAccess = createTestDataAccess();
+    dataAccess.workouts.get.mockResolvedValue(minimalWorkout("w1"));
+    dataAccess.sets.listForWorkout.mockResolvedValue([
+      {
+        id: "s1",
+        workoutId: "w1",
+        exerciseId: "e1",
+        exerciseNameSnapshot: "Bench",
+        reps: 5,
+        weight: 135,
+        unit: "lbs",
+        note: "",
+        performedAt: baseDate,
+        order: 0,
+        createdAt: baseDate,
+      },
+    ]);
+
+    const { result } = renderDetailHook("w1", dataAccess);
+
+    await waitFor(() => expect(result.current.detailLoadEpoch).toBe(1));
+    await result.current.reload();
+    await waitFor(() => expect(result.current.detailLoadEpoch).toBe(2));
+  });
 });

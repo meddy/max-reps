@@ -36,7 +36,7 @@ function createDetailApiDeps(
       update: vi.fn(reject),
       deleteWithSets: vi.fn(reject),
       getNotesByWorkoutIds: vi.fn(reject),
-      listWithStats: vi.fn(reject),
+      listRecent: vi.fn(reject),
       ...partial.workouts,
     },
     sets: {

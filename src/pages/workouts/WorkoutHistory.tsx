@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useDataAccess } from "../../contexts/DataAccessContext";
-import type { Day, Workout, WorkoutListItem } from "../../types";
+import type { Day, Workout } from "../../types";
 import { EmptyState } from "../../components/EmptyState";
 import { IconPlus } from "../../components/Icons";
 import { LoadErrorPanel } from "../../components/LoadErrorPanel";
@@ -11,7 +11,6 @@ import { SortToggleButton } from "../../components/SortToggleButton";
 import { useRemoteLoad } from "../../hooks/useRemoteLoad";
 import { formatDate } from "../../lib/format";
 
-/** Smaller pages reduce Firestore read bursts on iOS Safari (stats are batched). */
 const PAGE_SIZE = 25;
 const SORT_STORAGE_KEY = "max-reps-workout-sort";
 const IS_IOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
@@ -23,6 +22,7 @@ type DaySummaryItem = {
   repsUpper: number;
 };
 
+type WorkoutRow = Workout & { id: string };
 type WorkoutCursor = { date: Date; id: string };
 
 function getStoredSortOrder(): "asc" | "desc" {
@@ -42,43 +42,23 @@ function getLocalDateString(date: Date = new Date()): string {
   return `${year}-${month}-${day}`;
 }
 
-function toCursor(w: Workout & { id: string }): WorkoutCursor {
+function toCursor(w: WorkoutRow): WorkoutCursor {
   return { date: w.date, id: w.id };
-}
-
-function placeholdersFor(
-  workouts: Array<Workout & { id: string }>
-): WorkoutListItem[] {
-  return workouts.map((w) => ({
-    ...w,
-    setCount: 0,
-    exerciseCount: 0,
-    totalLoad: 0,
-  }));
 }
 
 /** Replace page-1 rows on visibility refetch; keep workouts from Load more. */
 function mergePageOneIntoList(
-  prev: WorkoutListItem[],
-  pageOne: WorkoutListItem[]
-): WorkoutListItem[] {
+  prev: WorkoutRow[],
+  pageOne: WorkoutRow[]
+): WorkoutRow[] {
   const pageOneIds = new Set(pageOne.map((w) => w.id));
   return [...pageOne, ...prev.filter((w) => !pageOneIds.has(w.id))];
-}
-
-function mergeStatsIntoList(
-  prev: WorkoutListItem[],
-  withStats: WorkoutListItem[]
-): WorkoutListItem[] {
-  const byId = new Map(withStats.map((w) => [w.id, w]));
-  return prev.map((w) => byId.get(w.id) ?? w);
 }
 
 export function WorkoutHistory() {
   const dataAccess = useDataAccess();
   const navigate = useNavigate();
-  const [workouts, setWorkouts] = useState<WorkoutListItem[]>([]);
-  const [statsLoading, setStatsLoading] = useState(false);
+  const [workouts, setWorkouts] = useState<WorkoutRow[]>([]);
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const workoutsRef = useRef(workouts);
@@ -110,43 +90,23 @@ export function WorkoutHistory() {
       isStale: () => boolean;
       setForegroundLoading: (loading: boolean) => void;
     }) => {
-      const listOpts = { sort: sortOrder, limit: PAGE_SIZE };
-      const recent = await dataAccess.workouts.listRecent(listOpts);
+      const recent = await dataAccess.workouts.listRecent({
+        sort: sortOrder,
+        limit: PAGE_SIZE,
+      });
       if (isStale()) return;
 
-      const placeholders = placeholdersFor(recent);
       const nextHasMore = recent.length === PAGE_SIZE;
       const nextCursor =
         recent.length > 0 ? toCursor(recent[recent.length - 1]!) : null;
 
       if (background) {
-        // Visibility refetch: page 1 only; appended pages stay as-is.
-        setWorkouts((prev) => mergePageOneIntoList(prev, placeholders));
+        setWorkouts((prev) => mergePageOneIntoList(prev, recent));
       } else {
-        setWorkouts(placeholders);
+        setWorkouts(recent);
         setHasMore(nextHasMore);
         cursorRef.current = nextCursor;
         setForegroundLoading(false);
-      }
-
-      if (!background) {
-        setStatsLoading(true);
-      }
-
-      try {
-        const withCounts = await dataAccess.workouts.attachSetStats(recent);
-        if (isStale()) return;
-        if (background) {
-          setWorkouts((prev) => mergePageOneIntoList(prev, withCounts));
-        } else {
-          setWorkouts(withCounts);
-          setHasMore(nextHasMore);
-          cursorRef.current = nextCursor;
-        }
-      } finally {
-        if (!isStale() && !background) {
-          setStatsLoading(false);
-        }
       }
     },
     [dataAccess, sortOrder]
@@ -179,10 +139,7 @@ export function WorkoutHistory() {
         return;
       }
 
-      setWorkouts((prev) => [...prev, ...placeholdersFor(recent)]);
-
-      const withCounts = await dataAccess.workouts.attachSetStats(recent);
-      setWorkouts((prev) => mergeStatsIntoList(prev, withCounts));
+      setWorkouts((prev) => [...prev, ...recent]);
 
       cursorRef.current = toCursor(recent[recent.length - 1]!);
       setHasMore(recent.length === PAGE_SIZE);
@@ -342,19 +299,6 @@ export function WorkoutHistory() {
                   </p>
                   <p className="text-sm text-gray-500">
                     {formatDate(w.date, { weekday: true })}
-                  </p>
-                  <p className="text-sm text-gray-500">
-                    {statsLoading ? (
-                      "Loading stats…"
-                    ) : (
-                      <>
-                        {w.exerciseCount ?? 0} exercises - {w.setCount ?? 0}{" "}
-                        sets
-                        {w.totalLoad != null &&
-                          w.totalLoad > 0 &&
-                          ` - ${w.totalLoad.toLocaleString()} lbs`}
-                      </>
-                    )}
                   </p>
                   {w.note?.trim() && (
                     <p className="mt-1 text-sm text-gray-500 line-clamp-2">

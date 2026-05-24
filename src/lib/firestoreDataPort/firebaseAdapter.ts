@@ -204,22 +204,6 @@ export function createFirebaseFirestoreDataPort(
       );
     },
 
-    async querySetsByWorkoutIds(workoutIds) {
-      const unique = [...new Set(workoutIds)];
-      if (unique.length === 0) return [];
-      const out: RawDoc[] = [];
-      const setsRef = collection(db, "sets");
-      for (let i = 0; i < unique.length; i += FIRESTORE_IN_MAX) {
-        const chunk = unique.slice(i, i + FIRESTORE_IN_MAX);
-        const q = query(setsRef, where("workoutId", "in", chunk), limit(500));
-        const snap = await read("querySetsByWorkoutIds", () => getDocs(q));
-        for (const d of snap.docs) {
-          out.push(toRawDoc(d.id, d.data() as Record<string, unknown>));
-        }
-      }
-      return out;
-    },
-
     async querySetsByExercisePerformedAtDesc(exerciseId, lim) {
       const setsRef = query(
         collection(db, "sets"),
