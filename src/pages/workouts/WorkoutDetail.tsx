@@ -442,13 +442,42 @@ export function WorkoutDetail() {
     const last = group.lastPerformed;
     const lastFormatted =
       last && last.sets.length > 0
-        ? last.sets.map((s) => `${s.weight}x${s.reps}`).join(", ") + " lbs"
+        ? last.sets.map((s) => `${s.weight}x${s.reps}`).join(", ")
         : null;
+    const lastSummaryFormatted =
+      last && last.sets.length > 0 ? formatSetSummary(last.sets) : null;
     const lastNotes =
       last?.sets?.map((s) => s.note?.trim()).filter(Boolean) ?? [];
     const notesText = lastNotes.length > 0 ? lastNotes.join(" • ") : null;
     const setTarget = group.setTarget;
     const dayId = group.dayId ?? workout.dayId;
+
+    const lastPerformedBlock =
+      lastFormatted && last?.workoutId ? (
+        <div className="flex flex-col gap-1 text-sm text-gray-500 sm:flex-row sm:flex-wrap sm:items-baseline sm:gap-x-4">
+          <span>
+            <strong>Last:</strong>{" "}
+            <Link
+              to={`/workouts/${last.workoutId}`}
+              className="text-indigo-600 hover:underline"
+            >
+              {lastFormatted}
+            </Link>
+          </span>
+          {lastSummaryFormatted != null ? (
+            <span>
+              <strong>Last summary:</strong> {lastSummaryFormatted}
+            </span>
+          ) : null}
+        </div>
+      ) : null;
+
+    const notesLine =
+      notesText != null ? (
+        <p className="text-sm text-gray-500">
+          <strong>Notes:</strong> {notesText}
+        </p>
+      ) : null;
 
     if (setTarget) {
       return (
@@ -461,23 +490,9 @@ export function WorkoutDetail() {
             >
               {setTarget.repsLower}–{setTarget.repsUpper} reps
             </Link>
-            {lastFormatted && last?.workoutId && (
-              <span className="ml-2">
-                <strong>Last:</strong>{" "}
-                <Link
-                  to={`/workouts/${last.workoutId}`}
-                  className="text-indigo-600 hover:underline"
-                >
-                  {lastFormatted}
-                </Link>
-              </span>
-            )}
           </p>
-          {notesText && (
-            <p className="text-sm text-gray-500">
-              <strong>Notes:</strong> {notesText}
-            </p>
-          )}
+          {lastPerformedBlock}
+          {notesLine}
         </div>
       );
     }
@@ -485,20 +500,8 @@ export function WorkoutDetail() {
     if (!lastFormatted || !last?.workoutId) return null;
     return (
       <div className="space-y-1">
-        <p className="text-sm text-gray-500">
-          Last:{" "}
-          <Link
-            to={`/workouts/${last.workoutId}`}
-            className="text-indigo-600 hover:underline"
-          >
-            {lastFormatted}
-          </Link>
-        </p>
-        {notesText && (
-          <p className="text-sm text-gray-500">
-            <strong>Notes:</strong> {notesText}
-          </p>
-        )}
+        {lastPerformedBlock}
+        {notesLine}
       </div>
     );
   };

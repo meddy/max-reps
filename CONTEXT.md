@@ -49,7 +49,7 @@ A per-exercise, read-only condensation of the exercise's **Sets** in the **Worko
 _Avoid_: set group summary, exercise summary (too vague).
 
 **Last Performed Set**:
-For an **Exercise**, the **Sets** from the most recent **Workout** (regardless of **Day**) that included this Exercise. The single canonical "what did I do last time?" hint, used wherever last-performed is surfaced — seeding rows in an **Unlogged Workout**, **Fill from Day**, and adding an ad-hoc exercise mid-workout.
+For an **Exercise**, the **Sets** from the most recent **Workout** (regardless of **Day**) that included this Exercise. The single canonical "what did I do last time?" hint, used wherever last-performed is surfaced — seeding rows in an **Unlogged Workout**, **Fill from Day**, and adding an ad-hoc exercise mid-workout. In the **Workout Editor**, surfaced as per-set **Last:** plus condensed **Last summary:** (a **Set Summary** of those sets).
 _Avoid_: last performed group, lastPerformed, previous same-day workout, same-day previous.
 
 **Workout Editor**:

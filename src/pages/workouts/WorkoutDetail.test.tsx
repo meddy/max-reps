@@ -223,6 +223,63 @@ describe("WorkoutDetail", () => {
     expect(screen.getByText(/target:/i)).toBeInTheDocument();
   });
 
+  it("shows Last and Last summary for last performed sets in Unlogged Workout", async () => {
+    const ts = new Date("2024-02-01T12:00:00");
+    const base = new Date("2024-01-01T12:00:00");
+    mockDataAccess.workouts.get.mockResolvedValue({
+      id: "w1",
+      date: ts,
+      dayId: "d1",
+      dayNameSnapshot: "Leg Day",
+      note: "",
+      createdAt: base,
+      updatedAt: base,
+    });
+    mockDataAccess.sets.listForWorkout.mockResolvedValue([]);
+    mockDataAccess.templates.listForDayWithExerciseNames.mockResolvedValue([
+      {
+        id: "t1",
+        dayId: "d1",
+        exerciseId: "e1",
+        numSets: 3,
+        repsLower: 8,
+        repsUpper: 12,
+        order: 0,
+        createdAt: base,
+        updatedAt: base,
+        exerciseDisplayName: "Squat",
+      },
+    ]);
+    mockDataAccess.sets.lastPerformedGroupForExercise.mockResolvedValue({
+      workoutId: "w0",
+      sets: [
+        { reps: 5, weight: 275 },
+        { reps: 3, weight: 275 },
+      ],
+    });
+
+    renderWithProviders(
+      <Routes>
+        <Route path="/workouts/:id" element={<WorkoutDetail />} />
+      </Routes>,
+      { route: "/workouts/w1", authValue }
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Squat")).toBeInTheDocument();
+    });
+
+    expect(screen.getByText(/last:/i)).toBeInTheDocument();
+    expect(screen.getByText("275x5, 275x3")).toBeInTheDocument();
+    expect(screen.queryByText(/lbs/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/last summary:/i)).toBeInTheDocument();
+    expect(screen.getByText("275x8")).toBeInTheDocument();
+
+    const lastLink = screen.getByRole("link", { name: "275x5, 275x3" });
+    expect(lastLink).toHaveAttribute("href", "/workouts/w0");
+    expect(screen.getByText("275x8").closest("a")).toBeNull();
+  });
+
   it("Fill from Day merges locally into a logged Workout and shows hybrid metadata", async () => {
     const user = userEvent.setup();
     const ts = new Date("2024-02-01T12:00:00");
