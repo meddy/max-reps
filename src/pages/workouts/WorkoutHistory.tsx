@@ -8,10 +8,12 @@ import { LoadErrorPanel } from "../../components/LoadErrorPanel";
 import { LoadingSpinner } from "../../components/LoadingSpinner";
 import { Modal } from "../../components/Modal";
 import { SortToggleButton } from "../../components/SortToggleButton";
+import { useDebouncedValue } from "../../hooks/useDebouncedValue";
 import { useRemoteLoad } from "../../hooks/useRemoteLoad";
 import { formatDate } from "../../lib/format";
 
 const PAGE_SIZE = 25;
+const DAY_SEARCH_DEBOUNCE_MS = 300;
 const SORT_STORAGE_KEY = "max-reps-workout-sort";
 const IS_IOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
 
@@ -68,6 +70,14 @@ export function WorkoutHistory() {
     null
   );
   const [creating, setCreating] = useState(false);
+  const [daySearchLoading, setDaySearchLoading] = useState(false);
+  const debouncedDaySearch = useDebouncedValue(
+    daySearch,
+    DAY_SEARCH_DEBOUNCE_MS
+  );
+  const isDebouncingDaySearch =
+    daySearch.trim() !== "" &&
+    daySearch.trim().toLowerCase() !== debouncedDaySearch.trim().toLowerCase();
 
   const fetchWorkouts = useCallback(
     async ({
@@ -141,18 +151,35 @@ export function WorkoutHistory() {
   useEffect(() => {
     if (!daySearch.trim()) {
       setDayResults([]);
+      setDaySearchLoading(false);
+    }
+  }, [daySearch]);
+
+  useEffect(() => {
+    if (!addWorkoutOpen) {
+      setDaySearchLoading(false);
       return;
     }
+    if (!daySearch.trim()) return;
+
+    const term = debouncedDaySearch.trim().toLowerCase();
+    if (!term) return;
+
     let ignore = false;
-    const term = daySearch.trim().toLowerCase();
-    void dataAccess.days.searchByNamePrefix(term, 20).then((list) => {
-      if (ignore) return;
-      setDayResults(list);
-    });
+    setDaySearchLoading(true);
+    void dataAccess.days
+      .searchByNamePrefix(term, 20)
+      .then((list) => {
+        if (ignore) return;
+        setDayResults(list);
+      })
+      .finally(() => {
+        if (!ignore) setDaySearchLoading(false);
+      });
     return () => {
       ignore = true;
     };
-  }, [daySearch]);
+  }, [addWorkoutOpen, daySearch, debouncedDaySearch, dataAccess]);
 
   useEffect(() => {
     if (!addWorkoutOpen || dayResults.length === 0) {
@@ -364,11 +391,14 @@ export function WorkoutHistory() {
             );
           })}
         </ul>
-        {daySearch.trim() && dayResults.length === 0 && (
-          <p className="mt-2 text-sm text-gray-500">
-            No Days match. Create a Day from the Days tab.
-          </p>
-        )}
+        {daySearch.trim() &&
+          dayResults.length === 0 &&
+          !isDebouncingDaySearch &&
+          !daySearchLoading && (
+            <p className="mt-2 text-sm text-gray-500">
+              No Days match. Create a Day from the Days tab.
+            </p>
+          )}
         <div className="mt-4 flex gap-2">
           <button
             type="button"

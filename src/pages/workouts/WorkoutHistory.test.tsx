@@ -1,6 +1,6 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi, afterEach } from "vitest";
 import { createTestDataAccess } from "../../test/mockDataAccess";
 import { renderWithProviders } from "../../test/renderWithProviders";
 import { formatDate } from "../../lib/format";
@@ -115,6 +115,47 @@ describe("WorkoutHistory", () => {
     );
   });
 
+  it("debounces Day search in Add workout modal", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    const dataAccess = createTestDataAccess();
+    dataAccess.workouts.listRecent.mockResolvedValue([]);
+    dataAccess.days.searchByNamePrefix.mockResolvedValue([
+      {
+        id: "d1",
+        nameLower: "push",
+        displayName: "Push",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    ]);
+
+    renderWithProviders(<WorkoutHistory />, {
+      route: "/workouts",
+      authValue,
+      dataAccess,
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("No workouts yet")).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByTitle("Add workout"));
+    const search = screen.getByPlaceholderText("Search Days...");
+
+    await user.type(search, "pu");
+    expect(dataAccess.days.searchByNamePrefix).not.toHaveBeenCalled();
+    expect(
+      screen.queryByText(/No Days match/i)
+    ).not.toBeInTheDocument();
+
+    await vi.advanceTimersByTimeAsync(300);
+    await waitFor(() => {
+      expect(dataAccess.days.searchByNamePrefix).toHaveBeenCalledTimes(1);
+    });
+    expect(dataAccess.days.searchByNamePrefix).toHaveBeenCalledWith("pu", 20);
+  });
+
   it("hides Load more when the first page is shorter than PAGE_SIZE", async () => {
     const ts = new Date("2024-01-10T12:00:00");
     const base = new Date("2024-01-01T12:00:00");
@@ -142,5 +183,9 @@ describe("WorkoutHistory", () => {
     expect(
       screen.queryByRole("button", { name: "Load more" })
     ).not.toBeInTheDocument();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 });
