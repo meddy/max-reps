@@ -41,17 +41,22 @@ export function ExerciseList() {
   const [editName, setEditName] = useState("");
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  const fetchExerciseCatalog = useCallback(async () => {
-    const list = await dataAccess.exercises.listAllForSearch();
-    setExerciseCatalog(list);
-  }, [dataAccess]);
+  const fetchExerciseCatalog = useCallback(
+    async (opts?: { force?: boolean }) => {
+      const list = await dataAccess.exercises.listAllForSearch(opts);
+      setExerciseCatalog(list);
+    },
+    [dataAccess]
+  );
 
   const {
     loading,
     loadError,
     reload: reloadCatalog,
   } = useRemoteLoad({
-    load: fetchExerciseCatalog,
+    load: async () => {
+      await fetchExerciseCatalog();
+    },
   });
 
   const exercises = useMemo(() => {
@@ -156,7 +161,7 @@ export function ExerciseList() {
         <LoadErrorPanel
           title="Could not load exercises."
           message={loadError}
-          onRetry={() => void reloadCatalog()}
+          onRetry={() => void fetchExerciseCatalog({ force: true })}
         />
       ) : exercises.length === 0 ? (
         <EmptyState

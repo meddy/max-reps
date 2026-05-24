@@ -145,9 +145,7 @@ describe("WorkoutHistory", () => {
 
     await user.type(search, "pu");
     expect(dataAccess.days.searchByNamePrefix).not.toHaveBeenCalled();
-    expect(
-      screen.queryByText(/No Days match/i)
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/No Days match/i)).not.toBeInTheDocument();
 
     await vi.advanceTimersByTimeAsync(300);
     await waitFor(() => {

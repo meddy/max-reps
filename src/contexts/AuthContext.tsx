@@ -15,6 +15,7 @@ import {
   clearAuthSessionCached,
   writeAuthSessionCached,
 } from "../lib/auth/authSessionCache";
+import { clearExerciseCatalogCache } from "../lib/dataAccess/exercisesSlice";
 import { getAllowedUid } from "../lib/appConfig";
 
 export type AuthContextValue = {
@@ -53,6 +54,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signIn = useCallback(() => controller.signIn(), [controller]);
   const signOut = useCallback(() => {
     clearAuthSessionCached();
+    clearExerciseCatalogCache();
     return controller.signOut();
   }, [controller]);
   const clearError = useCallback(() => controller.clearError(), [controller]);

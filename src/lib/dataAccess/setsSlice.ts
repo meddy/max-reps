@@ -4,6 +4,9 @@ import { mapWorkoutSetFromDoc } from "../firestoreModelMappers";
 import type { DataAccessDeps } from "./types";
 import { withSaving } from "./withSaving";
 
+/** Recent sets scanned to find the Workout for Last Performed Set (see CONTEXT.md). */
+const LAST_PERFORMED_SCAN_LIMIT = 25;
+
 export function buildSetsSlice(
   firestore: SetsSliceFirestorePort,
   saving: DataAccessDeps["saving"]
@@ -21,19 +24,27 @@ export function buildSetsSlice(
       sets: Array<{ reps: number; weight: number; note?: string }>;
       workoutId?: string;
     }> {
-      const rows = await firestore.querySetsByExercisePerformedAtDesc(
+      const recentRows = await firestore.querySetsByExercisePerformedAtDesc(
         exerciseId,
-        50
+        LAST_PERFORMED_SCAN_LIMIT
       );
-      if (rows.length === 0) return { sets: [] };
-      const docs = rows.map((d) => mapWorkoutSetFromDoc(d.id, d.data));
-      const targetWorkoutId = docs.find(
+      if (recentRows.length === 0) return { sets: [] };
+
+      const recentDocs = recentRows.map((d) =>
+        mapWorkoutSetFromDoc(d.id, d.data)
+      );
+      const targetWorkoutId = recentDocs.find(
         (d) => !excludeWorkoutId || d.workoutId !== excludeWorkoutId
       )?.workoutId;
       if (!targetWorkoutId) return { sets: [] };
-      const group = docs
-        .filter((d) => d.workoutId === targetWorkoutId)
+
+      const workoutRows =
+        await firestore.querySetsForWorkoutOrdered(targetWorkoutId);
+      const group = workoutRows
+        .map((d) => mapWorkoutSetFromDoc(d.id, d.data))
+        .filter((d) => d.exerciseId === exerciseId)
         .sort((a, b) => a.order - b.order);
+
       return {
         sets: group.map((s) => ({
           reps: s.reps,

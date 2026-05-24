@@ -2,8 +2,16 @@ import type { Exercise } from "../../types";
 import type { ExercisesSliceFirestorePort } from "../firestoreDataPort/types";
 import { mapExerciseFromDoc } from "../firestoreModelMappers";
 import { DEFAULT_PAGE } from "./constants";
+import {
+  findInExerciseCatalog,
+  getExerciseCatalog,
+  patchExerciseCatalog,
+  removeFromExerciseCatalog,
+} from "./exerciseCatalogCache";
 import type { DataAccessDeps } from "./types";
 import { withSaving } from "./withSaving";
+
+export { clearExerciseCatalogCache } from "./exerciseCatalogCache";
 
 export function buildExercisesSlice(
   firestore: ExercisesSliceFirestorePort,
@@ -31,36 +39,58 @@ export function buildExercisesSlice(
       return mapExerciseFromDoc(raw.id, raw.data);
     },
 
-    async listAllForSearch(limit = SEARCH_LIST_LIMIT) {
-      const rows = await firestore.queryExercisesList({
-        sort: "asc",
-        limit,
-      });
-      return rows.map((d) => mapExerciseFromDoc(d.id, d.data));
+    async listAllForSearch(opts?: { limit?: number; force?: boolean }) {
+      const limit = opts?.limit ?? SEARCH_LIST_LIMIT;
+      return getExerciseCatalog(
+        async () => {
+          const rows = await firestore.queryExercisesList({
+            sort: "asc",
+            limit,
+          });
+          return rows.map((d) => mapExerciseFromDoc(d.id, d.data));
+        },
+        { force: opts?.force }
+      );
     },
 
     async create(input: {
       nameLower: string;
       displayName: string;
     }): Promise<string> {
-      return withSaving(saving, () =>
+      const id = await withSaving(saving, () =>
         firestore.addDocument("exercises", input as Record<string, unknown>)
       );
+      const now = new Date();
+      patchExerciseCatalog({
+        id,
+        nameLower: input.nameLower,
+        displayName: input.displayName,
+        createdAt: now,
+        updatedAt: now,
+      });
+      return id;
     },
 
     async update(
       id: string,
       patch: Partial<Pick<Exercise, "nameLower" | "displayName">>
     ): Promise<void> {
-      return withSaving(saving, () =>
+      await withSaving(saving, () =>
         firestore.patchDocument("exercises", id, patch)
       );
+      const existing = findInExerciseCatalog(id);
+      if (existing) {
+        patchExerciseCatalog({
+          ...existing,
+          ...patch,
+          updatedAt: new Date(),
+        });
+      }
     },
 
     async delete(id: string): Promise<void> {
-      return withSaving(saving, () =>
-        firestore.removeDocument("exercises", id)
-      );
+      await withSaving(saving, () => firestore.removeDocument("exercises", id));
+      removeFromExerciseCatalog(id);
     },
 
     async list(opts: {

@@ -66,16 +66,8 @@ export function useExercisePicker(options: { active: boolean }) {
       nameLower,
       displayName,
     });
-    setAllExercises((prev) => [
-      ...prev,
-      {
-        id: newId,
-        nameLower,
-        displayName,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-    ]);
+    const list = await dataAccess.exercises.listAllForSearch();
+    setAllExercises(list);
     setSelected({ id: newId, displayName });
     setSearch("");
   }, [dataAccess, search]);
