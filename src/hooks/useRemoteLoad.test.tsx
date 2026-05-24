@@ -1,5 +1,5 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+import { describe, expect, it, vi, beforeEach } from "vitest";
 import {
   AuthTestProvider,
   type AuthContextValue,
@@ -35,10 +35,6 @@ function renderRemoteLoad(
 describe("useRemoteLoad", () => {
   beforeEach(() => {
     authedUser.getIdToken = vi.fn().mockResolvedValue("token");
-    Object.defineProperty(document, "visibilityState", {
-      configurable: true,
-      get: () => "visible",
-    });
   });
 
   it("does not run load when auth is loading", async () => {
@@ -133,61 +129,5 @@ describe("useRemoteLoad", () => {
 
     rerender({ dep: 2 });
     await waitFor(() => expect(load).toHaveBeenCalledTimes(2));
-  });
-
-  describe("visibility refetch", () => {
-    beforeEach(() => {
-      vi.useFakeTimers();
-    });
-
-    afterEach(() => {
-      vi.useRealTimers();
-    });
-
-    it("refetches when refetchOnVisibility is true and data is stale", async () => {
-      const load = vi.fn().mockResolvedValue(undefined);
-      renderRemoteLoad({
-        load,
-        refetchOnVisibility: true,
-        hasData: () => true,
-      });
-
-      await act(async () => {
-        await vi.runOnlyPendingTimersAsync();
-      });
-      expect(load).toHaveBeenCalledTimes(1);
-
-      await act(async () => {
-        await vi.advanceTimersByTimeAsync(60_001);
-        document.dispatchEvent(new Event("visibilitychange"));
-        await vi.advanceTimersByTimeAsync(300);
-      });
-
-      expect(load).toHaveBeenCalledTimes(2);
-      expect(load).toHaveBeenLastCalledWith(
-        expect.objectContaining({ background: true })
-      );
-    });
-
-    it("skips refetch when data is still fresh", async () => {
-      const load = vi.fn().mockResolvedValue(undefined);
-      renderRemoteLoad({
-        load,
-        refetchOnVisibility: true,
-        hasData: () => true,
-      });
-
-      await act(async () => {
-        await vi.runOnlyPendingTimersAsync();
-      });
-      expect(load).toHaveBeenCalledTimes(1);
-
-      await act(async () => {
-        document.dispatchEvent(new Event("visibilitychange"));
-        await vi.advanceTimersByTimeAsync(300);
-      });
-
-      expect(load).toHaveBeenCalledTimes(1);
-    });
   });
 });

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useDataAccess } from "../../contexts/DataAccessContext";
 import type { Exercise, WorkoutSet } from "../../types";
@@ -27,9 +27,6 @@ export function ExerciseDetail() {
     Record<string, string>
   >({});
   const [prSet, setPrSet] = useState<SetWithId | null>(null);
-  const exerciseRef = useRef(exercise);
-  exerciseRef.current = exercise;
-
   const load = useCallback(
     async ({ isStale }: { isStale: () => boolean }) => {
       if (!id) return;
@@ -63,8 +60,6 @@ export function ExerciseDetail() {
   const { loading, loadError, reload } = useRemoteLoad({
     load,
     deps: [id],
-    refetchOnVisibility: true,
-    hasData: () => exerciseRef.current != null,
   });
 
   const setNumberBySetId = useMemo(() => buildSetNumberBySetId(sets), [sets]);

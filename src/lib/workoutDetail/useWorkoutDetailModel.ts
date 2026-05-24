@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type {
   WorkoutDetailEditorSeed,
   WorkoutDetailApi,
@@ -19,8 +19,6 @@ export function useWorkoutDetailModel(
     null
   );
   const [detailLoadEpoch, setDetailLoadEpoch] = useState(0);
-  const workoutRef = useRef(workout);
-  workoutRef.current = workout;
 
   useEffect(() => {
     setEditorSeed(null);
@@ -67,8 +65,6 @@ export function useWorkoutDetailModel(
   const { loading, loadError, reload } = useRemoteLoad({
     load: loadDetail,
     deps: [workoutId, workoutDetail],
-    refetchOnVisibility: true,
-    hasData: () => workoutRef.current != null,
   });
 
   useEffect(() => {

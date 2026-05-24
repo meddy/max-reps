@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import {
   DndContext,
   closestCenter,
@@ -226,8 +226,6 @@ export function DayDetail() {
   const navigate = useNavigate();
   const [day, setDay] = useState<(Day & { id: string }) | null>(null);
   const [templates, setTemplates] = useState<TemplateWithExerciseName[]>([]);
-  const dayRef = useRef(day);
-  dayRef.current = day;
   const [addOpen, setAddOpen] = useState(false);
   const [newNumSets, setNewNumSets] = useState("3");
   const [newRepsLower, setNewRepsLower] = useState("8");
@@ -274,8 +272,6 @@ export function DayDetail() {
   const { loading, loadError, reload } = useRemoteLoad({
     load: loadInitial,
     deps: [id],
-    refetchOnVisibility: true,
-    hasData: () => dayRef.current != null,
   });
 
   const handleAddTemplate = async (exerciseId: string) => {

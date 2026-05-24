@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useDataAccess } from "../../contexts/DataAccessContext";
 import { searchExercises } from "../../lib/exerciseSearch";
@@ -30,8 +30,6 @@ export function ExerciseList() {
   const [exerciseCatalog, setExerciseCatalog] = useState<
     Array<Exercise & { id: string }>
   >([]);
-  const catalogRef = useRef(exerciseCatalog);
-  catalogRef.current = exerciseCatalog;
   const [search, setSearch] = useState("");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">(() =>
     getStoredSortOrder()
@@ -54,8 +52,6 @@ export function ExerciseList() {
     reload: reloadCatalog,
   } = useRemoteLoad({
     load: fetchExerciseCatalog,
-    refetchOnVisibility: true,
-    hasData: () => catalogRef.current.length > 0,
   });
 
   const exercises = useMemo(() => {

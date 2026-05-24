@@ -46,23 +46,12 @@ function toCursor(w: WorkoutRow): WorkoutCursor {
   return { date: w.date, id: w.id };
 }
 
-/** Replace page-1 rows on visibility refetch; keep workouts from Load more. */
-function mergePageOneIntoList(
-  prev: WorkoutRow[],
-  pageOne: WorkoutRow[]
-): WorkoutRow[] {
-  const pageOneIds = new Set(pageOne.map((w) => w.id));
-  return [...pageOne, ...prev.filter((w) => !pageOneIds.has(w.id))];
-}
-
 export function WorkoutHistory() {
   const dataAccess = useDataAccess();
   const navigate = useNavigate();
   const [workouts, setWorkouts] = useState<WorkoutRow[]>([]);
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
-  const workoutsRef = useRef(workouts);
-  workoutsRef.current = workouts;
   const cursorRef = useRef<WorkoutCursor | null>(null);
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">(() =>
     getStoredSortOrder()
@@ -82,11 +71,9 @@ export function WorkoutHistory() {
 
   const fetchWorkouts = useCallback(
     async ({
-      background,
       isStale,
       setForegroundLoading,
     }: {
-      background: boolean;
       isStale: () => boolean;
       setForegroundLoading: (loading: boolean) => void;
     }) => {
@@ -96,18 +83,11 @@ export function WorkoutHistory() {
       });
       if (isStale()) return;
 
-      const nextHasMore = recent.length === PAGE_SIZE;
-      const nextCursor =
+      setWorkouts(recent);
+      setHasMore(recent.length === PAGE_SIZE);
+      cursorRef.current =
         recent.length > 0 ? toCursor(recent[recent.length - 1]!) : null;
-
-      if (background) {
-        setWorkouts((prev) => mergePageOneIntoList(prev, recent));
-      } else {
-        setWorkouts(recent);
-        setHasMore(nextHasMore);
-        cursorRef.current = nextCursor;
-        setForegroundLoading(false);
-      }
+      setForegroundLoading(false);
     },
     [dataAccess, sortOrder]
   );
@@ -119,8 +99,6 @@ export function WorkoutHistory() {
   } = useRemoteLoad({
     load: fetchWorkouts,
     deps: [sortOrder],
-    refetchOnVisibility: true,
-    hasData: () => workoutsRef.current.length > 0,
   });
 
   const loadMore = useCallback(async () => {

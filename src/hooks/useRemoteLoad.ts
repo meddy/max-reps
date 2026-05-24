@@ -1,9 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
 
-const VISIBILITY_REFETCH_MIN_MS = 60_000;
-const VISIBILITY_DEBOUNCE_MS = 300;
-
 export type RemoteLoadContext = {
   background: boolean;
   /** Clear the foreground spinner before load() finishes (e.g. progressive list) */
@@ -14,10 +11,8 @@ export type RemoteLoadContext = {
 
 export type UseRemoteLoadOptions = {
   load: (ctx: RemoteLoadContext) => Promise<void>;
-  /** When false, skip auto-run and visibility handler. Default: !authLoading && !!user */
+  /** When false, skip auto-run. Default: !authLoading && !!user */
   enabled?: boolean;
-  /** Stale-tab recovery; debounced, 60s freshness window */
-  refetchOnVisibility?: boolean;
   /** If true, skip full-page loading spinner and suppress loadError on failure */
   hasData?: () => boolean;
   /** Re-run load when these change (in addition to load identity) */
@@ -31,7 +26,6 @@ export type ReloadOptions = {
 export function useRemoteLoad({
   load,
   enabled: enabledProp,
-  refetchOnVisibility = false,
   hasData,
   deps = [],
 }: UseRemoteLoadOptions) {
@@ -42,8 +36,6 @@ export function useRemoteLoad({
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const loadGenerationRef = useRef(0);
-  const visibilityTimerRef = useRef<number | null>(null);
-  const lastFetchAtRef = useRef(0);
   const loadInFlightRef = useRef<Promise<void> | null>(null);
   const hasDataRef = useRef(hasData);
   hasDataRef.current = hasData;
@@ -86,7 +78,6 @@ export function useRemoteLoad({
             isStale,
           });
           if (isStale()) return;
-          lastFetchAtRef.current = Date.now();
         } catch (err) {
           if (generation !== loadGenerationRef.current) return;
           const message = err instanceof Error ? err.message : String(err);
@@ -123,36 +114,6 @@ export function useRemoteLoad({
     }
     void runLoad();
   }, [enabled, runLoad, ...deps]);
-
-  useEffect(() => {
-    if (!refetchOnVisibility || !enabled) return;
-
-    const onVisibilityChange = () => {
-      if (document.visibilityState !== "visible" || !user) {
-        return;
-      }
-      if (visibilityTimerRef.current != null) {
-        window.clearTimeout(visibilityTimerRef.current);
-      }
-      visibilityTimerRef.current = window.setTimeout(() => {
-        void (async () => {
-          const ageMs = Date.now() - lastFetchAtRef.current;
-          if (lastFetchAtRef.current > 0 && ageMs < VISIBILITY_REFETCH_MIN_MS) {
-            return;
-          }
-          await runLoad({ background: true });
-        })();
-      }, VISIBILITY_DEBOUNCE_MS);
-    };
-
-    document.addEventListener("visibilitychange", onVisibilityChange);
-    return () => {
-      document.removeEventListener("visibilitychange", onVisibilityChange);
-      if (visibilityTimerRef.current != null) {
-        window.clearTimeout(visibilityTimerRef.current);
-      }
-    };
-  }, [refetchOnVisibility, enabled, runLoad, user]);
 
   return {
     loading: authLoading || loading,

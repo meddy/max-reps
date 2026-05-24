@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useDataAccess } from "../../contexts/DataAccessContext";
 import type { Day } from "../../types";
@@ -47,8 +47,6 @@ export function DayList() {
   const [summariesByDayId, setSummariesByDayId] = useState<
     Record<string, DaySummaryItem[]>
   >({});
-  const daysRef = useRef(days);
-  daysRef.current = days;
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">(() =>
     getStoredSortOrder()
   );
@@ -74,8 +72,6 @@ export function DayList() {
   } = useRemoteLoad({
     load: fetchDays,
     deps: [sortOrder],
-    refetchOnVisibility: true,
-    hasData: () => daysRef.current.length > 0,
   });
 
   const dayIdsKey = useMemo(() => days.map((d) => d.id).join(","), [days]);
