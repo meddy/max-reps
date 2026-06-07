@@ -13,15 +13,19 @@ One row of a **Day**: a target of _N_ sets of an **Exercise** at a rep range of 
 _Avoid_: template, template row, day exercise, exercise set template, prescription.
 
 **Unlogged Workout**:
-A **Workout** that has been created but has zero logged **Sets**. The editor renders the parent **Day**'s **Set Targets** as empty input rows; saving any Set transitions the workout to _logged_.
+A **Workout** that has been created but has zero logged **Sets**. For a Day-backed workout, the editor renders the parent **Day**'s **Set Targets** as empty input rows; for a **Custom Workout**, the editor starts empty. Saving any Set transitions the workout to _logged_.
 _Avoid_: template mode, template variant, day preview.
+
+**Custom Workout**:
+A **Workout** with no parent **Day**; the user supplies `dayNameSnapshot` directly at creation. The editor starts empty — exercises are added ad hoc. Distinct from a Day-backed workout where the label is copied from the referenced Day.
+_Avoid_: free-form workout, ad-hoc workout.
 
 **Fill from Day**:
 A user action on a logged **Workout** that re-merges the parent **Day**'s **Set Targets** into the editor — adds missing exercises and missing rows; never overwrites already-entered values.
 _Avoid_: fill template.
 
 **Workout**:
-One performance of a **Day** on a specific calendar date, owning the **Sets** logged during that performance. Carries `dayNameSnapshot` so historical views stay stable if the Day is later renamed or deleted.
+One training session on a specific calendar date, owning the **Sets** logged during that performance. Optionally based on a **Day** (Day-backed) or created as a **Custom Workout** (no parent Day). Carries `dayNameSnapshot` so historical views stay stable if the referenced Day is later renamed or deleted, or to preserve a user-entered label for Custom Workouts.
 _Avoid_: workout session, training session, session.
 
 **Set**:
@@ -64,14 +68,14 @@ _Avoid_: user, account.
 
 - **`nameLower` / `displayName`** — Both **Exercise** and **Day** carry this pair: `nameLower` is the case-insensitive uniqueness key (lookups and de-duplication), `displayName` is the rendered casing chosen at creation. Convention is `nameLower = displayName.toLowerCase().trim()`.
 - **Day is a proper noun in UI** — In user-facing copy, always capitalize **Day** (`"Add a Day to get started."`, not `"Add a day..."`) to disambiguate from a calendar day. "Day template" is never used in UI copy; reword sentences so the bare noun **Day** stands.
-- **Display Snapshot fields (`*NameSnapshot`)** — A **Workout** captures `dayNameSnapshot`; a **Set** captures `exerciseNameSnapshot`. Denormalized copies of the referenced entity's `displayName`, written once at creation and never re-derived. Job: keep historical views readable if the referenced entity is later renamed or deleted. Renaming an entity intentionally leaves historical snapshots untouched — they preserve what the workout/set _was called when performed_. Source of truth for editing surfaces remains the referenced entity itself; snapshots only show up in historical read paths.
+- **Display Snapshot fields (`*NameSnapshot`)** — A **Workout** captures `dayNameSnapshot`; a **Set** captures `exerciseNameSnapshot`. For Day-backed workouts, `dayNameSnapshot` is a denormalized copy of the referenced Day's `displayName`; for **Custom Workouts**, it is the user-entered label. A Set's `exerciseNameSnapshot` is a denormalized copy of the referenced Exercise's `displayName`. All snapshots are written once at creation and never re-derived. Job: keep historical views readable if the referenced entity is later renamed or deleted. Renaming an entity intentionally leaves historical snapshots untouched — they preserve what the workout/set _was called when performed_. Source of truth for editing surfaces remains the referenced entity itself; snapshots only show up in historical read paths.
 - **"Session" is reserved for auth** — The word _session_ refers exclusively to the user's authenticated session (`authSessionController`). A **Workout** is never a "session"; the in-memory editor is the **Workout Editor**, not a "workout session".
 
 ## Relationships
 
 - A **Day** owns an ordered list of **Set Targets**
 - A **Set Target** belongs to exactly one **Day** and references one **Exercise**
-- A **Workout** currently references exactly one **Day** (see Flagged ambiguities)
+- A **Workout** optionally references a **Day** (Day-backed); a **Custom Workout** has no parent Day (`dayId` empty)
 - A **Workout** owns zero or more **Sets**
 - A **Workout** is **Unlogged** until its first **Set** is saved, then _logged_
 - **Sets** are ordered workout-wide via `order` (a single sequence across the whole Workout). The user reorders **exercises**, not individual Sets — moving an exercise carries its Sets along while preserving their relative order within the exercise.
@@ -81,7 +85,6 @@ _Avoid_: user, account.
 
 - **"Day" vs. calendar day** — "Day" is _not_ a calendar date. A [Workout](#) carries its own `date`; the `Day` it references is a named template, not the date it was performed.
 - **`exerciseSetTemplates` collection name** — Legacy from before we settled on **Set Target**. Renaming the Firestore collection is invasive; reads/writes still use the old name. New code and docs should refer to the entity as a **Set Target**.
-- **Workout-without-a-Day** — Currently every **Workout** must reference a **Day** (UI requires picking one; `dayId` is non-optional). A planned change would let workouts exist without a Day. Defensive code in `loadWorkoutDetail` (`!w.dayId` branch) already anticipates that future state.
 - **Multiple Workouts on one calendar date** — `Workout.date` is conceptually a calendar date, not a moment (the `T12:00:00` value at creation is a timezone-stability trick, not a meaningful time-of-day). Two Workouts on the same date are technically possible; ordering and presentation in that case is not formally defined.
 - **Dangling Set Targets after Exercise delete** — Deleting an **Exercise** does not cascade to **Set Targets** that reference it. Affected Set Targets render with no exercise name. Accepted: Exercises are rarely (if ever) deleted in practice, so this isn't currently worth automating away.
 - **Unlogged vs logged on workout history** — The history list shows only fields stored on the **Workout** (day name, date, note). It does not query **Sets**, so an **Unlogged Workout** looks the same as a logged one until opened. A persisted `logged` flag (or denormalized stats on the **Workout**) could restore at-a-glance distinction without set queries — deferred.

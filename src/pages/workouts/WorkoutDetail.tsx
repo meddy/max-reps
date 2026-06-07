@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   DndContext,
+  DragOverlay,
   closestCenter,
   useSensor,
   useSensors,
   type DragEndEvent,
+  type DragStartEvent,
 } from "@dnd-kit/core";
 import {
   SortableContext,
@@ -33,10 +35,12 @@ import {
   createWorkoutDetailDataHandlers,
   useWorkoutDetailModel,
 } from "../../lib/workoutDetail";
+import { DragOverlayChip } from "../../lib/dnd/DragOverlayChip";
 import {
   GuardedPointerSensor,
   GuardedTouchSensor,
 } from "../../lib/dnd/guardedSensors";
+import { SortableDragPlaceholder } from "../../lib/dnd/SortableDragPlaceholder";
 
 function moveGroup<T>(groups: T[], from: number, to: number): T[] {
   const next = groups.slice();
@@ -104,11 +108,10 @@ function SortableExerciseCard({
         userSelect: isDragGestureActive ? "none" : undefined,
         WebkitUserSelect: isDragGestureActive ? "none" : undefined,
       }}
-      className={isDragging ? "opacity-80" : ""}
       {...attributes}
       {...listeners}
     >
-      {children}
+      {isDragging ? <SortableDragPlaceholder /> : children}
     </div>
   );
 }
@@ -152,6 +155,7 @@ export function WorkoutDetail() {
   const [removeExerciseTemplateGroupKey, setRemoveExerciseTemplateGroupKey] =
     useState<string | null>(null);
   const [isDragGestureActive, setIsDragGestureActive] = useState(false);
+  const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const [fillTemplateLoading, setFillTemplateLoading] = useState(false);
   const [fillFromDayError, setFillFromDayError] = useState<string | null>(null);
   const [fillTemplateData, setFillTemplateData] = useState<{
@@ -197,7 +201,18 @@ export function WorkoutDetail() {
     })
   );
 
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveDragId(String(event.active.id));
+    setIsDragGestureActive(true);
+  };
+
+  const handleDragCancel = () => {
+    setActiveDragId(null);
+    setIsDragGestureActive(false);
+  };
+
   const handleDragEnd = async (event: DragEndEvent) => {
+    setActiveDragId(null);
     setIsDragGestureActive(false);
     if (editor.isDirty) return;
     const activeGroupKey = String(event.active.id);
@@ -506,8 +521,8 @@ export function WorkoutDetail() {
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
-          onDragStart={() => setIsDragGestureActive(true)}
-          onDragCancel={() => setIsDragGestureActive(false)}
+          onDragStart={handleDragStart}
+          onDragCancel={handleDragCancel}
           onDragEnd={(event) => void handleDragEnd(event)}
           autoScroll
         >
@@ -557,6 +572,16 @@ export function WorkoutDetail() {
               );
             })}
           </SortableContext>
+          <DragOverlay dropAnimation={null}>
+            {activeDragId ? (
+              <DragOverlayChip
+                label={
+                  editor.groups.find((g) => g.groupKey === activeDragId)
+                    ?.exerciseName ?? ""
+                }
+              />
+            ) : null}
+          </DragOverlay>
         </DndContext>
 
         <button
@@ -714,8 +739,8 @@ export function WorkoutDetail() {
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
-        onDragStart={() => setIsDragGestureActive(true)}
-        onDragCancel={() => setIsDragGestureActive(false)}
+        onDragStart={handleDragStart}
+        onDragCancel={handleDragCancel}
         onDragEnd={(event) => void handleDragEnd(event)}
         autoScroll
       >
@@ -759,6 +784,16 @@ export function WorkoutDetail() {
             </SortableExerciseCard>
           ))}
         </SortableContext>
+        <DragOverlay dropAnimation={null}>
+          {activeDragId ? (
+            <DragOverlayChip
+              label={
+                editor.groups.find((g) => g.groupKey === activeDragId)
+                  ?.exerciseName ?? ""
+              }
+            />
+          ) : null}
+        </DragOverlay>
       </DndContext>
 
       <button

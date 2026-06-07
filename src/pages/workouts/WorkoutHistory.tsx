@@ -26,6 +26,7 @@ type DaySummaryItem = {
 
 type WorkoutRow = Workout & { id: string };
 type WorkoutCursor = { date: Date; id: string };
+type CreationMode = "fromDay" | "custom";
 
 function getStoredSortOrder(): "asc" | "desc" {
   try {
@@ -69,6 +70,8 @@ export function WorkoutHistory() {
   const [selectedDay, setSelectedDay] = useState<(Day & { id: string }) | null>(
     null
   );
+  const [creationMode, setCreationMode] = useState<CreationMode>("fromDay");
+  const [customWorkoutName, setCustomWorkoutName] = useState("");
   const [creating, setCreating] = useState(false);
   const [daySearchLoading, setDaySearchLoading] = useState(false);
   const debouncedDaySearch = useDebouncedValue(
@@ -220,6 +223,8 @@ export function WorkoutHistory() {
     setDaySearch("");
     setDayResults([]);
     setSelectedDay(null);
+    setCreationMode("fromDay");
+    setCustomWorkoutName("");
     setAddWorkoutOpen(true);
   }, []);
 
@@ -228,22 +233,56 @@ export function WorkoutHistory() {
     setDaySearch("");
     setDayResults([]);
     setSelectedDay(null);
+    setCreationMode("fromDay");
+    setCustomWorkoutName("");
   }, []);
 
+  const handleCreationModeChange = useCallback((mode: CreationMode) => {
+    setCreationMode(mode);
+    setSelectedDay(null);
+    setCustomWorkoutName("");
+    setDaySearch("");
+    setDayResults([]);
+  }, []);
+
+  const canCreateWorkout =
+    Boolean(workoutDate) &&
+    (creationMode === "fromDay"
+      ? Boolean(selectedDay)
+      : Boolean(customWorkoutName.trim()));
+
   const createWorkout = useCallback(async () => {
-    if (!selectedDay || !workoutDate) return;
+    if (!workoutDate || !canCreateWorkout) return;
     setCreating(true);
     const date = new Date(workoutDate + "T12:00:00");
-    const id = await dataAccess.workouts.create({
-      date,
-      dayId: selectedDay.id,
-      dayNameSnapshot: selectedDay.displayName,
-      note: "",
-    });
+    const payload =
+      creationMode === "fromDay"
+        ? {
+            date,
+            dayId: selectedDay!.id,
+            dayNameSnapshot: selectedDay!.displayName,
+            note: "",
+          }
+        : {
+            date,
+            dayId: "",
+            dayNameSnapshot: customWorkoutName.trim(),
+            note: "",
+          };
+    const id = await dataAccess.workouts.create(payload);
     setCreating(false);
     closeAddWorkoutModal();
     navigate(`/workouts/${id}`);
-  }, [dataAccess, selectedDay, workoutDate, navigate, closeAddWorkoutModal]);
+  }, [
+    dataAccess,
+    selectedDay,
+    workoutDate,
+    creationMode,
+    customWorkoutName,
+    canCreateWorkout,
+    navigate,
+    closeAddWorkoutModal,
+  ]);
 
   return (
     <div className="flex flex-col gap-3">
@@ -346,59 +385,106 @@ export function WorkoutHistory() {
             className={`mt-1 min-h-[44px] rounded-xl border border-gray-300 px-3 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500${IS_IOS ? "" : " w-full"}`}
           />
         </div>
-        <label className="mt-4 block text-sm text-gray-600">
-          Day
-          <input
-            type="search"
-            placeholder="Search Days..."
-            value={daySearch}
-            onChange={(e) => setDaySearch(e.target.value)}
-            className="mt-1 min-h-[44px] w-full rounded-xl border border-gray-300 bg-white px-4 text-gray-900 placeholder-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-          />
-        </label>
-        <ul className="mt-2 flex max-h-48 flex-col gap-2 overflow-auto">
-          {dayResults.map((day) => {
-            const summaries = templatesByDayId[day.id] ?? [];
-            const isLoading = templatesLoading && summaries.length === 0;
-            return (
-              <li key={day.id}>
-                <button
-                  type="button"
-                  onClick={() => setSelectedDay(day)}
-                  className={`w-full rounded-xl px-4 py-3 text-left shadow-sm ${
-                    selectedDay?.id === day.id
-                      ? "bg-indigo-100 text-indigo-900 ring-1 ring-indigo-300"
-                      : "bg-white text-gray-900 hover:bg-gray-100"
-                  }`}
-                >
-                  <p className="font-medium text-gray-900">{day.displayName}</p>
-                  {isLoading ? (
-                    <p className="mt-1 text-sm text-gray-400">Loading…</p>
-                  ) : summaries.length > 0 ? (
-                    <ul className="mt-1 space-y-0.5">
-                      {summaries.map((s, i) => (
-                        <li key={i} className="text-sm text-gray-500">
-                          {s.exerciseName} — {s.numSets} × {s.repsLower}–
-                          {s.repsUpper} reps
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="mt-1 text-sm text-gray-500">No exercises</p>
-                  )}
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-        {daySearch.trim() &&
-          dayResults.length === 0 &&
-          !isDebouncingDaySearch &&
-          !daySearchLoading && (
-            <p className="mt-2 text-sm text-gray-500">
-              No Days match. Create a Day from the Days tab.
-            </p>
-          )}
+        <div
+          className="mt-4 flex gap-2"
+          role="group"
+          aria-label="Workout creation mode"
+        >
+          <button
+            type="button"
+            onClick={() => handleCreationModeChange("fromDay")}
+            className={`min-h-[44px] flex-1 rounded-xl text-sm font-medium transition-colors ${
+              creationMode === "fromDay"
+                ? "bg-indigo-600 text-white hover:bg-indigo-700"
+                : "border border-gray-300 bg-white text-gray-700 hover:bg-gray-200"
+            }`}
+          >
+            From Day
+          </button>
+          <button
+            type="button"
+            onClick={() => handleCreationModeChange("custom")}
+            className={`min-h-[44px] flex-1 rounded-xl text-sm font-medium transition-colors ${
+              creationMode === "custom"
+                ? "bg-indigo-600 text-white hover:bg-indigo-700"
+                : "border border-gray-300 bg-white text-gray-700 hover:bg-gray-200"
+            }`}
+          >
+            Custom Workout
+          </button>
+        </div>
+        {creationMode === "fromDay" ? (
+          <>
+            <label className="mt-4 block text-sm text-gray-600">
+              Day
+              <input
+                type="search"
+                placeholder="Search Days..."
+                value={daySearch}
+                onChange={(e) => setDaySearch(e.target.value)}
+                className="mt-1 min-h-[44px] w-full rounded-xl border border-gray-300 bg-white px-4 text-gray-900 placeholder-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              />
+            </label>
+            <ul className="mt-2 flex max-h-48 flex-col gap-2 overflow-auto">
+              {dayResults.map((day) => {
+                const summaries = templatesByDayId[day.id] ?? [];
+                const isLoading = templatesLoading && summaries.length === 0;
+                return (
+                  <li key={day.id}>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedDay(day)}
+                      className={`w-full rounded-xl px-4 py-3 text-left shadow-sm ${
+                        selectedDay?.id === day.id
+                          ? "bg-indigo-100 text-indigo-900 ring-1 ring-indigo-300"
+                          : "bg-white text-gray-900 hover:bg-gray-100"
+                      }`}
+                    >
+                      <p className="font-medium text-gray-900">
+                        {day.displayName}
+                      </p>
+                      {isLoading ? (
+                        <p className="mt-1 text-sm text-gray-400">Loading…</p>
+                      ) : summaries.length > 0 ? (
+                        <ul className="mt-1 space-y-0.5">
+                          {summaries.map((s, i) => (
+                            <li key={i} className="text-sm text-gray-500">
+                              {s.exerciseName} — {s.numSets} × {s.repsLower}–
+                              {s.repsUpper} reps
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="mt-1 text-sm text-gray-500">
+                          No exercises
+                        </p>
+                      )}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+            {daySearch.trim() &&
+              dayResults.length === 0 &&
+              !isDebouncingDaySearch &&
+              !daySearchLoading && (
+                <p className="mt-2 text-sm text-gray-500">
+                  No Days match. Create a Day from the Days tab.
+                </p>
+              )}
+          </>
+        ) : (
+          <label className="mt-4 block text-sm text-gray-600">
+            Workout name
+            <input
+              type="text"
+              placeholder="e.g. Hotel gym, Recovery"
+              value={customWorkoutName}
+              onChange={(e) => setCustomWorkoutName(e.target.value)}
+              className="mt-1 min-h-[44px] w-full rounded-xl border border-gray-300 bg-white px-4 text-gray-900 placeholder-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            />
+          </label>
+        )}
         <div className="mt-4 flex gap-2">
           <button
             type="button"
@@ -409,7 +495,7 @@ export function WorkoutHistory() {
           </button>
           <button
             type="button"
-            disabled={!workoutDate || !selectedDay || creating}
+            disabled={!canCreateWorkout || creating}
             onClick={() => void createWorkout()}
             className="min-h-[44px] flex-1 rounded-xl bg-indigo-600 font-medium text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
           >

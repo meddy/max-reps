@@ -181,6 +181,36 @@ describe("WorkoutDetail", () => {
     });
   });
 
+  it("renders empty Custom Workout without Fill from Day", async () => {
+    const ts = new Date("2024-02-01T12:00:00");
+    const base = new Date("2024-01-01T12:00:00");
+    mockDataAccess.workouts.get.mockResolvedValue({
+      id: "w1",
+      date: ts,
+      dayId: "",
+      dayNameSnapshot: "Hotel gym",
+      note: "",
+      createdAt: base,
+      updatedAt: base,
+    });
+    mockDataAccess.sets.listForWorkout.mockResolvedValue([]);
+    renderWithProviders(
+      <Routes>
+        <Route path="/workouts/:id" element={<WorkoutDetail />} />
+      </Routes>,
+      { route: "/workouts/w1", authValue }
+    );
+    await waitFor(() => {
+      expect(screen.getByText("Hotel gym")).toBeInTheDocument();
+    });
+    expect(
+      screen.queryByRole("button", { name: /fill from day/i })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /add exercise/i })
+    ).toBeInTheDocument();
+  });
+
   it("renders Unlogged Workout when no sets exist but Set Targets do", async () => {
     const ts = new Date("2024-02-01T12:00:00");
     const base = new Date("2024-01-01T12:00:00");

@@ -1,10 +1,12 @@
 import { useCallback, useState } from "react";
 import {
   DndContext,
+  DragOverlay,
   closestCenter,
   useSensor,
   useSensors,
   type DragEndEvent,
+  type DragStartEvent,
 } from "@dnd-kit/core";
 import {
   SortableContext,
@@ -24,10 +26,12 @@ import { LoadErrorPanel } from "../../components/LoadErrorPanel";
 import { LoadingSpinner } from "../../components/LoadingSpinner";
 import { useRemoteLoad } from "../../hooks/useRemoteLoad";
 import { Modal } from "../../components/Modal";
+import { DragOverlayChip } from "../../lib/dnd/DragOverlayChip";
 import {
   GuardedPointerSensor,
   GuardedTouchSensor,
 } from "../../lib/dnd/guardedSensors";
+import { SortableDragPlaceholder } from "../../lib/dnd/SortableDragPlaceholder";
 
 function parseTemplateFieldStrings(
   numSetsStr: string,
@@ -129,93 +133,101 @@ function SortableTemplateRow({
         userSelect: isDragGestureActive ? "none" : undefined,
         WebkitUserSelect: isDragGestureActive ? "none" : undefined,
       }}
-      className={`flex flex-wrap items-center justify-between gap-2 rounded-xl bg-white p-4 shadow-sm transition-colors hover:bg-gray-100 ${
-        isDragging ? "opacity-80" : ""
-      }`}
+      className={
+        isDragging
+          ? ""
+          : "flex flex-wrap items-center justify-between gap-2 rounded-xl bg-white p-4 shadow-sm transition-colors hover:bg-gray-100"
+      }
       {...attributes}
       {...listeners}
     >
-      <div className="min-w-0 flex-1">
-        <Link
-          to={`/exercises/${template.exerciseId}`}
-          className="font-medium text-gray-900 hover:text-indigo-700"
-        >
-          {template.exerciseDisplayName}
-        </Link>
-        <p className="text-sm text-gray-500">
-          {isEditing ? (
-            <span className="flex flex-wrap items-center gap-2">
-              <input
-                type="number"
-                min={1}
-                value={editNumSets}
-                onChange={(e) => setEditNumSets(e.target.value)}
-                className="w-14 rounded border border-gray-300 px-2 py-1 text-sm"
-              />
-              sets ×
-              <input
-                type="number"
-                min={0}
-                value={editRepsLower}
-                onChange={(e) => setEditRepsLower(e.target.value)}
-                className="w-14 rounded border border-gray-300 px-2 py-1 text-sm"
-              />
-              –
-              <input
-                type="number"
-                min={0}
-                value={editRepsUpper}
-                onChange={(e) => setEditRepsUpper(e.target.value)}
-                className="w-14 rounded border border-gray-300 px-2 py-1 text-sm"
-              />
-              reps
-            </span>
-          ) : (
-            `${template.numSets} × ${template.repsLower}–${template.repsUpper} reps`
-          )}
-        </p>
-      </div>
-      <div className="flex items-center gap-1">
-        {isEditing ? (
-          <>
-            <button
-              type="button"
-              onClick={() => void onSaveEdit()}
-              className="min-h-[44px] rounded-lg px-2 text-sm text-indigo-600 hover:bg-indigo-100"
+      {isDragging ? (
+        <SortableDragPlaceholder />
+      ) : (
+        <>
+          <div className="min-w-0 flex-1">
+            <Link
+              to={`/exercises/${template.exerciseId}`}
+              className="font-medium text-gray-900 hover:text-indigo-700"
             >
-              Save
-            </button>
-            <button
-              type="button"
-              onClick={onCancelEdit}
-              className="min-h-[44px] rounded-lg px-2 text-sm text-gray-500"
-            >
-              Cancel
-            </button>
-          </>
-        ) : (
-          <>
-            <button
-              type="button"
-              onClick={() => onBeginEdit(template)}
-              className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-gray-500 hover:bg-gray-200"
-              aria-label="Edit Set Target"
-              title="Edit Set Target"
-            >
-              <IconPencil className="size-6" />
-            </button>
-            <button
-              type="button"
-              onClick={() => onDelete(template.id)}
-              className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-red-600 hover:bg-red-100"
-              aria-label="Delete Set Target"
-              title="Delete Set Target"
-            >
-              <IconTrash className="size-6" />
-            </button>
-          </>
-        )}
-      </div>
+              {template.exerciseDisplayName}
+            </Link>
+            <p className="text-sm text-gray-500">
+              {isEditing ? (
+                <span className="flex flex-wrap items-center gap-2">
+                  <input
+                    type="number"
+                    min={1}
+                    value={editNumSets}
+                    onChange={(e) => setEditNumSets(e.target.value)}
+                    className="w-14 rounded border border-gray-300 px-2 py-1 text-sm"
+                  />
+                  sets ×
+                  <input
+                    type="number"
+                    min={0}
+                    value={editRepsLower}
+                    onChange={(e) => setEditRepsLower(e.target.value)}
+                    className="w-14 rounded border border-gray-300 px-2 py-1 text-sm"
+                  />
+                  –
+                  <input
+                    type="number"
+                    min={0}
+                    value={editRepsUpper}
+                    onChange={(e) => setEditRepsUpper(e.target.value)}
+                    className="w-14 rounded border border-gray-300 px-2 py-1 text-sm"
+                  />
+                  reps
+                </span>
+              ) : (
+                `${template.numSets} × ${template.repsLower}–${template.repsUpper} reps`
+              )}
+            </p>
+          </div>
+          <div className="flex items-center gap-1">
+            {isEditing ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => void onSaveEdit()}
+                  className="min-h-[44px] rounded-lg px-2 text-sm text-indigo-600 hover:bg-indigo-100"
+                >
+                  Save
+                </button>
+                <button
+                  type="button"
+                  onClick={onCancelEdit}
+                  className="min-h-[44px] rounded-lg px-2 text-sm text-gray-500"
+                >
+                  Cancel
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={() => onBeginEdit(template)}
+                  className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-gray-500 hover:bg-gray-200"
+                  aria-label="Edit Set Target"
+                  title="Edit Set Target"
+                >
+                  <IconPencil className="size-6" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onDelete(template.id)}
+                  className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-red-600 hover:bg-red-100"
+                  aria-label="Delete Set Target"
+                  title="Delete Set Target"
+                >
+                  <IconTrash className="size-6" />
+                </button>
+              </>
+            )}
+          </div>
+        </>
+      )}
     </li>
   );
 }
@@ -238,6 +250,7 @@ export function DayDetail() {
   const [editRepsUpper, setEditRepsUpper] = useState("");
   const [deleteTemplateId, setDeleteTemplateId] = useState<string | null>(null);
   const [isDragGestureActive, setIsDragGestureActive] = useState(false);
+  const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const sensors = useSensors(
     useSensor(GuardedPointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(GuardedTouchSensor, {
@@ -321,7 +334,18 @@ export function DayDetail() {
     void loadTemplates();
   };
 
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveDragId(String(event.active.id));
+    setIsDragGestureActive(true);
+  };
+
+  const handleDragCancel = () => {
+    setActiveDragId(null);
+    setIsDragGestureActive(false);
+  };
+
   const handleDragEnd = async (event: DragEndEvent) => {
+    setActiveDragId(null);
     setIsDragGestureActive(false);
     const activeId = String(event.active.id);
     const overId = event.over?.id ? String(event.over.id) : null;
@@ -424,8 +448,8 @@ export function DayDetail() {
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
-          onDragStart={() => setIsDragGestureActive(true)}
-          onDragCancel={() => setIsDragGestureActive(false)}
+          onDragStart={handleDragStart}
+          onDragCancel={handleDragCancel}
           onDragEnd={(event) => void handleDragEnd(event)}
           autoScroll
         >
@@ -459,6 +483,16 @@ export function DayDetail() {
               ))}
             </ul>
           </SortableContext>
+          <DragOverlay dropAnimation={null}>
+            {activeDragId ? (
+              <DragOverlayChip
+                label={
+                  templates.find((t) => t.id === activeDragId)
+                    ?.exerciseDisplayName ?? ""
+                }
+              />
+            ) : null}
+          </DragOverlay>
         </DndContext>
       )}
 

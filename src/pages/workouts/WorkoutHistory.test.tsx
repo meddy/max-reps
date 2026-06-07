@@ -154,6 +154,117 @@ describe("WorkoutHistory", () => {
     expect(dataAccess.days.searchByNamePrefix).toHaveBeenCalledWith("pu", 20);
   });
 
+  it("shows custom name input when Custom Workout mode is selected", async () => {
+    const user = userEvent.setup();
+    const dataAccess = createTestDataAccess();
+    dataAccess.workouts.listRecent.mockResolvedValue([]);
+
+    renderWithProviders(<WorkoutHistory />, {
+      route: "/workouts",
+      authValue,
+      dataAccess,
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("No workouts yet")).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByTitle("Add workout"));
+    expect(screen.getByPlaceholderText("Search Days...")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Custom Workout" }));
+    expect(
+      screen.queryByPlaceholderText("Search Days...")
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByPlaceholderText("e.g. Hotel gym, Recovery")
+    ).toBeInTheDocument();
+  });
+
+  it("creates a Custom Workout with empty dayId and trimmed dayNameSnapshot", async () => {
+    const user = userEvent.setup();
+    const dataAccess = createTestDataAccess();
+    dataAccess.workouts.listRecent.mockResolvedValue([]);
+    dataAccess.workouts.create.mockResolvedValue("w-custom");
+
+    renderWithProviders(<WorkoutHistory />, {
+      route: "/workouts",
+      authValue,
+      dataAccess,
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("No workouts yet")).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByTitle("Add workout"));
+    await user.click(screen.getByRole("button", { name: "Custom Workout" }));
+    await user.type(
+      screen.getByPlaceholderText("e.g. Hotel gym, Recovery"),
+      "  Hotel gym  "
+    );
+    await user.click(screen.getByRole("button", { name: "Create" }));
+
+    await waitFor(() => {
+      expect(dataAccess.workouts.create).toHaveBeenCalledWith({
+        date: expect.any(Date),
+        dayId: "",
+        dayNameSnapshot: "Hotel gym",
+        note: "",
+      });
+    });
+  });
+
+  it("disables Create for Custom Workout when name is whitespace only", async () => {
+    const user = userEvent.setup();
+    const dataAccess = createTestDataAccess();
+    dataAccess.workouts.listRecent.mockResolvedValue([]);
+
+    renderWithProviders(<WorkoutHistory />, {
+      route: "/workouts",
+      authValue,
+      dataAccess,
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("No workouts yet")).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByTitle("Add workout"));
+    await user.click(screen.getByRole("button", { name: "Custom Workout" }));
+    await user.type(
+      screen.getByPlaceholderText("e.g. Hotel gym, Recovery"),
+      "   "
+    );
+
+    expect(screen.getByRole("button", { name: "Create" })).toBeDisabled();
+  });
+
+  it("restores Day search when switching back to From Day", async () => {
+    const user = userEvent.setup();
+    const dataAccess = createTestDataAccess();
+    dataAccess.workouts.listRecent.mockResolvedValue([]);
+
+    renderWithProviders(<WorkoutHistory />, {
+      route: "/workouts",
+      authValue,
+      dataAccess,
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("No workouts yet")).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByTitle("Add workout"));
+    await user.click(screen.getByRole("button", { name: "Custom Workout" }));
+    await user.click(screen.getByRole("button", { name: "From Day" }));
+
+    expect(screen.getByPlaceholderText("Search Days...")).toBeInTheDocument();
+    expect(
+      screen.queryByPlaceholderText("e.g. Hotel gym, Recovery")
+    ).not.toBeInTheDocument();
+  });
+
   it("hides Load more when the first page is shorter than PAGE_SIZE", async () => {
     const ts = new Date("2024-01-10T12:00:00");
     const base = new Date("2024-01-01T12:00:00");
