@@ -60,7 +60,6 @@ export async function patchDocument(
     collectionName === "sets"
       ? serialized
       : { ...serialized, updatedAt: serverTimestamp() };
-  // @ts-expect-error payload shape is valid at runtime
   await updateDoc(ref, payload);
 }
 

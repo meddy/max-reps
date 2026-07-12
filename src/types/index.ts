@@ -51,11 +51,7 @@ export interface WorkoutSet {
 }
 
 export type CollectionName =
-  | "exercises"
-  | "days"
-  | "exerciseSetTemplates"
-  | "workouts"
-  | "sets";
+  "exercises" | "days" | "exerciseSetTemplates" | "workouts" | "sets";
 
 /** Template row with resolved exercise display name (read model). */
 export interface TemplateWithExerciseName extends ExerciseSetTemplate {
