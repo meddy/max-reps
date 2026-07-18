@@ -99,5 +99,56 @@ export function buildWorkoutsSlice(
       });
       return workoutRows.map((d) => mapWorkoutFromDoc(d.id, d.data));
     },
+
+    async listRecentWithSets(opts: {
+      sort: "asc" | "desc";
+      limit?: number;
+      startAfter?: { date: Date; id: string };
+    }): Promise<{
+      workouts: Array<Workout & { id: string }>;
+      setsByWorkoutId: Record<string, WorkoutSet[]>;
+    }> {
+      const lim = opts.limit ?? DEFAULT_PAGE;
+      const workoutRows = await firestore.queryWorkoutsByDate({
+        sort: opts.sort,
+        limit: lim,
+        startAfter: opts.startAfter,
+      });
+      const workouts = workoutRows.map((d) => mapWorkoutFromDoc(d.id, d.data));
+      const setRows = await firestore.querySetsWhereWorkoutIdIn(
+        workouts.map((w) => w.id)
+      );
+      const setsByWorkoutId: Record<string, WorkoutSet[]> = {};
+      for (const w of workouts) setsByWorkoutId[w.id] = [];
+      for (const row of setRows) {
+        const set = mapWorkoutSetFromDoc(row.id, row.data);
+        const list = setsByWorkoutId[set.workoutId] ?? [];
+        list.push(set);
+        setsByWorkoutId[set.workoutId] = list;
+      }
+      for (const wid of Object.keys(setsByWorkoutId)) {
+        setsByWorkoutId[wid].sort((a, b) => a.order - b.order);
+      }
+      return { workouts, setsByWorkoutId };
+    },
+
+    async copyWithSets(input: {
+      workout: {
+        date: Date;
+        dayId: string;
+        dayNameSnapshot: string;
+        note?: string;
+      };
+      sets: Array<{
+        exerciseId: string;
+        exerciseNameSnapshot: string;
+        reps: number;
+        weight: number;
+        unit?: string;
+        order: number;
+      }>;
+    }): Promise<{ workoutId: string; setIds: string[] }> {
+      return withSaving(saving, () => firestore.copyWorkoutWithSets(input));
+    },
   };
 }

@@ -72,7 +72,60 @@ export interface FirestoreDayQueryPort {
     sort: "asc" | "desc";
     limit: number;
   }): Promise<RawDoc[]>;
+
+  /** Chunks `documentId() in` queries (max 10 per Firestore constraint). */
+  queryDaysWhereDocumentIdIn(ids: string[]): Promise<RawDoc[]>;
 }
+
+export type ReconcileExerciseSetsInput = {
+  workoutId: string;
+  exerciseId: string;
+  exerciseNameSnapshot: string;
+  performedAt: Date;
+  /** Desired Sets for this exercise after reconcile (empty clears them). */
+  desiredSets: Array<{ reps: number; weight: number; note: string }>;
+  /**
+   * All current Sets for the Workout (already loaded). Used to compute the
+   * create/update/delete diff and global order patches without a prerequisite read.
+   */
+  currentSets: Array<{
+    id: string;
+    exerciseId: string;
+    reps: number;
+    weight: number;
+    note: string;
+    order: number;
+  }>;
+  /** Exercise IDs in display order after any DnD; drives global Set `order`. */
+  exerciseOrder: string[];
+};
+
+export type ReconcileExerciseSetsResult = {
+  /** IDs assigned to newly created Sets, in desired-set order among creates. */
+  createdIds: string[];
+};
+
+export type CopyWorkoutWithSetsInput = {
+  workout: {
+    date: Date;
+    dayId: string;
+    dayNameSnapshot: string;
+    note?: string;
+  };
+  sets: Array<{
+    exerciseId: string;
+    exerciseNameSnapshot: string;
+    reps: number;
+    weight: number;
+    unit?: string;
+    order: number;
+  }>;
+};
+
+export type CopyWorkoutWithSetsResult = {
+  workoutId: string;
+  setIds: string[];
+};
 
 export interface FirestoreWorkoutSetQueryPort {
   querySetsForWorkoutOrdered(workoutId: string): Promise<RawDoc[]>;
@@ -85,12 +138,39 @@ export interface FirestoreWorkoutSetQueryPort {
 
   querySetsByWorkoutId(workoutId: string): Promise<RawDoc[]>;
 
+  /**
+   * One or more `workoutId in [...]` queries (chunks of 10) returning all Sets
+   * for the given Workouts. Caller groups/sorts client-side. Chunks run
+   * sequentially — never fan out with Promise.all.
+   */
+  querySetsWhereWorkoutIdIn(workoutIds: string[]): Promise<RawDoc[]>;
+
   querySetsByExercisePerformedAtDesc(
     exerciseId: string,
     limit: number
   ): Promise<RawDoc[]>;
 
   querySetsPrForExercise(exerciseId: string): Promise<RawDoc | null>;
+}
+
+/** Atomic Set / Workout write helpers used by the inline Workout Editor. */
+export interface FirestoreWorkoutMutationPort {
+  /**
+   * Atomically create/update/delete one exercise's Sets and apply every required
+   * workout-wide order patch in a single batch. Throws if the op count exceeds
+   * Firestore's batch limit — never silently splits.
+   */
+  reconcileExerciseSets(
+    input: ReconcileExerciseSetsInput
+  ): Promise<ReconcileExerciseSetsResult>;
+
+  /**
+   * Atomically create a Workout and all of its Sets in one batch.
+   * Throws if the op count exceeds Firestore's batch limit.
+   */
+  copyWorkoutWithSets(
+    input: CopyWorkoutWithSetsInput
+  ): Promise<CopyWorkoutWithSetsResult>;
 }
 
 export interface FirestoreBulkQueryPort {
@@ -113,6 +193,7 @@ export type FirestoreDataPort = FirestoreCorePort &
   FirestoreExerciseQueryPort &
   FirestoreDayQueryPort &
   FirestoreWorkoutSetQueryPort &
+  FirestoreWorkoutMutationPort &
   FirestoreBulkQueryPort;
 
 /** Cascade deletes for days/workouts; see {@link removeWithCascade}. */
@@ -131,7 +212,8 @@ export type TemplatesSliceFirestorePort = FirestoreCorePort &
   Pick<FirestoreBulkQueryPort, "queryTemplatesWhereDayIdIn">;
 
 export type WorkoutsSliceFirestorePort = FirestoreCorePort &
-  FirestoreWorkoutSetQueryPort;
+  FirestoreWorkoutSetQueryPort &
+  FirestoreWorkoutMutationPort;
 
 export type SetsSliceFirestorePort = Pick<
   FirestoreCorePort,
@@ -140,9 +222,11 @@ export type SetsSliceFirestorePort = Pick<
   Pick<
     FirestoreWorkoutSetQueryPort,
     | "querySetsForWorkoutOrdered"
+    | "querySetsWhereWorkoutIdIn"
     | "querySetsByExercisePerformedAtDesc"
     | "querySetsPrForExercise"
-  >;
+  > &
+  Pick<FirestoreWorkoutMutationPort, "reconcileExerciseSets">;
 
 export type ExportForBackupFirestorePort = Pick<
   FirestoreBulkQueryPort,
@@ -152,6 +236,11 @@ export type ExportForBackupFirestorePort = Pick<
 export type ResolveExerciseNamesFirestorePort = Pick<
   FirestoreExerciseQueryPort,
   "queryExercisesWhereDocumentIdIn"
+>;
+
+export type ResolveDayExistenceFirestorePort = Pick<
+  FirestoreDayQueryPort,
+  "queryDaysWhereDocumentIdIn"
 >;
 
 export type TemplatesWithNamesFirestorePort =

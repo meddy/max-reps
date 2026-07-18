@@ -46,7 +46,7 @@ describe("App", () => {
     });
   });
 
-  it("shows workout history shell when signed in", async () => {
+  it("shows workouts shell when signed in", async () => {
     authState.nextUser = { uid: "user-1" };
     render(<App />);
     await waitFor(() => {

@@ -29,6 +29,35 @@ describe("DayDetail", () => {
     });
   });
 
+  it("uses returnTo from location state for the back button", async () => {
+    const ts = new Date("2024-02-01T12:00:00.000Z");
+    mockDataAccess.days.get.mockResolvedValue({
+      id: "d1",
+      nameLower: "push",
+      displayName: "Push",
+      createdAt: ts,
+      updatedAt: ts,
+    });
+    mockDataAccess.templates.listForDayWithExerciseNames.mockResolvedValue([]);
+
+    renderWithProviders(
+      <Routes>
+        <Route path="/days/:id" element={<DayDetail />} />
+      </Routes>,
+      {
+        route: "/days/d1",
+        locationState: {
+          returnTo: { to: "/workouts", label: "Back to Workouts" },
+        },
+        authValue,
+      }
+    );
+
+    expect(
+      await screen.findByRole("button", { name: "Back to Workouts" })
+    ).toBeInTheDocument();
+  });
+
   it("uses drag-and-drop with no handle and no move buttons", async () => {
     const ts = new Date("2024-02-01T12:00:00.000Z");
     mockDataAccess.days.get.mockResolvedValue({

@@ -3,7 +3,10 @@ import { buildExercisesSlice } from "./exercisesSlice";
 import { buildExportForBackup } from "./exportForBackup";
 import { buildSetsSlice } from "./setsSlice";
 import { buildTemplatesSlice } from "./templatesSlice";
-import { resolveExerciseNamesImpl } from "./templateQueries";
+import {
+  resolveDayExistenceImpl,
+  resolveExerciseNamesImpl,
+} from "./templateQueries";
 import { buildWorkoutsSlice } from "./workoutsSlice";
 import type { DataAccess, DataAccessDeps } from "./types";
 import { createWorkoutDetailApi } from "./workoutDetailApi";
@@ -15,6 +18,8 @@ export function createDataAccess(deps: DataAccessDeps): DataAccess {
   const templates = buildTemplatesSlice(firestore, saving);
   const resolveExerciseNames = (ids: string[]) =>
     resolveExerciseNamesImpl(firestore, ids);
+  const resolveDayExistence = (ids: string[]) =>
+    resolveDayExistenceImpl(firestore, ids);
   const workouts = buildWorkoutsSlice(firestore, saving);
   const sets = buildSetsSlice(firestore, saving);
   const exportForBackup = buildExportForBackup(firestore);
@@ -31,6 +36,7 @@ export function createDataAccess(deps: DataAccessDeps): DataAccess {
     days,
     templates,
     resolveExerciseNames,
+    resolveDayExistence,
     workouts,
     sets,
     exportForBackup,

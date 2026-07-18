@@ -8,7 +8,7 @@ describe("BottomNav", () => {
     renderWithProviders(<BottomNav />, { route: "/workouts" });
     const nav = screen.getByRole("navigation", { name: /main/i });
     expect(nav).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /history/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /workouts/i })).toHaveAttribute(
       "href",
       "/workouts"
     );

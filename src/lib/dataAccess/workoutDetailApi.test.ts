@@ -37,10 +37,13 @@ function createDetailApiDeps(
       deleteWithSets: vi.fn(reject),
       getNotesByWorkoutIds: vi.fn(reject),
       listRecent: vi.fn(reject),
+      listRecentWithSets: vi.fn(reject),
+      copyWithSets: vi.fn(reject),
       ...partial.workouts,
     },
     sets: {
       listForWorkout: vi.fn(reject),
+      listForWorkouts: vi.fn(reject),
       lastPerformedGroupForExercise: vi.fn(reject),
       listForExercise: vi.fn(reject),
       prForExercise: vi.fn(reject),
@@ -48,6 +51,7 @@ function createDetailApiDeps(
       update: vi.fn(reject),
       reorder: vi.fn(reject),
       delete: vi.fn(reject),
+      reconcileExercise: vi.fn(reject),
       ...partial.sets,
     },
     templates: {

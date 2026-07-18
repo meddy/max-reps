@@ -258,4 +258,154 @@ describe("FirestoreDataPort contract (in-memory)", () => {
       expect(rows.map((r) => r.id)).toEqual(want);
     });
   });
+
+  it("queryDaysWhereDocumentIdIn returns matching day docs", async () => {
+    const port = createInMemoryFirestoreDataPort({
+      days: {
+        d1: { nameLower: "push", displayName: "Push" },
+        d2: { nameLower: "pull", displayName: "Pull" },
+      },
+    });
+    const rows = await port.queryDaysWhereDocumentIdIn(["d2", "missing"]);
+    expect(rows.map((r) => r.id)).toEqual(["d2"]);
+  });
+
+  it("querySetsWhereWorkoutIdIn returns sets for multiple workouts", async () => {
+    const port = createInMemoryFirestoreDataPort({
+      sets: {
+        s1: {
+          workoutId: "w1",
+          exerciseId: "e1",
+          reps: 5,
+          weight: 100,
+          order: 0,
+          unit: "lbs",
+          note: "",
+          performedAt: new Date("2024-01-01"),
+        },
+        s2: {
+          workoutId: "w2",
+          exerciseId: "e1",
+          reps: 8,
+          weight: 0,
+          order: 0,
+          unit: "lbs",
+          note: "",
+          performedAt: new Date("2024-01-02"),
+        },
+        s3: {
+          workoutId: "w3",
+          exerciseId: "e2",
+          reps: 3,
+          weight: 50,
+          order: 0,
+          unit: "lbs",
+          note: "",
+          performedAt: new Date("2024-01-03"),
+        },
+      },
+    });
+    const rows = await port.querySetsWhereWorkoutIdIn(["w1", "w2"]);
+    expect(rows.map((r) => r.id).sort()).toEqual(["s1", "s2"]);
+  });
+
+  it("reconcileExerciseSets creates updates and deletes atomically", async () => {
+    const port = createInMemoryFirestoreDataPort({
+      sets: {
+        s1: {
+          workoutId: "w1",
+          exerciseId: "e1",
+          exerciseNameSnapshot: "Bench",
+          reps: 5,
+          weight: 100,
+          order: 0,
+          unit: "lbs",
+          note: "",
+          performedAt: new Date("2024-01-01"),
+        },
+        s2: {
+          workoutId: "w1",
+          exerciseId: "e2",
+          exerciseNameSnapshot: "Row",
+          reps: 8,
+          weight: 60,
+          order: 1,
+          unit: "lbs",
+          note: "",
+          performedAt: new Date("2024-01-01"),
+        },
+      },
+    });
+
+    const result = await port.reconcileExerciseSets({
+      workoutId: "w1",
+      exerciseId: "e1",
+      exerciseNameSnapshot: "Bench",
+      performedAt: new Date("2024-01-01"),
+      desiredSets: [
+        { reps: 5, weight: 105, note: "" },
+        { reps: 5, weight: 105, note: "solid" },
+      ],
+      currentSets: [
+        {
+          id: "s1",
+          exerciseId: "e1",
+          reps: 5,
+          weight: 100,
+          note: "",
+          order: 0,
+        },
+        {
+          id: "s2",
+          exerciseId: "e2",
+          reps: 8,
+          weight: 60,
+          note: "",
+          order: 1,
+        },
+      ],
+      exerciseOrder: ["e1", "e2"],
+    });
+
+    expect(result.createdIds).toHaveLength(1);
+    const s1 = await port.getDocument("sets", "s1");
+    expect(s1?.data.weight).toBe(105);
+    expect(s1?.data.order).toBe(0);
+    const created = await port.getDocument("sets", result.createdIds[0]!);
+    expect(created?.data.reps).toBe(5);
+    expect(created?.data.note).toBe("solid");
+    expect(created?.data.order).toBe(1);
+    const s2 = await port.getDocument("sets", "s2");
+    expect(s2?.data.order).toBe(2);
+  });
+
+  it("copyWorkoutWithSets creates workout and sets without notes", async () => {
+    const port = createInMemoryFirestoreDataPort();
+    const date = new Date("2024-07-01T12:00:00");
+    const result = await port.copyWorkoutWithSets({
+      workout: {
+        date,
+        dayId: "d1",
+        dayNameSnapshot: "Push",
+        note: "",
+      },
+      sets: [
+        {
+          exerciseId: "e1",
+          exerciseNameSnapshot: "Bench",
+          reps: 5,
+          weight: 100,
+          order: 0,
+        },
+      ],
+    });
+    const workout = await port.getDocument("workouts", result.workoutId);
+    expect(workout?.data.dayNameSnapshot).toBe("Push");
+    expect(workout?.data.note).toBe("");
+    expect(result.setIds).toHaveLength(1);
+    const set = await port.getDocument("sets", result.setIds[0]!);
+    expect(set?.data.workoutId).toBe(result.workoutId);
+    expect(set?.data.note).toBe("");
+    expect(set?.data.performedAt).toEqual(date);
+  });
 });

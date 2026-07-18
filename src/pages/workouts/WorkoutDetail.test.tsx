@@ -1,15 +1,13 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Route, Routes } from "react-router-dom";
-import { describe, expect, it } from "vitest";
-import { formatDate } from "../../lib/format";
-import { mockDataAccess } from "../../test/mockDataAccess";
-import { renderWithProviders } from "../../test/renderWithProviders";
+import { afterEach, describe, expect, it } from "vitest";
 import {
-  buildReorderedExerciseGroups,
-  buildWorkoutSetOrderUpdates,
-  WorkoutDetail,
-} from "./WorkoutDetail";
+  mockDataAccess,
+  resetDataAccessMocks,
+} from "../../test/mockDataAccess";
+import { renderWithProviders } from "../../test/renderWithProviders";
+import { WorkoutDetail } from "./WorkoutDetail";
 
 const authValue = {
   user: { uid: "u1" } as import("firebase/auth").User,
@@ -21,580 +19,151 @@ const authValue = {
   clearError: () => {},
 };
 
-describe("WorkoutDetail", () => {
-  it("shows not found when workout is missing", async () => {
-    mockDataAccess.workouts.get.mockResolvedValue(null);
-    renderWithProviders(
-      <Routes>
-        <Route path="/workouts/:id" element={<WorkoutDetail />} />
-      </Routes>,
-      { route: "/workouts/missing", authValue }
-    );
-    await waitFor(() => {
-      expect(screen.getByText("Workout not found.")).toBeInTheDocument();
-    });
-    expect(
-      screen.getByRole("button", { name: /back to history/i })
-    ).toBeInTheDocument();
+function renderDetail(id = "w1") {
+  return renderWithProviders(
+    <Routes>
+      <Route path="/workouts/:id" element={<WorkoutDetail />} />
+      <Route path="/workouts" element={<div>Workouts list</div>} />
+    </Routes>,
+    { route: `/workouts/${id}`, authValue }
+  );
+}
+
+describe("WorkoutDetail (single-card Workouts page)", () => {
+  afterEach(() => {
+    resetDataAccessMocks();
   });
 
-  it("shows workout header when loaded with sets", async () => {
-    const ts = new Date("2024-02-01T12:00:00");
-    const base = new Date("2024-01-01T12:00:00");
-    mockDataAccess.workouts.get.mockResolvedValue({
-      id: "w1",
-      date: ts,
-      dayId: "d1",
-      dayNameSnapshot: "Leg Day",
-      note: "",
-      createdAt: base,
-      updatedAt: base,
-    });
-    mockDataAccess.sets.listForWorkout.mockResolvedValue([
-      {
-        id: "s1",
-        workoutId: "w1",
-        exerciseId: "e1",
-        exerciseNameSnapshot: "Squat",
-        reps: 5,
-        weight: 315,
-        unit: "lbs",
-        note: "",
-        performedAt: ts,
-        order: 0,
-        createdAt: base,
-      },
-    ]);
-    renderWithProviders(
-      <Routes>
-        <Route path="/workouts/:id" element={<WorkoutDetail />} />
-      </Routes>,
-      { route: "/workouts/w1", authValue }
-    );
-    await waitFor(() => {
-      expect(screen.getByText("Leg Day")).toBeInTheDocument();
-    });
-    expect(
-      screen.getByRole("button", { name: /delete workout/i })
-    ).toBeInTheDocument();
-  });
-
-  it("persists note on blur via workoutDetail.updateWorkout", async () => {
-    const user = userEvent.setup();
-    const ts = new Date("2024-02-01T12:00:00");
-    const base = new Date("2024-01-01T12:00:00");
-    mockDataAccess.workouts.get.mockResolvedValue({
-      id: "w1",
-      date: ts,
-      dayId: "d1",
-      dayNameSnapshot: "Leg Day",
-      note: "",
-      createdAt: base,
-      updatedAt: base,
-    });
-    mockDataAccess.sets.listForWorkout.mockResolvedValue([
-      {
-        id: "s1",
-        workoutId: "w1",
-        exerciseId: "e1",
-        exerciseNameSnapshot: "Squat",
-        reps: 5,
-        weight: 315,
-        unit: "lbs",
-        note: "",
-        performedAt: ts,
-        order: 0,
-        createdAt: base,
-      },
-    ]);
-    renderWithProviders(
-      <Routes>
-        <Route path="/workouts/:id" element={<WorkoutDetail />} />
-      </Routes>,
-      { route: "/workouts/w1", authValue }
-    );
-    await waitFor(() => {
-      expect(
-        screen.getAllByPlaceholderText(/add a note/i).length
-      ).toBeGreaterThan(0);
-    });
-    const [workoutNoteInput] = screen.getAllByPlaceholderText(/add a note/i);
-    await user.clear(workoutNoteInput);
-    await user.type(workoutNoteInput, "Leg focus");
-    await user.tab();
-    await waitFor(() => {
-      expect(mockDataAccess.workoutDetail.updateWorkout).toHaveBeenCalledWith(
-        "w1",
-        { note: "Leg focus" }
-      );
-    });
-  });
-
-  it("persists date on save via workoutDetail.updateWorkout", async () => {
-    const user = userEvent.setup();
-    const ts = new Date("2024-02-01T12:00:00");
-    const base = new Date("2024-01-01T12:00:00");
-    const newDateInput = "2024-06-15T12:00";
-    mockDataAccess.workouts.get.mockResolvedValue({
-      id: "w1",
-      date: ts,
-      dayId: "d1",
-      dayNameSnapshot: "Leg Day",
-      note: "",
-      createdAt: base,
-      updatedAt: base,
-    });
-    mockDataAccess.sets.listForWorkout.mockResolvedValue([
-      {
-        id: "s1",
-        workoutId: "w1",
-        exerciseId: "e1",
-        exerciseNameSnapshot: "Squat",
-        reps: 5,
-        weight: 315,
-        unit: "lbs",
-        note: "",
-        performedAt: ts,
-        order: 0,
-        createdAt: base,
-      },
-    ]);
-    renderWithProviders(
-      <Routes>
-        <Route path="/workouts/:id" element={<WorkoutDetail />} />
-      </Routes>,
-      { route: "/workouts/w1", authValue }
-    );
-    await waitFor(() => {
-      expect(screen.getByText("Leg Day")).toBeInTheDocument();
-    });
-    await user.click(screen.getByRole("button", { name: formatDate(ts) }));
-    const dateInput = screen.getByDisplayValue(ts.toISOString().slice(0, 16));
-    await user.clear(dateInput);
-    await user.type(dateInput, newDateInput);
-    await user.click(screen.getByRole("button", { name: /^save$/i }));
-    await waitFor(() => {
-      expect(mockDataAccess.workoutDetail.updateWorkout).toHaveBeenCalledWith(
-        "w1",
-        { date: new Date(newDateInput) }
-      );
-    });
-  });
-
-  it("renders empty Custom Workout without Fill from Day", async () => {
-    const ts = new Date("2024-02-01T12:00:00");
-    const base = new Date("2024-01-01T12:00:00");
-    mockDataAccess.workouts.get.mockResolvedValue({
-      id: "w1",
-      date: ts,
-      dayId: "",
-      dayNameSnapshot: "Hotel gym",
-      note: "",
-      createdAt: base,
-      updatedAt: base,
-    });
-    mockDataAccess.sets.listForWorkout.mockResolvedValue([]);
-    renderWithProviders(
-      <Routes>
-        <Route path="/workouts/:id" element={<WorkoutDetail />} />
-      </Routes>,
-      { route: "/workouts/w1", authValue }
-    );
-    await waitFor(() => {
-      expect(screen.getByText("Hotel gym")).toBeInTheDocument();
-    });
-    expect(
-      screen.queryByRole("button", { name: /fill from day/i })
-    ).not.toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: /add exercise/i })
-    ).toBeInTheDocument();
-  });
-
-  it("renders Unlogged Workout when no sets exist but Set Targets do", async () => {
-    const ts = new Date("2024-02-01T12:00:00");
-    const base = new Date("2024-01-01T12:00:00");
-    mockDataAccess.workouts.get.mockResolvedValue({
-      id: "w1",
-      date: ts,
-      dayId: "d1",
-      dayNameSnapshot: "Leg Day",
-      note: "",
-      createdAt: base,
-      updatedAt: base,
-    });
-    mockDataAccess.sets.listForWorkout.mockResolvedValue([]);
-    mockDataAccess.templates.listForDayWithExerciseNames.mockResolvedValue([
-      {
-        id: "t1",
+  it("loads a single workout with sets", async () => {
+    const date = new Date("2024-02-01T12:00:00");
+    mockDataAccess.workouts.getWithSets.mockResolvedValue({
+      workout: {
+        id: "w1",
+        date,
         dayId: "d1",
-        exerciseId: "e1",
-        numSets: 3,
-        repsLower: 8,
-        repsUpper: 12,
-        order: 0,
-        createdAt: base,
-        updatedAt: base,
-        exerciseDisplayName: "Squat",
+        dayNameSnapshot: "Push",
+        note: "pump",
+        createdAt: date,
+        updatedAt: date,
       },
-    ]);
-    mockDataAccess.sets.lastPerformedGroupForExercise.mockResolvedValue({
-      sets: [],
-    });
-    renderWithProviders(
-      <Routes>
-        <Route path="/workouts/:id" element={<WorkoutDetail />} />
-      </Routes>,
-      { route: "/workouts/w1", authValue }
-    );
-    await waitFor(() => {
-      expect(screen.getByText("Squat")).toBeInTheDocument();
-    });
-    expect(screen.getByText(/target:/i)).toBeInTheDocument();
-  });
-
-  it("shows Last and Last summary for last performed sets in Unlogged Workout", async () => {
-    const ts = new Date("2024-02-01T12:00:00");
-    const base = new Date("2024-01-01T12:00:00");
-    mockDataAccess.workouts.get.mockResolvedValue({
-      id: "w1",
-      date: ts,
-      dayId: "d1",
-      dayNameSnapshot: "Leg Day",
-      note: "",
-      createdAt: base,
-      updatedAt: base,
-    });
-    mockDataAccess.sets.listForWorkout.mockResolvedValue([]);
-    mockDataAccess.templates.listForDayWithExerciseNames.mockResolvedValue([
-      {
-        id: "t1",
-        dayId: "d1",
-        exerciseId: "e1",
-        numSets: 3,
-        repsLower: 8,
-        repsUpper: 12,
-        order: 0,
-        createdAt: base,
-        updatedAt: base,
-        exerciseDisplayName: "Squat",
-      },
-    ]);
-    mockDataAccess.sets.lastPerformedGroupForExercise.mockResolvedValue({
-      workoutId: "w0",
       sets: [
-        { reps: 5, weight: 275 },
-        { reps: 3, weight: 275 },
+        {
+          id: "s1",
+          workoutId: "w1",
+          exerciseId: "e1",
+          exerciseNameSnapshot: "Bench",
+          reps: 5,
+          weight: 100,
+          unit: "lbs",
+          note: "",
+          performedAt: date,
+          order: 0,
+          createdAt: date,
+        },
       ],
     });
-
-    renderWithProviders(
-      <Routes>
-        <Route path="/workouts/:id" element={<WorkoutDetail />} />
-      </Routes>,
-      { route: "/workouts/w1", authValue }
+    mockDataAccess.resolveExerciseNames.mockResolvedValue(
+      new Map([["e1", "Bench"]])
     );
 
+    renderDetail();
+
     await waitFor(() => {
-      expect(screen.getByText("Squat")).toBeInTheDocument();
+      expect(screen.getByText("Push")).toBeInTheDocument();
     });
-
-    expect(screen.getByText(/last:/i)).toBeInTheDocument();
-    expect(screen.getByText("275x5, 275x3")).toBeInTheDocument();
-    expect(screen.queryByText(/lbs/i)).not.toBeInTheDocument();
-    expect(screen.getByText(/last summary:/i)).toBeInTheDocument();
-    expect(screen.getByText("275x8")).toBeInTheDocument();
-
-    const lastLink = screen.getByRole("link", { name: "275x5, 275x3" });
-    expect(lastLink).toHaveAttribute("href", "/workouts/w0");
-    expect(screen.getByText("275x8").closest("a")).toBeNull();
-  });
-
-  it("does not load Fill from Day data on mount for a logged Workout", async () => {
-    const ts = new Date("2024-02-01T12:00:00");
-    const base = new Date("2024-01-01T12:00:00");
-    mockDataAccess.workouts.get.mockResolvedValue({
-      id: "w1",
-      date: ts,
-      dayId: "d1",
-      dayNameSnapshot: "Leg Day",
-      note: "",
-      createdAt: base,
-      updatedAt: base,
-    });
-    mockDataAccess.sets.listForWorkout.mockResolvedValue([
-      {
-        id: "s1",
-        workoutId: "w1",
-        exerciseId: "e1",
-        exerciseNameSnapshot: "Squat",
-        reps: 5,
-        weight: 315,
-        unit: "lbs",
-        note: "",
-        performedAt: ts,
-        order: 0,
-        createdAt: base,
-      },
-    ]);
-
-    renderWithProviders(
-      <Routes>
-        <Route path="/workouts/:id" element={<WorkoutDetail />} />
-      </Routes>,
-      { route: "/workouts/w1", authValue }
+    expect(screen.getByText(/pump/)).toBeInTheDocument();
+    expect(screen.getByText("Bench")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /← workouts/i })).toHaveAttribute(
+      "href",
+      "/workouts"
     );
-
-    await waitFor(() => {
-      expect(screen.getByText("Leg Day")).toBeInTheDocument();
-    });
-    expect(
-      mockDataAccess.workoutDetail.loadFillTemplateData
-    ).not.toHaveBeenCalled();
   });
 
-  it("Fill from Day merges locally into a logged Workout and shows hybrid metadata", async () => {
+  it("shows not found error when workout missing", async () => {
+    mockDataAccess.workouts.getWithSets.mockResolvedValue(null);
+    renderDetail("missing");
+    await waitFor(() => {
+      expect(screen.getByText(/couldn't load workouts/i)).toBeInTheDocument();
+    });
+  });
+
+  it("deletes Unlogged workouts from the menu without confirm", async () => {
     const user = userEvent.setup();
-    const ts = new Date("2024-02-01T12:00:00");
-    const base = new Date("2024-01-01T12:00:00");
-    mockDataAccess.workouts.get.mockResolvedValue({
-      id: "w1",
-      date: ts,
-      dayId: "d1",
-      dayNameSnapshot: "Leg Day",
-      note: "",
-      createdAt: base,
-      updatedAt: base,
-    });
-    mockDataAccess.sets.listForWorkout.mockResolvedValue([
-      {
-        id: "s1",
-        workoutId: "w1",
-        exerciseId: "e1",
-        exerciseNameSnapshot: "Squat",
-        reps: 5,
-        weight: 315,
-        unit: "lbs",
+    const date = new Date("2024-02-01T12:00:00");
+    mockDataAccess.workouts.getWithSets.mockResolvedValue({
+      workout: {
+        id: "w1",
+        date,
+        dayId: "",
+        dayNameSnapshot: "Custom",
         note: "",
-        performedAt: ts,
-        order: 0,
-        createdAt: base,
+        createdAt: date,
+        updatedAt: date,
       },
-    ]);
-    mockDataAccess.sets.lastPerformedGroupForExercise.mockImplementation(
-      async (exerciseId: string) => {
-        if (exerciseId === "e1") {
-          return {
-            workoutId: "w0",
-            sets: [{ reps: 8, weight: 275, note: "slow eccentric" }],
-          };
-        }
-        return { sets: [] };
-      }
-    );
-    mockDataAccess.templates.listForDayWithExerciseNames.mockResolvedValue([
-      {
-        id: "t1",
-        dayId: "d1",
-        exerciseId: "e1",
-        numSets: 2,
-        repsLower: 5,
-        repsUpper: 8,
-        order: 0,
-        createdAt: base,
-        updatedAt: base,
-        exerciseDisplayName: "Squat",
-      },
-      {
-        id: "t2",
-        dayId: "d1",
-        exerciseId: "e2",
-        numSets: 2,
-        repsLower: 8,
-        repsUpper: 12,
-        order: 1,
-        createdAt: base,
-        updatedAt: base,
-        exerciseDisplayName: "Romanian Deadlift",
-      },
-    ]);
-
-    renderWithProviders(
-      <Routes>
-        <Route path="/workouts/:id" element={<WorkoutDetail />} />
-      </Routes>,
-      { route: "/workouts/w1", authValue }
-    );
-
-    const fillButton = await screen.findByRole("button", {
-      name: /fill from day/i,
+      sets: [],
     });
-    expect(fillButton).toBeEnabled();
-    expect(
-      mockDataAccess.workoutDetail.loadFillTemplateData
-    ).not.toHaveBeenCalled();
-    await user.click(fillButton);
-    await waitFor(() =>
-      expect(
-        mockDataAccess.workoutDetail.loadFillTemplateData
-      ).toHaveBeenCalledTimes(1)
-    );
+    mockDataAccess.workouts.deleteWithSets.mockResolvedValue(undefined);
 
+    renderDetail();
     await waitFor(() => {
-      expect(screen.getByText("Romanian Deadlift")).toBeInTheDocument();
+      expect(screen.getByLabelText(/workout options/i)).toBeInTheDocument();
     });
-    expect(screen.getAllByText(/target:/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/notes:/i).length).toBeGreaterThan(0);
-    expect(mockDataAccess.sets.create).not.toHaveBeenCalled();
+    await user.click(screen.getByLabelText(/workout options/i));
+    await user.click(screen.getByRole("menuitem", { name: /^delete$/i }));
+    await waitFor(() => {
+      expect(mockDataAccess.workouts.deleteWithSets).toHaveBeenCalledWith("w1");
+      expect(screen.getByText("Workouts list")).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/delete workout\?/i)).not.toBeInTheDocument();
   });
 
-  it("disables Fill from Day when the parent Day has no Set Targets", async () => {
+  it("confirms deletion when the workout has Sets", async () => {
     const user = userEvent.setup();
-    const ts = new Date("2024-02-01T12:00:00");
-    const base = new Date("2024-01-01T12:00:00");
-    mockDataAccess.workouts.get.mockResolvedValue({
-      id: "w1",
-      date: ts,
-      dayId: "d1",
-      dayNameSnapshot: "Leg Day",
-      note: "",
-      createdAt: base,
-      updatedAt: base,
-    });
-    mockDataAccess.sets.listForWorkout.mockResolvedValue([
-      {
-        id: "s1",
-        workoutId: "w1",
-        exerciseId: "e1",
-        exerciseNameSnapshot: "Squat",
-        reps: 5,
-        weight: 315,
-        unit: "lbs",
+    const date = new Date("2024-02-01T12:00:00");
+    mockDataAccess.workouts.getWithSets.mockResolvedValue({
+      workout: {
+        id: "w1",
+        date,
+        dayId: "",
+        dayNameSnapshot: "Custom",
         note: "",
-        performedAt: ts,
-        order: 0,
-        createdAt: base,
+        createdAt: date,
+        updatedAt: date,
       },
-    ]);
-    mockDataAccess.templates.listForDayWithExerciseNames.mockResolvedValue([]);
-
-    renderWithProviders(
-      <Routes>
-        <Route path="/workouts/:id" element={<WorkoutDetail />} />
-      </Routes>,
-      { route: "/workouts/w1", authValue }
+      sets: [
+        {
+          id: "s1",
+          workoutId: "w1",
+          exerciseId: "e1",
+          exerciseNameSnapshot: "Bench",
+          reps: 5,
+          weight: 100,
+          unit: "lbs",
+          note: "",
+          performedAt: date,
+          order: 0,
+          createdAt: date,
+        },
+      ],
+    });
+    mockDataAccess.resolveExerciseNames.mockResolvedValue(
+      new Map([["e1", "Bench"]])
     );
+    mockDataAccess.workouts.deleteWithSets.mockResolvedValue(undefined);
 
-    const fillButton = await screen.findByRole("button", {
-      name: /fill from day/i,
-    });
-    expect(fillButton).toBeEnabled();
-    await user.click(fillButton);
-    await waitFor(() => expect(fillButton).toBeDisabled());
-  });
-
-  it("shows an inline error when Fill from Day fetch fails and clears it on retry", async () => {
-    const user = userEvent.setup();
-    const ts = new Date("2024-02-01T12:00:00");
-    const base = new Date("2024-01-01T12:00:00");
-    mockDataAccess.workouts.get.mockResolvedValue({
-      id: "w1",
-      date: ts,
-      dayId: "d1",
-      dayNameSnapshot: "Leg Day",
-      note: "",
-      createdAt: base,
-      updatedAt: base,
-    });
-    mockDataAccess.sets.listForWorkout.mockResolvedValue([
-      {
-        id: "s1",
-        workoutId: "w1",
-        exerciseId: "e1",
-        exerciseNameSnapshot: "Squat",
-        reps: 5,
-        weight: 315,
-        unit: "lbs",
-        note: "",
-        performedAt: ts,
-        order: 0,
-        createdAt: base,
-      },
-    ]);
-    mockDataAccess.workoutDetail.loadFillTemplateData
-      .mockRejectedValueOnce(new Error("Network failed"))
-      .mockResolvedValueOnce({
-        dayTemplates: [],
-        lastPerformedByExercise: {},
-      });
-
-    renderWithProviders(
-      <Routes>
-        <Route path="/workouts/:id" element={<WorkoutDetail />} />
-      </Routes>,
-      { route: "/workouts/w1", authValue }
-    );
-
-    const fillButton = await screen.findByRole("button", {
-      name: /fill from day/i,
-    });
-    await user.click(fillButton);
+    renderDetail();
     await waitFor(() => {
-      expect(screen.getByRole("alert")).toHaveTextContent("Network failed");
+      expect(screen.getByLabelText(/workout options/i)).toBeInTheDocument();
     });
-    expect(fillButton).toBeEnabled();
-
-    await user.click(fillButton);
+    await user.click(screen.getByLabelText(/workout options/i));
+    await user.click(screen.getByRole("menuitem", { name: /^delete$/i }));
     await waitFor(() => {
-      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+      expect(screen.getByText(/delete workout\?/i)).toBeInTheDocument();
     });
-    await waitFor(() => expect(fillButton).toBeDisabled());
-  });
-});
-
-describe("workout reorder helpers", () => {
-  it("buildReorderedExerciseGroups reorders by group key", () => {
-    const groups = [
-      {
-        groupKey: "g1",
-        exerciseId: "e1",
-        exerciseName: "Squat",
-        rows: [],
-      },
-      {
-        groupKey: "g2",
-        exerciseId: "e2",
-        exerciseName: "Bench",
-        rows: [],
-      },
-    ];
-    const reordered = buildReorderedExerciseGroups(groups, "g2", "g1");
-    expect(reordered?.map((g) => g.groupKey)).toEqual(["g2", "g1"]);
-  });
-
-  it("buildWorkoutSetOrderUpdates creates contiguous order for persisted sets", () => {
-    const groups = [
-      {
-        groupKey: "g1",
-        exerciseId: "e1",
-        exerciseName: "Squat",
-        rows: [
-          { id: "r1", persistedSetId: "s1", reps: 5, weight: 100, note: "" },
-          { id: "r2", reps: 6, weight: 105, note: "" },
-        ],
-      },
-      {
-        groupKey: "g2",
-        exerciseId: "e2",
-        exerciseName: "Bench",
-        rows: [
-          { id: "r3", persistedSetId: "s3", reps: 5, weight: 200, note: "" },
-        ],
-      },
-    ];
-    expect(buildWorkoutSetOrderUpdates(groups)).toEqual([
-      { id: "s1", order: 0 },
-      { id: "s3", order: 1 },
-    ]);
+    await user.click(screen.getByRole("button", { name: /^delete$/i }));
+    await waitFor(() => {
+      expect(mockDataAccess.workouts.deleteWithSets).toHaveBeenCalledWith("w1");
+      expect(screen.getByText("Workouts list")).toBeInTheDocument();
+    });
   });
 });

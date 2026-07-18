@@ -13,8 +13,10 @@ import {
 } from "firebase/firestore";
 import {
   addDocument as persistAddDocument,
+  copyWorkoutWithSets as persistCopyWorkoutWithSets,
   patchDocument as persistPatchDocument,
   patchDocuments as persistPatchDocuments,
+  reconcileExerciseSets as persistReconcileExerciseSets,
   removeDocument as persistRemoveDocument,
   removeDocumentAndRelated as persistRemoveDocumentAndRelated,
   syncWorkoutDateAndSetsPerformedAt as persistSyncWorkoutDateAndSetsPerformedAt,
@@ -156,6 +158,21 @@ export function createFirebaseFirestoreDataPort(
       );
     },
 
+    async queryDaysWhereDocumentIdIn(ids) {
+      const unique = [...new Set(ids)];
+      const out: RawDoc[] = [];
+      const daysRef = collection(db, "days");
+      for (let i = 0; i < unique.length; i += FIRESTORE_IN_MAX) {
+        const chunk = unique.slice(i, i + FIRESTORE_IN_MAX);
+        const q = query(daysRef, where(documentId(), "in", chunk));
+        const snap = await read("queryDaysWhereDocumentIdIn", () => getDocs(q));
+        for (const d of snap.docs) {
+          out.push(toRawDoc(d.id, d.data() as Record<string, unknown>));
+        }
+      }
+      return out;
+    },
+
     async querySetsForWorkoutOrdered(workoutId) {
       const q = query(
         collection(db, "sets"),
@@ -202,6 +219,23 @@ export function createFirebaseFirestoreDataPort(
       return setsSnap.docs.map((d) =>
         toRawDoc(d.id, d.data() as Record<string, unknown>)
       );
+    },
+
+    async querySetsWhereWorkoutIdIn(workoutIds) {
+      const unique = [...new Set(workoutIds.filter(Boolean))];
+      if (unique.length === 0) return [];
+      const out: RawDoc[] = [];
+      const setsRef = collection(db, "sets");
+      // Sequential chunks — never Promise.all fan-out (Safari query budget).
+      for (let i = 0; i < unique.length; i += FIRESTORE_IN_MAX) {
+        const chunk = unique.slice(i, i + FIRESTORE_IN_MAX);
+        const q = query(setsRef, where("workoutId", "in", chunk));
+        const snap = await read("querySetsWhereWorkoutIdIn", () => getDocs(q));
+        for (const d of snap.docs) {
+          out.push(toRawDoc(d.id, d.data() as Record<string, unknown>));
+        }
+      }
+      return out;
     },
 
     async querySetsByExercisePerformedAtDesc(exerciseId, lim) {
@@ -283,6 +317,14 @@ export function createFirebaseFirestoreDataPort(
       return snap.docs.map((d) =>
         toRawDoc(d.id, d.data() as Record<string, unknown>)
       );
+    },
+
+    reconcileExerciseSets(input) {
+      return persistReconcileExerciseSets(db, input);
+    },
+
+    copyWorkoutWithSets(input) {
+      return persistCopyWorkoutWithSets(db, input);
     },
   };
 }

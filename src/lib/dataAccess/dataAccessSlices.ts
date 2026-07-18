@@ -96,10 +96,39 @@ export interface WorkoutsDataSlice {
     limit?: number;
     startAfter?: { date: Date; id: string };
   }): Promise<Array<Workout & { id: string }>>;
+  /**
+   * Paginated Workouts plus one batched Set query for the page.
+   * Sets are grouped client-side; no per-card Set reads.
+   */
+  listRecentWithSets(opts: {
+    sort: "asc" | "desc";
+    limit?: number;
+    startAfter?: { date: Date; id: string };
+  }): Promise<{
+    workouts: Array<Workout & { id: string }>;
+    setsByWorkoutId: Record<string, WorkoutSet[]>;
+  }>;
+  copyWithSets(input: {
+    workout: {
+      date: Date;
+      dayId: string;
+      dayNameSnapshot: string;
+      note?: string;
+    };
+    sets: Array<{
+      exerciseId: string;
+      exerciseNameSnapshot: string;
+      reps: number;
+      weight: number;
+      unit?: string;
+      order: number;
+    }>;
+  }): Promise<{ workoutId: string; setIds: string[] }>;
 }
 
 export interface SetsDataSlice {
   listForWorkout(workoutId: string): Promise<WorkoutSet[]>;
+  listForWorkouts(workoutIds: string[]): Promise<Record<string, WorkoutSet[]>>;
   lastPerformedGroupForExercise(
     exerciseId: string,
     excludeWorkoutId?: string
@@ -121,6 +150,22 @@ export interface SetsDataSlice {
   ): Promise<void>;
   reorder(updates: Array<{ id: string; order: number }>): Promise<void>;
   delete(id: string): Promise<void>;
+  reconcileExercise(input: {
+    workoutId: string;
+    exerciseId: string;
+    exerciseNameSnapshot: string;
+    performedAt: Date;
+    desiredSets: Array<{ reps: number; weight: number; note: string }>;
+    currentSets: Array<{
+      id: string;
+      exerciseId: string;
+      reps: number;
+      weight: number;
+      note: string;
+      order: number;
+    }>;
+    exerciseOrder: string[];
+  }): Promise<{ createdIds: string[] }>;
 }
 
 export interface ExportForBackupSlice {
@@ -141,5 +186,7 @@ export interface DataAccessSlices {
   workouts: WorkoutsDataSlice;
   sets: SetsDataSlice;
   resolveExerciseNames(ids: string[]): Promise<Map<string, string>>;
+  /** Map of dayId → whether the Day document still exists. */
+  resolveDayExistence(ids: string[]): Promise<Map<string, boolean>>;
   exportForBackup: ExportForBackupSlice;
 }

@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useDataAccess } from "../../contexts/DataAccessContext";
 import type { Exercise, WorkoutSet } from "../../types";
 import { LoadErrorPanel } from "../../components/LoadErrorPanel";
@@ -7,6 +7,7 @@ import { LoadingSpinner } from "../../components/LoadingSpinner";
 import { useRemoteLoad } from "../../hooks/useRemoteLoad";
 import { TopSetChart } from "../../components/TopSetChart";
 import { formatDateShort } from "../../lib/format";
+import { readReturnTo } from "../../lib/navigation/returnTo";
 import {
   buildSetNumberBySetId,
   buildSortedSetsForHistory,
@@ -18,6 +19,11 @@ type SetWithId = WorkoutSet & { id: string };
 export function ExerciseDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+  const returnTo = useMemo(
+    () => readReturnTo(location.state),
+    [location.state]
+  );
   const dataAccess = useDataAccess();
   const [exercise, setExercise] = useState<(Exercise & { id: string }) | null>(
     null
@@ -92,10 +98,10 @@ export function ExerciseDetail() {
         />
         <button
           type="button"
-          onClick={() => navigate("/exercises")}
+          onClick={() => navigate(returnTo.to)}
           className="mt-2 text-indigo-600 hover:underline"
         >
-          Back to exercises
+          {returnTo.label}
         </button>
       </div>
     );
@@ -107,10 +113,10 @@ export function ExerciseDetail() {
         <p className="text-gray-500">Exercise not found.</p>
         <button
           type="button"
-          onClick={() => navigate("/exercises")}
+          onClick={() => navigate(returnTo.to)}
           className="mt-2 text-indigo-600 hover:underline"
         >
-          Back to exercises
+          {returnTo.label}
         </button>
       </div>
     );
@@ -124,10 +130,10 @@ export function ExerciseDetail() {
         </h2>
         <button
           type="button"
-          onClick={() => navigate("/exercises")}
+          onClick={() => navigate(returnTo.to)}
           className="min-h-[44px] rounded-xl border border-gray-300 bg-white px-3 text-sm font-medium text-gray-700 hover:bg-gray-100"
         >
-          Back to Exercises
+          {returnTo.label}
         </button>
       </div>
 

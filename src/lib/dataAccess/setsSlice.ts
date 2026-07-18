@@ -17,6 +17,24 @@ export function buildSetsSlice(
       return rows.map((d) => mapWorkoutSetFromDoc(d.id, d.data));
     },
 
+    async listForWorkouts(
+      workoutIds: string[]
+    ): Promise<Record<string, WorkoutSet[]>> {
+      const rows = await firestore.querySetsWhereWorkoutIdIn(workoutIds);
+      const byWorkout: Record<string, WorkoutSet[]> = {};
+      for (const id of workoutIds) byWorkout[id] = [];
+      for (const row of rows) {
+        const set = mapWorkoutSetFromDoc(row.id, row.data);
+        const list = byWorkout[set.workoutId] ?? [];
+        list.push(set);
+        byWorkout[set.workoutId] = list;
+      }
+      for (const wid of Object.keys(byWorkout)) {
+        byWorkout[wid].sort((a, b) => a.order - b.order);
+      }
+      return byWorkout;
+    },
+
     async lastPerformedGroupForExercise(
       exerciseId: string,
       excludeWorkoutId?: string
@@ -107,6 +125,25 @@ export function buildSetsSlice(
 
     async delete(id: string): Promise<void> {
       return withSaving(saving, () => firestore.removeDocument("sets", id));
+    },
+
+    async reconcileExercise(input: {
+      workoutId: string;
+      exerciseId: string;
+      exerciseNameSnapshot: string;
+      performedAt: Date;
+      desiredSets: Array<{ reps: number; weight: number; note: string }>;
+      currentSets: Array<{
+        id: string;
+        exerciseId: string;
+        reps: number;
+        weight: number;
+        note: string;
+        order: number;
+      }>;
+      exerciseOrder: string[];
+    }): Promise<{ createdIds: string[] }> {
+      return withSaving(saving, () => firestore.reconcileExerciseSets(input));
     },
   };
 }

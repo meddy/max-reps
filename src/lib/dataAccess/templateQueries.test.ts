@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createStubFirestoreDataPort } from "../../test/stubFirestoreDataPort";
 import {
+  resolveDayExistenceImpl,
   resolveExerciseNamesImpl,
   templatesWithNamesForDayIds,
 } from "./templateQueries";
@@ -52,6 +53,36 @@ describe("resolveExerciseNamesImpl", () => {
     const map = await resolveExerciseNamesImpl(port, ["a", "b"]);
     expect(map.has("a")).toBe(true);
     expect(map.has("b")).toBe(false);
+  });
+});
+
+describe("resolveDayExistenceImpl", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns empty map for empty input without querying", async () => {
+    const queryDaysWhereDocumentIdIn = vi.fn();
+    const port = createStubFirestoreDataPort({ queryDaysWhereDocumentIdIn });
+    const map = await resolveDayExistenceImpl(port, []);
+    expect(map.size).toBe(0);
+    expect(queryDaysWhereDocumentIdIn).not.toHaveBeenCalled();
+  });
+
+  it("marks found days as existing and missing ids as false", async () => {
+    const queryDaysWhereDocumentIdIn = vi
+      .fn()
+      .mockResolvedValue([{ id: "d1", data: { displayName: "Push" } }]);
+    const port = createStubFirestoreDataPort({ queryDaysWhereDocumentIdIn });
+
+    const map = await resolveDayExistenceImpl(port, ["d1", "d1", "d_missing"]);
+
+    expect(queryDaysWhereDocumentIdIn).toHaveBeenCalledWith([
+      "d1",
+      "d_missing",
+    ]);
+    expect(map.get("d1")).toBe(true);
+    expect(map.get("d_missing")).toBe(false);
   });
 });
 

@@ -1,4 +1,9 @@
 import type { CollectionName } from "../../types";
+import {
+  assertPlanWithinBatchLimit,
+  FIRESTORE_BATCH_LIMIT,
+  planExerciseSetReconcile,
+} from "../setEntry/planExerciseSetReconcile";
 import type { FirestoreDataPort, RawDoc } from "./types";
 
 type Store = Map<CollectionName, Map<string, Record<string, unknown>>>;
@@ -220,6 +225,11 @@ export function createInMemoryFirestoreDataPort(
       return listCol("sets").filter((d) => d.data.workoutId === workoutId);
     },
 
+    async querySetsWhereWorkoutIdIn(workoutIds) {
+      const set = new Set(workoutIds);
+      return listCol("sets").filter((d) => set.has(d.data.workoutId as string));
+    },
+
     async querySetsByExercisePerformedAtDesc(exerciseId, lim) {
       return listCol("sets")
         .filter((d) => d.data.exerciseId === exerciseId)
@@ -250,6 +260,11 @@ export function createInMemoryFirestoreDataPort(
       return listCol("exercises").filter((d) => set.has(d.id));
     },
 
+    async queryDaysWhereDocumentIdIn(ids) {
+      const set = new Set(ids);
+      return listCol("days").filter((d) => set.has(d.id));
+    },
+
     async queryTemplatesWhereDayIdIn(dayIds) {
       const set = new Set(dayIds);
       return listCol("exerciseSetTemplates").filter((d) =>
@@ -267,6 +282,101 @@ export function createInMemoryFirestoreDataPort(
           (a, b) => asNumber(b.data.performedAt) - asNumber(a.data.performedAt)
         )
         .slice(0, limitCount);
+    },
+
+    async reconcileExerciseSets(input) {
+      const existingForExercise = input.currentSets.filter(
+        (s) => s.exerciseId === input.exerciseId
+      );
+      const plan = planExerciseSetReconcile({
+        desired: input.desiredSets,
+        existingForExercise,
+        allWorkoutSets: input.currentSets,
+        exerciseId: input.exerciseId,
+        exerciseOrder: input.exerciseOrder,
+      });
+      assertPlanWithinBatchLimit(plan);
+
+      const setsCol = ensureCol("sets");
+      const createdIds: string[] = [];
+
+      for (const create of plan.creates) {
+        const id = newId();
+        createdIds.push(id);
+        setsCol.set(id, {
+          workoutId: input.workoutId,
+          exerciseId: input.exerciseId,
+          exerciseNameSnapshot: input.exerciseNameSnapshot,
+          reps: create.reps,
+          weight: create.weight,
+          unit: "lbs",
+          note: create.note,
+          performedAt: input.performedAt,
+          order: create.order,
+          createdAt: new Date(),
+        });
+      }
+
+      for (const update of plan.updates) {
+        const cur = setsCol.get(update.id) ?? {};
+        setsCol.set(update.id, {
+          ...cur,
+          reps: update.reps,
+          weight: update.weight,
+          note: update.note,
+          order: update.order,
+          performedAt: input.performedAt,
+          exerciseNameSnapshot: input.exerciseNameSnapshot,
+        });
+      }
+
+      for (const del of plan.deletes) {
+        setsCol.delete(del.id);
+      }
+
+      for (const patch of plan.otherOrderPatches) {
+        const cur = setsCol.get(patch.id) ?? {};
+        setsCol.set(patch.id, { ...cur, order: patch.order });
+      }
+
+      return { createdIds };
+    },
+
+    async copyWorkoutWithSets(input) {
+      const opCount = 1 + input.sets.length;
+      if (opCount > FIRESTORE_BATCH_LIMIT) {
+        throw new Error(
+          `Workout copy requires ${opCount} writes, exceeding Firestore's batch limit of ${FIRESTORE_BATCH_LIMIT}`
+        );
+      }
+      const workoutId = newId();
+      ensureCol("workouts").set(workoutId, {
+        date: input.workout.date,
+        dayId: input.workout.dayId,
+        dayNameSnapshot: input.workout.dayNameSnapshot,
+        note: input.workout.note ?? "",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      const setIds: string[] = [];
+      const setsCol = ensureCol("sets");
+      for (const s of input.sets) {
+        const id = newId();
+        setIds.push(id);
+        setsCol.set(id, {
+          workoutId,
+          exerciseId: s.exerciseId,
+          exerciseNameSnapshot: s.exerciseNameSnapshot,
+          reps: s.reps,
+          weight: s.weight,
+          unit: s.unit ?? "lbs",
+          note: "",
+          performedAt: input.workout.date,
+          order: s.order,
+          createdAt: new Date(),
+        });
+      }
+      return { workoutId, setIds };
     },
   };
 

@@ -54,10 +54,13 @@ function buildMockDataAccess() {
     deleteWithSets: vi.fn(),
     getNotesByWorkoutIds: vi.fn(),
     listRecent: vi.fn(),
+    listRecentWithSets: vi.fn(),
+    copyWithSets: vi.fn(),
   };
 
   const sets = {
     listForWorkout: vi.fn(),
+    listForWorkouts: vi.fn(),
     lastPerformedGroupForExercise: vi.fn(),
     listForExercise: vi.fn(),
     prForExercise: vi.fn(),
@@ -65,6 +68,7 @@ function buildMockDataAccess() {
     update: vi.fn(),
     reorder: vi.fn(),
     delete: vi.fn(),
+    reconcileExercise: vi.fn(),
   };
 
   const exportForBackup = {
@@ -101,6 +105,7 @@ function buildMockDataAccess() {
     workouts,
     sets,
     resolveExerciseNames: vi.fn(),
+    resolveDayExistence: vi.fn(),
     exportForBackup,
     workoutDetail,
   } satisfies DataAccess;
@@ -174,8 +179,17 @@ function seedDefaultResolvedValues(da: BuiltMockDataAccess): void {
   da.workouts.deleteWithSets.mockResolvedValue(undefined);
   da.workouts.getNotesByWorkoutIds.mockResolvedValue({});
   da.workouts.listRecent.mockResolvedValue([]);
+  da.workouts.listRecentWithSets.mockResolvedValue({
+    workouts: [],
+    setsByWorkoutId: {},
+  });
+  da.workouts.copyWithSets.mockResolvedValue({
+    workoutId: "w-copy",
+    setIds: [],
+  });
 
   da.sets.listForWorkout.mockResolvedValue([]);
+  da.sets.listForWorkouts.mockResolvedValue({});
   da.sets.lastPerformedGroupForExercise.mockResolvedValue({
     sets: [],
   });
@@ -185,8 +199,10 @@ function seedDefaultResolvedValues(da: BuiltMockDataAccess): void {
   da.sets.update.mockResolvedValue(undefined);
   da.sets.reorder.mockResolvedValue(undefined);
   da.sets.delete.mockResolvedValue(undefined);
+  da.sets.reconcileExercise.mockResolvedValue({ createdIds: [] });
 
   da.resolveExerciseNames.mockResolvedValue(new Map());
+  da.resolveDayExistence.mockResolvedValue(new Map());
 
   da.exportForBackup.allCollectionsRaw.mockResolvedValue({
     exercises: [],

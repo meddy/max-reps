@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -15,7 +15,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import { useDataAccess } from "../../contexts/DataAccessContext";
 import type { Day, TemplateWithExerciseName } from "../../types";
 import { ExercisePicker } from "../../components/ExercisePicker";
@@ -27,6 +27,10 @@ import { LoadingSpinner } from "../../components/LoadingSpinner";
 import { useRemoteLoad } from "../../hooks/useRemoteLoad";
 import { Modal } from "../../components/Modal";
 import { DragOverlayChip } from "../../lib/dnd/DragOverlayChip";
+import {
+  DEFAULT_DAY_RETURN_TO,
+  readReturnTo,
+} from "../../lib/navigation/returnTo";
 import {
   GuardedPointerSensor,
   GuardedTouchSensor,
@@ -82,6 +86,7 @@ export function buildTemplateReorderResult(
 }
 
 type SortableTemplateRowProps = {
+  dayId: string;
   template: TemplateWithExerciseName;
   isEditing: boolean;
   isDragGestureActive: boolean;
@@ -98,6 +103,7 @@ type SortableTemplateRowProps = {
 };
 
 function SortableTemplateRow({
+  dayId,
   template,
   isEditing,
   isDragGestureActive,
@@ -148,6 +154,12 @@ function SortableTemplateRow({
           <div className="min-w-0 flex-1">
             <Link
               to={`/exercises/${template.exerciseId}`}
+              state={{
+                returnTo: {
+                  to: `/days/${dayId}`,
+                  label: "Back to Days",
+                },
+              }}
               className="font-medium text-gray-900 hover:text-indigo-700"
             >
               {template.exerciseDisplayName}
@@ -236,6 +248,11 @@ export function DayDetail() {
   const dataAccess = useDataAccess();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+  const returnTo = useMemo(
+    () => readReturnTo(location.state, DEFAULT_DAY_RETURN_TO),
+    [location.state]
+  );
   const [day, setDay] = useState<(Day & { id: string }) | null>(null);
   const [templates, setTemplates] = useState<TemplateWithExerciseName[]>([]);
   const [addOpen, setAddOpen] = useState(false);
@@ -381,10 +398,10 @@ export function DayDetail() {
         />
         <button
           type="button"
-          onClick={() => navigate("/days")}
+          onClick={() => navigate(returnTo.to)}
           className="mt-2 text-indigo-600 hover:underline"
         >
-          Back to Days
+          {returnTo.label}
         </button>
       </div>
     );
@@ -396,10 +413,10 @@ export function DayDetail() {
         <p className="text-gray-500">Day not found.</p>
         <button
           type="button"
-          onClick={() => navigate("/days")}
+          onClick={() => navigate(returnTo.to)}
           className="mt-2 text-indigo-600 hover:underline"
         >
-          Back to Days
+          {returnTo.label}
         </button>
       </div>
     );
@@ -413,10 +430,10 @@ export function DayDetail() {
         </h2>
         <button
           type="button"
-          onClick={() => navigate("/days")}
+          onClick={() => navigate(returnTo.to)}
           className="min-h-[44px] rounded-xl border border-gray-300 bg-white px-3 text-sm font-medium text-gray-700 hover:bg-gray-100"
         >
-          Back to Days
+          {returnTo.label}
         </button>
       </div>
 
@@ -461,6 +478,7 @@ export function DayDetail() {
               {templates.map((template) => (
                 <SortableTemplateRow
                   key={template.id}
+                  dayId={day.id}
                   template={template}
                   isEditing={editingTemplateId === template.id}
                   isDragGestureActive={isDragGestureActive}

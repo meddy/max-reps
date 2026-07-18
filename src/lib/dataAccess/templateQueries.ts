@@ -3,6 +3,7 @@ import type {
   TemplateWithExerciseName,
 } from "../../types";
 import type {
+  ResolveDayExistenceFirestorePort,
   ResolveExerciseNamesFirestorePort,
   TemplatesWithNamesFirestorePort,
 } from "../firestoreDataPort/types";
@@ -19,6 +20,22 @@ export async function resolveExerciseNamesImpl(
   for (const d of docs) {
     const name = d.data.displayName as string | undefined;
     if (name) map.set(d.id, name);
+  }
+  return map;
+}
+
+/** Map of dayId → whether the Day document still exists. */
+export async function resolveDayExistenceImpl(
+  firestore: ResolveDayExistenceFirestorePort,
+  dayIds: string[]
+): Promise<Map<string, boolean>> {
+  const unique = [...new Set(dayIds.filter(Boolean))];
+  const map = new Map<string, boolean>();
+  if (unique.length === 0) return map;
+  const docs = await firestore.queryDaysWhereDocumentIdIn(unique);
+  const found = new Set(docs.map((d) => d.id));
+  for (const id of unique) {
+    map.set(id, found.has(id));
   }
   return map;
 }

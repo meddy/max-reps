@@ -27,12 +27,16 @@ export function createStubFirestoreDataPort(
     querySetsForWorkoutOrdered: vi.fn(reject),
     queryWorkoutsByDate: vi.fn(reject),
     querySetsByWorkoutId: vi.fn(reject),
+    querySetsWhereWorkoutIdIn: vi.fn(reject),
     querySetsByExercisePerformedAtDesc: vi.fn(reject),
     querySetsPrForExercise: vi.fn(reject),
     queryExercisesWhereDocumentIdIn: vi.fn(reject),
+    queryDaysWhereDocumentIdIn: vi.fn(reject),
     queryTemplatesWhereDayIdIn: vi.fn(reject),
     queryCollectionDocuments: vi.fn(reject),
     querySetsDocumentsForCsv: vi.fn(reject),
+    reconcileExerciseSets: vi.fn(reject),
+    copyWorkoutWithSets: vi.fn(reject),
     ...partial,
   };
 }

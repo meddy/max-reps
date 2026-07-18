@@ -11,6 +11,8 @@ import { mockDataAccess } from "./mockDataAccess";
 
 export type RenderWithProvidersOptions = Omit<RenderOptions, "wrapper"> & {
   route?: string;
+  /** Passed as `location.state` for the initial MemoryRouter entry. */
+  locationState?: unknown;
   authValue?: AuthContextValue;
   /** When set, uses this instance instead of the global `mockDataAccess`. */
   dataAccess?: DataAccess;
@@ -20,6 +22,7 @@ export function renderWithProviders(
   ui: ReactElement,
   {
     route = "/",
+    locationState,
     authValue,
     dataAccess = mockDataAccess,
     ...renderOptions
@@ -27,7 +30,15 @@ export function renderWithProviders(
 ) {
   function Wrapper({ children }: { children: ReactNode }) {
     const inner = (
-      <MemoryRouter initialEntries={[route]}>{children}</MemoryRouter>
+      <MemoryRouter
+        initialEntries={[
+          locationState === undefined
+            ? route
+            : { pathname: route, state: locationState },
+        ]}
+      >
+        {children}
+      </MemoryRouter>
     );
     const withData = (
       <DataAccessProvider value={dataAccess}>{inner}</DataAccessProvider>

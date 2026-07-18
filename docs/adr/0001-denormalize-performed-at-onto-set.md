@@ -1,6 +1,6 @@
 # Denormalize `performedAt` onto Set documents
 
-Each **Set** document carries a `performedAt` field that mirrors its parent **Workout**'s `date`. We keep the duplication on purpose: Firestore can't join, and several core queries — exercise history, top-set-per-workout chart, all-time PR, last-performed lookup — are indexed on `(exerciseId, performedAt desc)` directly on the `sets` collection. Computing the date from the parent Workout at read time would require an N+1 fan-out fetch and break those indexes.
+Each **Set** document carries a `performedAt` field that mirrors its parent **Workout**'s `date`. We keep the duplication on purpose: Firestore can't join, and several core queries — exercise history, top-set-per-workout chart, and all-time PR — are indexed on `(exerciseId, performedAt desc)` directly on the `sets` collection. Computing the date from the parent Workout at read time would require an N+1 fan-out fetch and break those indexes.
 
 ## Consequences
 
