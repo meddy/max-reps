@@ -71,7 +71,7 @@ describe("createWriteQueue", () => {
     expect(runs).toEqual([2]);
   });
 
-  it("pauses on failure and retries from rebuilt command", async () => {
+  it("pauses on failure and retries the same failed command", async () => {
     const q = createWriteQueue();
     let shouldFail = true;
     const run = vi.fn(async () => {
@@ -90,13 +90,7 @@ describe("createWriteQueue", () => {
     expect(q.getSnapshot().error?.message).toBe("boom");
 
     shouldFail = false;
-    q.retry(() => ({
-      id: "cmd-retry",
-      revision: 2,
-      label: "x",
-      coalesceKey: "e1",
-      run,
-    }));
+    q.retry();
     await q.drain();
     expect(q.getSnapshot().status).toBe("idle");
     expect(run).toHaveBeenCalledTimes(2);

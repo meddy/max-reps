@@ -287,3 +287,83 @@ describe("applyDaySelection", () => {
     expect(ids).toEqual(["custom", "bench"]);
   });
 });
+
+describe("reconcile live draft", () => {
+  function defer<T>() {
+    let resolve!: (value: T) => void;
+    let reject!: (reason?: unknown) => void;
+    const promise = new Promise<T>((res, rej) => {
+      resolve = res;
+      reject = rej;
+    });
+    return { promise, resolve, reject };
+  }
+
+  it("persists text edited while an earlier reconcile is still queued", async () => {
+    const gate = defer<void>();
+    const persistence = stubPersistence();
+    const reconcileCalls: Array<{ reps: number; weight: number }[]> = [];
+    persistence.updateWorkout = vi.fn(() => gate.promise);
+    persistence.reconcileExercise = vi.fn(async (input) => {
+      reconcileCalls.push(
+        input.desiredSets.map((s: { reps: number; weight: number }) => ({
+          reps: s.reps,
+          weight: s.weight,
+        }))
+      );
+      return { createdIds: [] };
+    });
+
+    const editor = createEditor({
+      sets: [
+        set({
+          id: "s1",
+          exerciseId: "bench",
+          exerciseNameSnapshot: "Bench",
+          reps: 5,
+          weight: 225,
+          order: 0,
+        }),
+      ],
+      persistence,
+    });
+
+    // Block the queue so the reconcile stays queued after enqueue.
+    void editor.updateMeta({ note: "hold" });
+
+    const localId = editor.getSnapshot().drafts[0]!.localId;
+    editor.setText(localId, "225x5");
+    const flushPromise = editor.flushDraft(localId);
+
+    await vi.waitFor(() =>
+      expect(editor.getSnapshot().queueStatus).toBe("pending")
+    );
+    expect(reconcileCalls).toHaveLength(0);
+
+    // Mutate draft while reconcile is still queued — run should re-read live text.
+    editor.setText(localId, "185x3");
+    gate.resolve();
+    await flushPromise;
+
+    expect(reconcileCalls.length).toBeGreaterThanOrEqual(1);
+    expect(reconcileCalls[0]).toEqual([{ reps: 3, weight: 185 }]);
+  });
+
+  it("exposes hasPendingDebounce while a set-entry timer is armed", () => {
+    const editor = createEditor({
+      sets: [
+        set({
+          id: "s1",
+          exerciseId: "bench",
+          exerciseNameSnapshot: "Bench",
+          order: 0,
+        }),
+      ],
+    });
+    expect(editor.getSnapshot().hasPendingDebounce).toBe(false);
+    const localId = editor.getSnapshot().drafts[0]!.localId;
+    editor.setText(localId, "230x5");
+    expect(editor.getSnapshot().hasPendingDebounce).toBe(true);
+    expect(editor.getSnapshot().isBusy).toBe(true);
+  });
+});

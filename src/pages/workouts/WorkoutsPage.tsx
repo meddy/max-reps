@@ -664,6 +664,8 @@ function EditingCard({
 }) {
   const dateRef = useRef(workout.date);
   dateRef.current = workout.date;
+  const workoutRef = useRef(workout);
+  workoutRef.current = workout;
   const onBusyChangeRef = useRef(onBusyChange);
   onBusyChangeRef.current = onBusyChange;
   const onSetsChangeRef = useRef(onSetsChange);
@@ -679,7 +681,12 @@ function EditingCard({
     persistence: {
       updateWorkout: async (patch) => {
         await persistence.updateWorkout(patch);
-        const next = { ...workout, ...patch, updatedAt: new Date() };
+        const next = {
+          ...workoutRef.current,
+          ...patch,
+          updatedAt: new Date(),
+        };
+        workoutRef.current = next;
         if (patch.date) dateRef.current = patch.date;
         onWorkoutChangeRef.current(next);
       },
@@ -697,10 +704,11 @@ function EditingCard({
   useEffect(() => {
     onBusyChangeRef.current(
       editor.hasInvalidDraft ||
+        editor.hasPendingDebounce ||
         editor.queueStatus === "pending" ||
         editor.queueStatus === "failed"
     );
-  }, [editor.hasInvalidDraft, editor.queueStatus]);
+  }, [editor.hasInvalidDraft, editor.hasPendingDebounce, editor.queueStatus]);
 
   useEffect(() => {
     onSetsChangeRef.current(editor.editor.getCurrentSets());
@@ -748,13 +756,15 @@ function EditingCard({
         void (async () => {
           const templates = day ? await getTemplatesForDay(day.id) : [];
           editor.applyDaySelection(day, templates);
-          onWorkoutChange({
-            ...editor.workout,
+          const next = {
+            ...workoutRef.current,
             dayId: day?.id ?? "",
             dayNameSnapshot: day
               ? day.displayName
-              : editor.workout.dayNameSnapshot,
-          });
+              : workoutRef.current.dayNameSnapshot,
+          };
+          workoutRef.current = next;
+          onWorkoutChangeRef.current(next);
         })();
       }}
       onTextChange={editor.setText}
@@ -788,7 +798,7 @@ function EditingCard({
             // in the read model — editor drafts with empty text and no setIds
             // disappear on exit.
             onSetsChange(editor.getCurrentSets());
-            await onConfirm(editor.workout);
+            await onConfirm(editor.editor.getSnapshot().workout);
           } catch {
             /* validation / queue error — stay in edit mode */
           }

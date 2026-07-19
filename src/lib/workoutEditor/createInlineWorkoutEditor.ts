@@ -52,6 +52,7 @@ export type InlineEditorSnapshot = {
   queueStatus: "idle" | "pending" | "failed";
   queueError: Error | null;
   hasInvalidDraft: boolean;
+  hasPendingDebounce: boolean;
   isBusy: boolean;
 };
 
@@ -125,6 +126,7 @@ export function createInlineWorkoutEditor(config: InlineEditorConfig) {
   function buildSnapshot(): InlineEditorSnapshot {
     const q = queue.getSnapshot();
     const hasInvalidDraft = drafts.some((d) => d.parseError != null);
+    const hasPendingDebounce = debounceTimers.size > 0;
     return {
       workout: { ...workout },
       drafts: drafts.map((d) => ({ ...d })),
@@ -132,8 +134,12 @@ export function createInlineWorkoutEditor(config: InlineEditorConfig) {
       queueStatus: q.status,
       queueError: q.error,
       hasInvalidDraft,
+      hasPendingDebounce,
       isBusy:
-        q.status === "pending" || q.status === "failed" || hasInvalidDraft,
+        q.status === "pending" ||
+        q.status === "failed" ||
+        hasInvalidDraft ||
+        hasPendingDebounce,
     };
   }
 
@@ -183,11 +189,7 @@ export function createInlineWorkoutEditor(config: InlineEditorConfig) {
         run: async () => {},
       };
     }
-    const parsed = parseSetEntry(draft.text);
-    const desiredSets = parsed.ok ? parsed.sets : [];
     const exerciseId = draft.exerciseId;
-    const exerciseNameSnapshot = draft.exerciseName;
-    const setIds = [...draft.setIds];
 
     return {
       id: `reconcile-${exerciseId}-${rev}`,
@@ -199,6 +201,14 @@ export function createInlineWorkoutEditor(config: InlineEditorConfig) {
         const latest = drafts.find((d) => d.localId === localId);
         if (!latest || latest.exerciseId !== exerciseId) return;
         if (revision < rev) return;
+
+        // Re-read live draft at execution time so in-flight edits win.
+        applyParseState(localId);
+        if (latest.parseError) return;
+        const parsed = parseSetEntry(latest.text);
+        const desiredSets = parsed.ok ? parsed.sets : [];
+        const exerciseNameSnapshot = latest.exerciseName;
+        const setIds = [...latest.setIds];
 
         const result = await config.persistence.reconcileExercise({
           exerciseId,
@@ -595,19 +605,7 @@ export function createInlineWorkoutEditor(config: InlineEditorConfig) {
       emit();
     },
     retry() {
-      queue.retry(() => {
-        // Rebuild from the first draft that needs reconcile; prefer failed coalesce.
-        const first = drafts[0];
-        if (!first) {
-          return {
-            id: `retry-empty-${revision}`,
-            revision,
-            label: "retry-empty",
-            run: async () => {},
-          };
-        }
-        return buildReconcileCommand(first.localId, bumpRevision());
-      });
+      queue.retry();
       emit();
     },
     dispose() {

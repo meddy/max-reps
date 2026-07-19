@@ -102,22 +102,11 @@ export function createWriteQueue() {
       emit();
       void pump();
     },
-    retry(rebuild: () => WriteQueueCommand & { coalesceKey?: string }): void {
+    retry(): void {
       if (status !== "failed") return;
-      if (queue[0]?.id === failedCommandId) {
-        queue.shift();
-      }
-      const next = rebuild();
       error = null;
       failedCommandId = null;
       status = "pending";
-      if (next.coalesceKey) {
-        const idx = queue.findIndex((c) => c.coalesceKey === next.coalesceKey);
-        if (idx >= 0) queue[idx] = next;
-        else queue.unshift(next);
-      } else {
-        queue.unshift(next);
-      }
       emit();
       void pump();
     },
