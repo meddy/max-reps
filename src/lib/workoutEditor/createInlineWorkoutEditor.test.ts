@@ -366,4 +366,53 @@ describe("reconcile live draft", () => {
     expect(editor.getSnapshot().hasPendingDebounce).toBe(true);
     expect(editor.getSnapshot().isBusy).toBe(true);
   });
+
+  it("dispose flushes pending debounce and queued writes instead of dropping them", async () => {
+    const gate = defer<void>();
+    const persistence = stubPersistence();
+    persistence.updateWorkout = vi.fn(() => gate.promise);
+    persistence.reconcileExercise = vi.fn(async () => ({ createdIds: [] }));
+
+    const editor = createEditor({
+      sets: [
+        set({
+          id: "s1",
+          exerciseId: "bench",
+          exerciseNameSnapshot: "Bench",
+          reps: 5,
+          weight: 225,
+          order: 0,
+        }),
+      ],
+      persistence,
+    });
+
+    // Block the queue with a meta write, then arm a debounced reconcile.
+    void editor.updateMeta({ note: "keep-me" });
+    const localId = editor.getSnapshot().drafts[0]!.localId;
+    editor.setText(localId, "230x5");
+    expect(editor.getSnapshot().hasPendingDebounce).toBe(true);
+
+    editor.dispose();
+
+    expect(editor.getSnapshot().hasPendingDebounce).toBe(false);
+    expect(persistence.reconcileExercise).not.toHaveBeenCalled();
+
+    gate.resolve();
+    await vi.waitFor(() =>
+      expect(persistence.reconcileExercise).toHaveBeenCalled()
+    );
+    expect(persistence.updateWorkout).toHaveBeenCalledWith({ note: "keep-me" });
+    const reconcileInput = (
+      persistence.reconcileExercise as ReturnType<typeof vi.fn>
+    ).mock.calls[0]![0] as {
+      desiredSets: Array<{ reps: number; weight: number }>;
+    };
+    expect(
+      reconcileInput.desiredSets.map((s) => ({
+        reps: s.reps,
+        weight: s.weight,
+      }))
+    ).toEqual([{ reps: 5, weight: 230 }]);
+  });
 });

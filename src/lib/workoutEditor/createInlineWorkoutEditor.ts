@@ -289,6 +289,20 @@ export function createInlineWorkoutEditor(config: InlineEditorConfig) {
     emit();
   }
 
+  /** Promote armed debounce timers into the write queue (skips invalid drafts). */
+  function enqueuePendingDebounces() {
+    for (const [localId, timer] of [...debounceTimers.entries()]) {
+      clearTimeout(timer);
+      debounceTimers.delete(localId);
+      const draft = drafts.find((d) => d.localId === localId);
+      if (!draft) continue;
+      applyParseState(localId);
+      if (draft.parseError) continue;
+      const rev = bumpRevision();
+      queue.enqueue(buildReconcileCommand(localId, rev));
+    }
+  }
+
   /** Drop blank local lines that have no saved Sets. */
   function clearEmptyDrafts() {
     const kept: InlineExerciseDraft[] = [];
@@ -396,16 +410,7 @@ export function createInlineWorkoutEditor(config: InlineEditorConfig) {
       await queue.drain();
     },
     async flushAll() {
-      for (const [localId, timer] of debounceTimers) {
-        clearTimeout(timer);
-        debounceTimers.delete(localId);
-        const draft = drafts.find((d) => d.localId === localId);
-        if (!draft) continue;
-        applyParseState(localId);
-        if (draft.parseError) continue;
-        const rev = bumpRevision();
-        queue.enqueue(buildReconcileCommand(localId, rev));
-      }
+      enqueuePendingDebounces();
       emit();
       if (drafts.some((d) => d.parseError)) {
         throw new Error("Cannot flush invalid drafts");
@@ -609,9 +614,15 @@ export function createInlineWorkoutEditor(config: InlineEditorConfig) {
       emit();
     },
     dispose() {
-      for (const timer of debounceTimers.values()) clearTimeout(timer);
-      debounceTimers.clear();
-      queue.clear();
+      // Flush pending debounced reconciles into the queue and leave the queue
+      // running so unmount (e.g. navigating away mid-autosave) does not drop
+      // writes. Invalid drafts are skipped; already-queued meta/reconcile/etc.
+      // commands continue.
+      enqueuePendingDebounces();
+      if (queue.getSnapshot().status === "failed") {
+        queue.retry();
+      }
+      emit();
     },
   };
 }
