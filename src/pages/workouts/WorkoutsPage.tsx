@@ -81,6 +81,8 @@ export function WorkoutsPage({ mode }: { mode: "list" | "single" }) {
     >
   >(new Map());
   const [fillWarning, setFillWarning] = useState<string | null>(null);
+  const [copyError, setCopyError] = useState<string | null>(null);
+  const [mutating, setMutating] = useState(false);
   const [exerciseLinkState, setExerciseLinkState] = useState<
     Record<string, { exists: boolean; displayName?: string }>
   >({});
@@ -250,106 +252,121 @@ export function WorkoutsPage({ mode }: { mode: "list" | "single" }) {
   );
 
   async function handleCreate() {
-    if (editingId) return;
-    const date = dateFromInputValue(toDateInputValue());
-    const id = await dataAccess.workouts.create({
-      date,
-      dayId: "",
-      dayNameSnapshot: "",
-      note: "",
-    });
-    const created: WorkoutRow = {
-      id,
-      date,
-      dayId: "",
-      dayNameSnapshot: "",
-      note: "",
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-    setLocalOverride(created);
-    setSetsByWorkoutId((prev) => ({ ...prev, [id]: [] }));
-    setEditingId(id);
-    await ensureDaysLoaded();
-    requestAnimationFrame(() => {
-      document
-        .querySelector(`[data-workout-id="${id}"]`)
-        ?.scrollIntoView({ behavior: "smooth", block: "start" });
-    });
+    if (editingId || mutating) return;
+    setMutating(true);
+    try {
+      const date = dateFromInputValue(toDateInputValue());
+      const id = await dataAccess.workouts.create({
+        date,
+        dayId: "",
+        dayNameSnapshot: "",
+        note: "",
+      });
+      const created: WorkoutRow = {
+        id,
+        date,
+        dayId: "",
+        dayNameSnapshot: "",
+        note: "",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      setLocalOverride(created);
+      setSetsByWorkoutId((prev) => ({ ...prev, [id]: [] }));
+      setEditingId(id);
+      await ensureDaysLoaded();
+      requestAnimationFrame(() => {
+        document
+          .querySelector(`[data-workout-id="${id}"]`)
+          ?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    } finally {
+      setMutating(false);
+    }
   }
 
   async function handleCopy(source: WorkoutRow) {
-    if (editingId) return;
-    const sourceSets = setsByWorkoutId[source.id] ?? [];
-    const dayList = await ensureDaysLoaded();
-    let dayId = source.dayId;
-    let dayNameSnapshot = source.dayNameSnapshot;
-    if (dayId) {
-      const live = dayList.find((d) => d.id === dayId);
-      if (!live) {
-        dayId = "";
-      } else {
-        dayNameSnapshot = live.displayName;
+    if (editingId || mutating) return;
+    setCopyError(null);
+    setMutating(true);
+    try {
+      const sourceSets = setsByWorkoutId[source.id] ?? [];
+      const dayList = await ensureDaysLoaded();
+      let dayId = source.dayId;
+      let dayNameSnapshot = source.dayNameSnapshot;
+      if (dayId) {
+        const live = dayList.find((d) => d.id === dayId);
+        if (!live) {
+          dayId = "";
+        } else {
+          dayNameSnapshot = live.displayName;
+        }
       }
-    }
 
-    // Resolve current exercise names where possible.
-    const exerciseIds = [...new Set(sourceSets.map((s) => s.exerciseId))];
-    const resolved = await exerciseCacheRef.current.resolve(exerciseIds);
+      // Resolve current exercise names where possible.
+      const exerciseIds = [...new Set(sourceSets.map((s) => s.exerciseId))];
+      const resolved = await exerciseCacheRef.current.resolve(exerciseIds);
 
-    const date = dateFromInputValue(toDateInputValue());
-    const copySets = [...sourceSets]
-      .sort((a, b) => a.order - b.order)
-      .map((s, index) => {
-        const live = resolved.get(s.exerciseId);
-        return {
-          exerciseId: s.exerciseId,
-          exerciseNameSnapshot:
-            live?.exists && live.displayName
-              ? live.displayName
-              : s.exerciseNameSnapshot,
-          reps: s.reps,
-          weight: s.weight,
-          unit: s.unit,
-          order: index,
-        };
+      const date = dateFromInputValue(toDateInputValue());
+      const copySets = [...sourceSets]
+        .sort((a, b) => a.order - b.order)
+        .map((s, index) => {
+          const live = resolved.get(s.exerciseId);
+          return {
+            exerciseId: s.exerciseId,
+            exerciseNameSnapshot:
+              live?.exists && live.displayName
+                ? live.displayName
+                : s.exerciseNameSnapshot,
+            reps: s.reps,
+            weight: s.weight,
+            unit: s.unit,
+            order: index,
+          };
+        });
+
+      const { workoutId, setIds } = await dataAccess.workouts.copyWithSets({
+        workout: { date, dayId, dayNameSnapshot, note: "" },
+        sets: copySets,
       });
 
-    const { workoutId, setIds } = await dataAccess.workouts.copyWithSets({
-      workout: { date, dayId, dayNameSnapshot, note: "" },
-      sets: copySets,
-    });
-
-    const created: WorkoutRow = {
-      id: workoutId,
-      date,
-      dayId,
-      dayNameSnapshot,
-      note: "",
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-    const newSets: WorkoutSet[] = copySets.map((s, i) => ({
-      id: setIds[i]!,
-      workoutId,
-      exerciseId: s.exerciseId,
-      exerciseNameSnapshot: s.exerciseNameSnapshot,
-      reps: s.reps,
-      weight: s.weight,
-      unit: s.unit ?? "lbs",
-      note: "",
-      performedAt: date,
-      order: s.order,
-      createdAt: new Date(),
-    }));
-    setLocalOverride(created);
-    setSetsByWorkoutId((prev) => ({ ...prev, [workoutId]: newSets }));
-    setEditingId(workoutId);
-    requestAnimationFrame(() => {
-      document
-        .querySelector(`[data-workout-id="${workoutId}"]`)
-        ?.scrollIntoView({ behavior: "smooth", block: "start" });
-    });
+      const created: WorkoutRow = {
+        id: workoutId,
+        date,
+        dayId,
+        dayNameSnapshot,
+        note: "",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      const newSets: WorkoutSet[] = copySets.map((s, i) => ({
+        id: setIds[i]!,
+        workoutId,
+        exerciseId: s.exerciseId,
+        exerciseNameSnapshot: s.exerciseNameSnapshot,
+        reps: s.reps,
+        weight: s.weight,
+        unit: s.unit ?? "lbs",
+        note: "",
+        performedAt: date,
+        order: s.order,
+        createdAt: new Date(),
+      }));
+      setLocalOverride(created);
+      setSetsByWorkoutId((prev) => ({ ...prev, [workoutId]: newSets }));
+      setEditingId(workoutId);
+      requestAnimationFrame(() => {
+        document
+          .querySelector(`[data-workout-id="${workoutId}"]`)
+          ?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    } catch (err) {
+      setCopyError(
+        err instanceof Error ? err.message : "Couldn't copy workout"
+      );
+    } finally {
+      setMutating(false);
+    }
   }
 
   async function deleteWorkout(workout: WorkoutRow) {
@@ -402,6 +419,9 @@ export function WorkoutsPage({ mode }: { mode: "list" | "single" }) {
         setWorkouts((prev) =>
           prev.map((w) => (w.id === workout.id ? { ...w, dayId: "" } : w))
         );
+        setLocalOverride((prev) =>
+          prev?.id === workout.id ? { ...prev, dayId: "" } : prev
+        );
       } else {
         await getTemplatesForDay(workout.dayId);
       }
@@ -449,7 +469,9 @@ export function WorkoutsPage({ mode }: { mode: "list" | "single" }) {
           {mode === "list" ? (
             <div
               className={
-                editingId != null ? "pointer-events-none opacity-50" : ""
+                editingId != null || mutating
+                  ? "pointer-events-none opacity-50"
+                  : ""
               }
             >
               <SortToggleButton
@@ -458,7 +480,7 @@ export function WorkoutsPage({ mode }: { mode: "list" | "single" }) {
                 ascLabel="Oldest first"
                 descLabel="Newest first"
                 onChange={(next) => {
-                  if (editingId) return;
+                  if (editingId || mutating) return;
                   setSortOrder(next);
                   try {
                     localStorage.setItem(SORT_STORAGE_KEY, next);
@@ -473,7 +495,7 @@ export function WorkoutsPage({ mode }: { mode: "list" | "single" }) {
             <button
               type="button"
               onClick={() => void handleCreate()}
-              disabled={editingId != null}
+              disabled={editingId != null || mutating}
               className="flex min-h-[44px] items-center gap-1 rounded-xl bg-indigo-600 px-3 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
             >
               <IconPlus className="h-4 w-4" />
@@ -482,6 +504,12 @@ export function WorkoutsPage({ mode }: { mode: "list" | "single" }) {
           ) : null}
         </div>
       </div>
+
+      {copyError ? (
+        <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+          {copyError}
+        </p>
+      ) : null}
 
       {displayedWorkouts.length === 0 ? (
         <EmptyState
@@ -568,7 +596,7 @@ export function WorkoutsPage({ mode }: { mode: "list" | "single" }) {
                   dayLinkState={dayLinkState}
                   optionsSlot={
                     <WorkoutOptionsMenu
-                      disabled={editingId != null}
+                      disabled={editingId != null || mutating}
                       onEdit={() => void beginEdit(workout)}
                       onCopy={() => void handleCopy(workout)}
                       onDelete={() => requestDelete(workout)}
@@ -585,7 +613,7 @@ export function WorkoutsPage({ mode }: { mode: "list" | "single" }) {
         <div className="flex justify-center pt-2">
           <button
             type="button"
-            disabled={loadingMore || editingId != null}
+            disabled={loadingMore || editingId != null || mutating}
             onClick={() => {
               setLoadingMore(true);
               void loadListPage();
@@ -677,6 +705,7 @@ function EditingCard({
   dateRef.current = workout.date;
   const workoutRef = useRef(workout);
   workoutRef.current = workout;
+  const dayChangeGenRef = useRef(0);
   const onBusyChangeRef = useRef(onBusyChange);
   onBusyChangeRef.current = onBusyChange;
   const onSetsChangeRef = useRef(onSetsChange);
@@ -760,6 +789,7 @@ function EditingCard({
       days={days}
       queueStatus={editor.queueStatus}
       queueError={editor.queueError}
+      hasPendingDebounce={editor.hasPendingDebounce}
       hasInvalidDraft={editor.hasInvalidDraft}
       fillWarning={fillWarning}
       onDateChange={(date) => {
@@ -774,8 +804,10 @@ function EditingCard({
       }}
       onDayChange={(dayId) => {
         const day = dayId ? (days.find((d) => d.id === dayId) ?? null) : null;
+        const gen = ++dayChangeGenRef.current;
         void (async () => {
           const templates = day ? await getTemplatesForDay(day.id) : [];
+          if (gen !== dayChangeGenRef.current) return;
           editor.applyDaySelection(day, templates);
           const next = {
             ...workoutRef.current,

@@ -126,6 +126,7 @@ export function WorkoutCardEditor({
   days,
   queueStatus,
   queueError,
+  hasPendingDebounce,
   hasInvalidDraft,
   fillWarning,
   onDateChange,
@@ -151,6 +152,7 @@ export function WorkoutCardEditor({
   days: DayOption[];
   queueStatus: "idle" | "pending" | "failed";
   queueError: Error | null;
+  hasPendingDebounce: boolean;
   hasInvalidDraft: boolean;
   fillWarning?: string | null;
   onDateChange: (date: Date) => void;
@@ -408,7 +410,7 @@ export function WorkoutCardEditor({
 
       <div className="mt-4 flex flex-wrap items-center gap-3" data-no-dnd>
         <div className="min-h-[20px] flex-1 text-sm" aria-live="polite">
-          {queueStatus === "pending" ? (
+          {queueStatus === "pending" || hasPendingDebounce ? (
             <span className="text-slate-500">Saving…</span>
           ) : null}
           {queueStatus === "failed" ? (
@@ -423,7 +425,9 @@ export function WorkoutCardEditor({
               </button>
             </span>
           ) : null}
-          {queueStatus === "idle" && !hasInvalidDraft ? (
+          {queueStatus === "idle" &&
+          !hasPendingDebounce &&
+          !hasInvalidDraft ? (
             <span className="text-emerald-700">Saved</span>
           ) : null}
           {hasInvalidDraft ? (
