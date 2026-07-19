@@ -143,6 +143,43 @@ export function createWriteQueue() {
       failedCommandId = null;
       emit();
     },
+    /**
+     * Drop not-yet-started commands (including a failed command awaiting
+     * retry) and wait for any in-flight run to finish. Used when discarding
+     * an editor session before deleting the Workout.
+     */
+    async cancelPending(): Promise<void> {
+      queue.length = 0;
+      error = null;
+      failedCommandId = null;
+      if (!running) {
+        status = "idle";
+        emit();
+        return;
+      }
+      status = "pending";
+      emit();
+      await new Promise<void>((resolve) => {
+        const finish = () => {
+          queue.length = 0;
+          error = null;
+          failedCommandId = null;
+          status = "idle";
+          emit();
+          resolve();
+        };
+        const unsub = this.subscribe(() => {
+          if (!running) {
+            unsub();
+            finish();
+          }
+        });
+        if (!running) {
+          unsub();
+          finish();
+        }
+      });
+    },
   };
 }
 

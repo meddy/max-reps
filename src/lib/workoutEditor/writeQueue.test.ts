@@ -120,4 +120,58 @@ describe("createWriteQueue", () => {
     expect(order).toEqual(["fail"]);
     expect(q.getSnapshot().pendingCount).toBeGreaterThan(0);
   });
+
+  it("cancelPending drops queued work and waits for in-flight to finish", async () => {
+    const q = createWriteQueue();
+    const gate = defer<void>();
+    const ran: string[] = [];
+
+    q.enqueue({
+      id: "in-flight",
+      revision: 1,
+      label: "in-flight",
+      run: async () => {
+        await gate.promise;
+        ran.push("in-flight");
+      },
+    });
+    q.enqueue({
+      id: "queued",
+      revision: 2,
+      label: "queued",
+      run: async () => {
+        ran.push("queued");
+      },
+    });
+
+    await vi.waitFor(() => expect(q.getSnapshot().status).toBe("pending"));
+
+    const cancelPromise = q.cancelPending();
+    gate.resolve();
+    await cancelPromise;
+
+    expect(ran).toEqual(["in-flight"]);
+    expect(q.getSnapshot().status).toBe("idle");
+    expect(q.getSnapshot().pendingCount).toBe(0);
+  });
+
+  it("cancelPending clears a failed command without retrying it", async () => {
+    const q = createWriteQueue();
+    const run = vi.fn(async () => {
+      throw new Error("boom");
+    });
+    q.enqueue({
+      id: "fail",
+      revision: 1,
+      label: "fail",
+      run,
+    });
+    await vi.waitFor(() => expect(q.getSnapshot().status).toBe("failed"));
+
+    await q.cancelPending();
+
+    expect(q.getSnapshot().status).toBe("idle");
+    expect(q.getSnapshot().error).toBeNull();
+    expect(run).toHaveBeenCalledTimes(1);
+  });
 });

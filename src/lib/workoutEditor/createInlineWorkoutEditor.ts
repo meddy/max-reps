@@ -613,11 +613,26 @@ export function createInlineWorkoutEditor(config: InlineEditorConfig) {
       queue.retry();
       emit();
     },
+    /**
+     * Drop armed debounces and not-yet-started queue work, then wait for any
+     * in-flight write to finish. Call before deleting the Workout so Cancel
+     * cannot race with autosave (orphaned Sets) or flush-on-dispose.
+     */
+    async discardPendingWrites() {
+      for (const timer of debounceTimers.values()) {
+        clearTimeout(timer);
+      }
+      debounceTimers.clear();
+      emit();
+      await queue.cancelPending();
+      emit();
+    },
     dispose() {
       // Flush pending debounced reconciles into the queue and leave the queue
       // running so unmount (e.g. navigating away mid-autosave) does not drop
       // writes. Invalid drafts are skipped; already-queued meta/reconcile/etc.
-      // commands continue.
+      // commands continue. Prefer discardPendingWrites() before intentional
+      // delete so this path does not recreate Sets after the Workout is gone.
       enqueuePendingDebounces();
       if (queue.getSnapshot().status === "failed") {
         queue.retry();

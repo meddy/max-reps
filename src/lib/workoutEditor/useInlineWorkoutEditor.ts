@@ -48,6 +48,7 @@ export function useInlineWorkoutEditor(options: {
   setText: (localId: string, text: string) => void;
   flushDraft: (localId: string) => Promise<void>;
   flushAll: () => Promise<void>;
+  discardPendingWrites: () => Promise<void>;
   updateMeta: InlineWorkoutEditor["updateMeta"];
   addExercise: (exerciseId: string, name: string) => void;
   removeExercise: (localId: string) => void;
@@ -116,6 +117,7 @@ export function useInlineWorkoutEditor(options: {
     setText: (localId, text) => editor.setText(localId, text),
     flushDraft: (localId) => editor.flushDraft(localId),
     flushAll: () => editor.flushAll(),
+    discardPendingWrites: () => editor.discardPendingWrites(),
     updateMeta: (patch) => editor.updateMeta(patch),
     addExercise: (exerciseId, name) => editor.addExercise(exerciseId, name),
     removeExercise: (localId) => editor.removeExercise(localId),

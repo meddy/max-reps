@@ -86,13 +86,14 @@ function createEditor(opts?: {
   workout?: Workout & { id: string };
   sets?: WorkoutSet[];
   persistence?: InlineEditorPersistence;
+  debounceMs?: number;
 }) {
   return createInlineWorkoutEditor({
     workout: opts?.workout ?? workout({ id: "w1" }),
     sets: opts?.sets ?? [],
     persistence: opts?.persistence ?? stubPersistence(),
     getPerformedAt: () => now,
-    debounceMs: 10_000,
+    debounceMs: opts?.debounceMs ?? 10_000,
   });
 }
 
@@ -414,5 +415,69 @@ describe("reconcile live draft", () => {
         weight: s.weight,
       }))
     ).toEqual([{ reps: 5, weight: 230 }]);
+  });
+
+  it("discardPendingWrites drops debounced reconciles and queued work", async () => {
+    const gate = defer<void>();
+    const persistence = stubPersistence();
+    persistence.updateWorkout = vi.fn(() => gate.promise);
+    persistence.reconcileExercise = vi.fn(async () => ({
+      createdIds: ["s-new"],
+    }));
+
+    const editor = createEditor({
+      sets: [],
+      persistence,
+    });
+    editor.addExercise("bench", "Bench");
+    const localId = editor.getSnapshot().drafts[0]!.localId;
+
+    // Block the queue, then arm a debounced reconcile that would create Sets.
+    void editor.updateMeta({ note: "discard-me" });
+    editor.setText(localId, "225x5");
+    expect(editor.getSnapshot().hasPendingDebounce).toBe(true);
+
+    const discardPromise = editor.discardPendingWrites();
+    expect(editor.getSnapshot().hasPendingDebounce).toBe(false);
+
+    gate.resolve();
+    await discardPromise;
+
+    expect(persistence.reconcileExercise).not.toHaveBeenCalled();
+    expect(editor.getSnapshot().queueStatus).toBe("idle");
+
+    // dispose must not resurrect the discarded debounce.
+    editor.dispose();
+    await Promise.resolve();
+    expect(persistence.reconcileExercise).not.toHaveBeenCalled();
+  });
+
+  it("discardPendingWrites waits for in-flight reconcile then stays idle", async () => {
+    const gate = defer<void>();
+    const persistence = stubPersistence();
+    persistence.reconcileExercise = vi.fn(async () => {
+      await gate.promise;
+      return { createdIds: ["s1"] };
+    });
+
+    const editor = createEditor({
+      sets: [],
+      persistence,
+      debounceMs: 0,
+    });
+    editor.addExercise("bench", "Bench");
+    const localId = editor.getSnapshot().drafts[0]!.localId;
+    editor.setText(localId, "225x5");
+
+    await vi.waitFor(() =>
+      expect(persistence.reconcileExercise).toHaveBeenCalled()
+    );
+
+    const discardPromise = editor.discardPendingWrites();
+    gate.resolve();
+    await discardPromise;
+
+    expect(editor.getSnapshot().queueStatus).toBe("idle");
+    expect(editor.getSnapshot().drafts[0]!.setIds).toEqual(["s1"]);
   });
 });

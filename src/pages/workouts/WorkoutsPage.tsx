@@ -217,6 +217,7 @@ export function WorkoutsPage({ mode }: { mode: "list" | "single" }) {
   // Navigation / unload guard while editing with pending or invalid drafts.
   const guardRef = useRef({ editingId, busy: false });
   guardRef.current.editingId = editingId;
+  const editorDiscardRef = useRef<(() => Promise<void>) | null>(null);
 
   useEffect(() => {
     function onBeforeUnload(e: BeforeUnloadEvent) {
@@ -354,6 +355,11 @@ export function WorkoutsPage({ mode }: { mode: "list" | "single" }) {
   async function deleteWorkout(workout: WorkoutRow) {
     setDeleting(true);
     try {
+      // Settle the editor first so Cancel cannot race autosave / dispose-flush
+      // (which would orphan Sets after the Workout is deleted).
+      if (editingId === workout.id) {
+        await editorDiscardRef.current?.();
+      }
       await dataAccess.workouts.deleteWithSets(workout.id);
       setWorkouts((prev) => prev.filter((w) => w.id !== workout.id));
       setSetsByWorkoutId((prev) => {
@@ -498,6 +504,9 @@ export function WorkoutsPage({ mode }: { mode: "list" | "single" }) {
                     onBusyChange={(busy) => {
                       guardRef.current.busy = busy;
                     }}
+                    onRegisterDiscard={(discard) => {
+                      editorDiscardRef.current = discard;
+                    }}
                     onSetsChange={(sets) => {
                       setSetsByWorkoutId((prev) => ({
                         ...prev,
@@ -609,6 +618,7 @@ function EditingCard({
   onFillWarning,
   getTemplatesForDay,
   onBusyChange,
+  onRegisterDiscard,
   onSetsChange,
   onWorkoutChange,
   onConfirm,
@@ -632,6 +642,7 @@ function EditingCard({
     >
   >;
   onBusyChange: (busy: boolean) => void;
+  onRegisterDiscard: (discard: (() => Promise<void>) | null) => void;
   onSetsChange: (sets: WorkoutSet[]) => void;
   onWorkoutChange: (workout: WorkoutRow) => void;
   onConfirm: (workout: WorkoutRow) => Promise<void>;
@@ -672,6 +683,8 @@ function EditingCard({
   onSetsChangeRef.current = onSetsChange;
   const onWorkoutChangeRef = useRef(onWorkoutChange);
   onWorkoutChangeRef.current = onWorkoutChange;
+  const onRegisterDiscardRef = useRef(onRegisterDiscard);
+  onRegisterDiscardRef.current = onRegisterDiscard;
 
   const editor = useInlineWorkoutEditor({
     workout,
@@ -709,6 +722,14 @@ function EditingCard({
         editor.queueStatus === "failed"
     );
   }, [editor.hasInvalidDraft, editor.hasPendingDebounce, editor.queueStatus]);
+
+  useEffect(() => {
+    const discard = () => editor.discardPendingWrites();
+    onRegisterDiscardRef.current(discard);
+    return () => {
+      onRegisterDiscardRef.current(null);
+    };
+  }, [editor.editor]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     onSetsChangeRef.current(editor.editor.getCurrentSets());
